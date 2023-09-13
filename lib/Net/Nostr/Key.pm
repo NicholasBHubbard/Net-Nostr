@@ -11,8 +11,8 @@ sub new {
     my $class = shift;
     my $self = bless { @_ }, $class; # we can add more options later. For now its just 'privkey' and 'pubkey'
     $self->{_cryptpkecc} = Crypt::PK::ECC->new($self->{privkey} || $self->{pubkey} || ());
-    $self->_cryptpkecc->generate_key('secp256k1') unless $self->{privkey} || $self->{pubkey};
     delete @{$self}{qw(privkey pubkey)}; # keys are managed by Crypt::PK::ECC
+    $self->_cryptpkecc->generate_key('secp256k1') unless $self->pubkey_loaded;
     return $self;
 }
 

@@ -10,24 +10,20 @@ use File::Temp;
 
 use Net::Nostr::Key;
 
-my $TEST_KEY;
 my $CRYPTPKECC = Crypt::PK::ECC->new->generate_key('secp256k1');;
 
-$TEST_KEY = Net::Nostr::Key->new;
-ok($TEST_KEY->privkey_loaded, 'generates new key if constructed with no args');
+subtest 'new()' => sub {
+    my $key = Net::Nostr::Key->new;
+    ok($key->privkey_loaded, 'generates private key if not specified');
 
-$TEST_KEY = Net::Nostr::Key->new(privkey => \$CRYPTPKECC->export_key_der('private'));
-ok($TEST_KEY->privkey_loaded, q(loads private key from 'privkey' constructor arg));
-is($TEST_KEY->privkey_der, $CRYPTPKECC->export_key_der('private'), 'loads the correct key');
-is($TEST_KEY->pubkey_der, $CRYPTPKECC->export_key_der('public'), 'derives public key from private key');
+    $key = Net::Nostr::Key->new(privkey => \$CRYPTPKECC->export_key_der('private'));
+    is($key->privkey_der, $CRYPTPKECC->export_key_der('private'), 'specify private key from constructor');
+    ok($key->pubkey_loaded, 'automatically derives public key from private key');
 
-$TEST_KEY = do {
-    my $fh = File::Temp->new(TEMPLATE => 'Net-Nostr-Key.tXXXX', SUFFIX => '.der');
-    print $fh $CRYPTPKECC->export_key_der('private');
-    close $fh;
-    Net::Nostr::Key->new(privkey => "$fh");
+    $key = Net::Nostr::Key->new(pubkey => \$CRYPTPKECC->export_key_der('public'));
+    ok(($key->pubkey_loaded and not $key->privkey_loaded), 'load only a public key with \'pubkey\' constructor arg');
+
+    ok(dies { my $key = Net::Nostr::Key->new(privkey => 12) }, 'die if passed invalid constructor key');
 };
-is($TEST_KEY->privkey_der, $CRYPTPKECC->export_key_der('private'), 'loads Key From file');
 
-$TEST_KEY = Net::Nostr::Key->new(pubkey => \$CRYPTPKECC->export_key_der('public'));
-ok(($TEST_KEY->pubkey_loaded && not $TEST_KEY->privkey_loaded), q(loads public key from 'pubkey' constructor arg));
+done_testing;
