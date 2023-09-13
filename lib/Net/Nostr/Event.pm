@@ -30,7 +30,7 @@ sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
     $self->set_created_at(time())  unless $self->created_at;
-    $self->set_tags([])  unless $self->tags;
+    $self->set_tags([])            unless $self->tags;
     $self->set_id($self->_calc_id) unless $self->id;
     return $self;
 }
