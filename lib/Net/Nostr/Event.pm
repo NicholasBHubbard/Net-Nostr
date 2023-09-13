@@ -39,11 +39,11 @@ sub json_serialize {
     my $self = shift;
     my $json_serialized = JSON->new->utf8->encode([ # see how Perl is converted to JSON - https://metacpan.org/pod/JSON#PERL-%3E-JSON
         0,
-        $self->{pubkey} . '',
-        $self->{created_at} + 0,
-        $self->{kind} + 0,
-        $self->{tags} . '',
-        $self->{content} . ''
+        $self->pubkey . '',
+        $self->created_at + 0,
+        $self->kind + 0,
+        $self->tags . '',
+        $self->content . ''
     ]);
     return $json_serialized;
 }
