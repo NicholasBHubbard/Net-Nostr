@@ -4,6 +4,7 @@ use strictures 2;
 
 use Test2::V0 -no_srand => 1;
 # use Test2::Plugin::BailOnFail; # bail out of testing on the first failure
+use Clone 'clone';
 
 # use Net::Nostr;
 use Net::Nostr::Event;
@@ -28,7 +29,7 @@ subtest 'new()' => sub {
         sig => 'f5e5e8a477c6749ef8562c23cdfec7a6917c975ec55075489cb3319b8a2ccb78317335a6850fb3a3714777b1c22611419d6c81ce4b0b88db86e2d1662bb17540'
     );
 
-    is($event->id, $EVENT->id, 'automatically produces note id from constructor');
+    is($event->id, $EVENT->id, 'automatically produces note from constructor');
 
 };
 
@@ -59,6 +60,48 @@ subtest 'content()' => sub {
 
 subtest 'sig()' => sub {
     is($EVENT->sig, 'f5e5e8a477c6749ef8562c23cdfec7a6917c975ec55075489cb3319b8a2ccb78317335a6850fb3a3714777b1c22611419d6c81ce4b0b88db86e2d1662bb17540');
+};
+
+subtest 'set_id()' => sub {
+    my $event = clone($EVENT);
+    is($event->set_id(12), 12);
+    is($event->id, 12);
+};
+
+subtest 'set_pubkey()' => sub {
+    my $event = clone($EVENT);
+    is($event->set_pubkey(12), 12);
+    is($event->pubkey, 12);
+};
+
+subtest 'set_created_at()' => sub {
+    my $event = clone($EVENT);
+    is($event->set_created_at(12), 12);
+    is($event->created_at, 12);
+};
+
+subtest 'set_kind()' => sub {
+    my $event = clone($EVENT);
+    is($event->set_kind(12), 12);
+    is($event->kind, 12);
+};
+
+subtest 'set_tags()' => sub {
+    my $event = clone($EVENT);
+    is($event->set_tags(12), 12);
+    is($event->tags, 12);
+};
+
+subtest 'set_content()' => sub {
+    my $event = clone($EVENT);
+    is($event->set_content(12), 12);
+    is($event->content, 12);
+};
+
+subtest 'set_sig()' => sub {
+    my $event = clone($EVENT);
+    is($event->set_sig(12), 12);
+    is($event->sig, 12);
 };
 
 done_testing;
