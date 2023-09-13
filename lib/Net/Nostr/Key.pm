@@ -72,6 +72,18 @@ sub privkey_raw {
     return $raw;
 }
 
+sub pubkey_hex {
+    my ($self) = @_;
+    my $hex = sprintf '%x', $self->pubkey_raw;
+    return $hex;
+}
+
+sub privkey_hex {
+    my ($self) = @_;
+    my $hex = sprintf '%x', $self->privkey_raw;
+    return $hex;
+}
+
 sub _cryptpkecc { shift->{_cryptpkecc} }
 
 1;
