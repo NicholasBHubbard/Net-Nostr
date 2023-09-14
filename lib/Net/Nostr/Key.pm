@@ -16,6 +16,8 @@ sub new {
     return $self;
 }
 
+sub _cryptpkecc { shift->{_cryptpkecc} }
+
 sub constructor_keys { qw(privkey pubkey) }
 
 sub schnorr_sign {
@@ -85,8 +87,6 @@ sub privkey_hex {
     my $hex = sprintf '%x', $self->privkey_raw;
     return $hex;
 }
-
-sub _cryptpkecc { shift->{_cryptpkecc} }
 
 1;
 
