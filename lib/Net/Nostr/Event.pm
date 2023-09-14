@@ -36,7 +36,7 @@ sub new {
 }
 
 sub json_serialize {
-    my $self = shift;
+    my ($self) = @_;
     my $json_serialized = JSON->new->utf8->encode([ # see how Perl is converted to JSON - https://metacpan.org/pod/JSON#PERL-%3E-JSON
         0,
         $self->pubkey . '',
@@ -51,9 +51,8 @@ sub json_serialize {
 ### PRIVATE ###
 
 sub _calc_id {
-    my $self = shift;
-    my $json_serialized = $self->json_serialize;
-    my $id = Digest::SHA::sha256_hex($json_serialized);
+    my ($self) = @_;
+    my $id = Digest::SHA::sha256_hex($self->json_serialize);
     return $id;
 }
 
