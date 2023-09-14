@@ -16,6 +16,8 @@ sub new {
     return $self;
 }
 
+sub constructor_keys { qw(privkey pubkey) }
+
 sub schnorr_sign {
     my ($self, $msg) = @_;
     my $sig = Crypt::PK::ECC::Schnorr->new(\$self->privkey_der)->sign_message($msg);
