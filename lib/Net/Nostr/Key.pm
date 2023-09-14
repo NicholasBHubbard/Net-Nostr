@@ -25,7 +25,7 @@ sub schnorr_sign {
 sub privkey_loaded {
     my ($self) = @_;
     my $is_private = $self->_cryptpkecc->is_private;
-    return 1 if defined $is_private and $is_private;
+    return 1 if $is_private;
     return 0;
 }
 
