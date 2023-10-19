@@ -16,8 +16,6 @@ use Class::Tiny qw(
     sig
 );
 
-### API ###
-
 sub new { # pubkey, kind, content, and sig are required
     my $class = shift;
     my $self = bless { @_ }, $class;
