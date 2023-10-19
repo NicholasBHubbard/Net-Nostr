@@ -41,17 +41,4 @@ subtest 'new()' => sub {
 
 };
 
-subtest 'json_serialize()' => sub {
-    # these tests are based off results from python_nostr
-
-    my $event = Net::Nostr::Event->new(
-        content => $EVENT->content,
-        pubkey => $EVENT->pubkey,
-        kind => $EVENT->kind,
-        sig => $EVENT->sig,
-    );
-
-
-};
-
 done_testing;
