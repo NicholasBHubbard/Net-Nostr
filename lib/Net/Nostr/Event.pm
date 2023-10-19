@@ -2,9 +2,8 @@ package Net::Nostr::Event;
 
 use strictures 2;
 
-use Carp;
 use JSON;
-use Digest::SHA;
+use Digest::SHA qw(sha256_hex);
 
 use Class::Tiny qw(
     id
@@ -50,7 +49,7 @@ sub add_event_ref {
 
 sub _calc_id {
     my ($self) = @_;
-    my $id = Digest::SHA::sha256_hex($self->json_serialize);
+    my $id = sha256_hex($self->json_serialize);
     return $id;
 }
 
