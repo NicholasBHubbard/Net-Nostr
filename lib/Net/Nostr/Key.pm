@@ -20,7 +20,7 @@ sub _cryptpkecc { shift->{_cryptpkecc} }
 
 sub constructor_keys { qw(privkey pubkey) }
 
-sub schnorr_sign {
+sub schnorr_sign { # TODO: test schnorr_sign()
     my ($self, $msg) = @_;
     my $sig = Crypt::PK::ECC::Schnorr->new(\$self->privkey_der)->sign_message($msg);
     return $sig;
