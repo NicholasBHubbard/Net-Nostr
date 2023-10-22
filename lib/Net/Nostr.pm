@@ -10,7 +10,7 @@ use Crypt::PK::ECC::Schnorr;
 sub new {
     my $class = shift;
     my $self = bless {}, $class;
-    $self->{_args} = { @_ };
+    $self->{_constructor_args} = { @_ };
     $self->{_key} = Net::Nostr::Key->new($self->key_args);
     return $self;
 }
@@ -26,7 +26,7 @@ sub sign_event {
 
 sub key_args {
     my ($self) = @_;
-    my %args = %{ $self->{_args} };
+    my %args = %{ $self->{_constructor_args} };
     my %key_args;
     my @key_args = $self->key->constructor_keys;
     for my $k (keys %args) {
