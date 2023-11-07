@@ -15,7 +15,7 @@ my $CRYPTPKECC = Crypt::PK::ECC->new->generate_key('secp256k1');;
 
 subtest 'new()' => sub {
     my $key = Net::Nostr::Key->new;
-    ok($key->privkey_loaded, 'generates private key if not specified');
+    ok($key->privkey_loaded, 'automatically generates new private key');
 
     $key = Net::Nostr::Key->new(privkey => \$CRYPTPKECC->export_key_der('private'));
     is($key->privkey_der, $CRYPTPKECC->export_key_der('private'), 'specify private key from constructor');
