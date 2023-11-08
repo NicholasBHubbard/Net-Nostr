@@ -6,7 +6,6 @@ use Net::Nostr::Event;
 
 use Crypt::PK::ECC;
 use Crypt::PK::ECC::Schnorr;
-use Bitcoin::Crypto::Bech32 qw(encode_bech32);
 
 sub new {
     my $class = shift;
@@ -87,18 +86,6 @@ sub privkey_hex {
     my ($self) = @_;
     my $hex = pack 'H*', $self->privkey_raw;
     return $hex;
-}
-
-sub pubkey_bech32 {
-    my ($self) = @_;
-    my $pubkey_bech32 = encode_bech32($self->pubkey_hex);
-    return $pubkey_bech32;
-}
-
-sub privkey_bech32 {
-    my ($self) = @_;
-    my $privkey_bech32 = encode_bech32($self->privkey_hex);
-    return $privkey_bech32;
 }
 
 1;
