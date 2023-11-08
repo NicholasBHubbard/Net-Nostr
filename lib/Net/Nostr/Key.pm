@@ -79,13 +79,13 @@ sub privkey_raw {
 
 sub pubkey_hex {
     my ($self) = @_;
-    my $hex = sprintf '%x', $self->pubkey_raw;
+    my $hex = pack 'H*', $self->pubkey_raw;
     return $hex;
 }
 
 sub privkey_hex {
     my ($self) = @_;
-    my $hex = sprintf '%x', $self->privkey_raw;
+    my $hex = pack 'H*', $self->privkey_raw;
     return $hex;
 }
 
