@@ -2,8 +2,6 @@ package Net::Nostr::Key;
 
 use strictures 2;
 
-use Net::Nostr::Event;
-
 use Crypt::PK::ECC;
 use Crypt::PK::ECC::Schnorr;
 
