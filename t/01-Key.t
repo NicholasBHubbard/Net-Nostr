@@ -27,4 +27,14 @@ subtest 'new()' => sub {
     ok(dies { my $key = Net::Nostr::Key->new(privkey => 12) }, 'die if passed invalid constructor key');
 };
 
+subtest 'schnorr_sign()' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $msg = 'test message';
+    my $sig = $key->schnorr_sign($msg);
+    ok($sig, 'returns a signature');
+
+    my $verifier = Crypt::PK::ECC::Schnorr->new(\$key->pubkey_der);
+    ok($verifier->verify_message($msg, $sig), 'signature verifies with public key');
+};
+
 done_testing;
