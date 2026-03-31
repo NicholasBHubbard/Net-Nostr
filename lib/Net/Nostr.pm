@@ -28,7 +28,7 @@ sub key_args {
     my ($self) = @_;
     my %args = %{ $self->{_constructor_args} };
     my %key_args;
-    my @key_args = $self->key->constructor_keys;
+    my @key_args = Net::Nostr::Key->constructor_keys;
     for my $k (keys %args) {
         $key_args{$k} = $args{$k} if grep { $_ eq $k } @key_args;
     }
