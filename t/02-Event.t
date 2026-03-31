@@ -41,4 +41,18 @@ subtest 'new()' => sub {
 
 };
 
+subtest 'json_serialize()' => sub {
+    my $event = Net::Nostr::Event->new(
+        content => 'hello',
+        pubkey => '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+        kind => 1,
+        sig => '',
+        created_at => 1673361254,
+        tags => [['p', 'abc123'], ['e', 'def456']]
+    );
+    my $json = $event->json_serialize;
+    my $decoded = JSON::decode_json($json);
+    is($decoded->[4], [['p', 'abc123'], ['e', 'def456']], 'tags serialize as array of arrays');
+};
+
 done_testing;

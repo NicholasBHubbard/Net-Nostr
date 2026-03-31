@@ -31,7 +31,7 @@ sub json_serialize {
         $self->pubkey . '',
         $self->created_at + 0,
         $self->kind + 0,
-        [ map { $_ . '' } @{$self->tags} ],
+        $self->tags,
         $self->content . ''
     ]);
     return $json_serialized;
