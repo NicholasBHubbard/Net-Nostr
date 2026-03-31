@@ -78,13 +78,13 @@ sub privkey_raw {
 
 sub pubkey_hex {
     my ($self) = @_;
-    my $hex = pack 'H*', $self->pubkey_raw;
+    my $hex = unpack 'H*', $self->pubkey_raw;
     return $hex;
 }
 
 sub privkey_hex {
     my ($self) = @_;
-    my $hex = pack 'H*', $self->privkey_raw;
+    my $hex = unpack 'H*', $self->privkey_raw;
     return $hex;
 }
 
