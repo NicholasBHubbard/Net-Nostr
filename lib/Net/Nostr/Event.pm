@@ -39,12 +39,12 @@ sub json_serialize {
 
 sub add_pubkey_ref {
     my ($self, $pubkey) = @_;
-    $self->tags([$self->tags, ['p', $pubkey]]);
+    $self->tags([@{$self->tags}, ['p', $pubkey]]);
 }
 
 sub add_event_ref {
     my ($self, $event_id) = @_;
-    $self->tags([$self->tags, ['e', $event_id]]);
+    $self->tags([@{$self->tags}, ['e', $event_id]]);
 }
 
 sub _calc_id {

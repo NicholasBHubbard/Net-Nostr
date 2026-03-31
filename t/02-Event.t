@@ -55,4 +55,30 @@ subtest 'json_serialize()' => sub {
     is($decoded->[4], [['p', 'abc123'], ['e', 'def456']], 'tags serialize as array of arrays');
 };
 
+subtest 'add_pubkey_ref()' => sub {
+    my $event = Net::Nostr::Event->new(
+        content => 'hello',
+        pubkey => 'abc',
+        kind => 1,
+        sig => '',
+        created_at => 1673361254,
+        tags => [['e', 'event1']]
+    );
+    $event->add_pubkey_ref('pubkey1');
+    is($event->tags, [['e', 'event1'], ['p', 'pubkey1']], 'appends p tag without nesting');
+};
+
+subtest 'add_event_ref()' => sub {
+    my $event = Net::Nostr::Event->new(
+        content => 'hello',
+        pubkey => 'abc',
+        kind => 1,
+        sig => '',
+        created_at => 1673361254,
+        tags => [['p', 'pubkey1']]
+    );
+    $event->add_event_ref('event1');
+    is($event->tags, [['p', 'pubkey1'], ['e', 'event1']], 'appends e tag without nesting');
+};
+
 done_testing;
