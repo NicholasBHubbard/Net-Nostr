@@ -5,8 +5,6 @@ use strictures 2;
 use Net::Nostr::Key;
 use Net::Nostr::Event;
 
-use Crypt::PK::ECC::Schnorr;
-
 sub new {
     my $class = shift;
     my $self = bless {}, $class;
