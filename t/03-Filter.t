@@ -178,13 +178,20 @@ subtest '#p tag filter matches' => sub {
 
 subtest 'tag filter checks first value only' => sub {
     my $eid = 'cc' x 32;
+    my $other_eid = 'ee' x 32;
     my $event = Net::Nostr::Event->new(%BASE_EVENT,
         tags => [['e', $eid, 'wss://relay.example.com']]);
     my $filter = Net::Nostr::Filter->new('#e' => [$eid]);
     ok($filter->matches($event), 'first value indexed');
 
-    my $filter2 = Net::Nostr::Filter->new('#e' => ['wss://relay.example.com']);
-    ok(!$filter2->matches($event), 'non-first value not indexed');
+    my $filter2 = Net::Nostr::Filter->new('#e' => [$other_eid]);
+    ok(!$filter2->matches($event), 'non-matching id rejected');
+
+    # relay URL in third position is not indexed (use #t for arbitrary values)
+    my $event2 = Net::Nostr::Event->new(%BASE_EVENT,
+        tags => [['t', 'wss://relay.example.com', 'extra']]);
+    my $filter3 = Net::Nostr::Filter->new('#t' => ['extra']);
+    ok(!$filter3->matches($event2), 'non-first value not indexed');
 };
 
 subtest 'tag filter matches if any event tag matches any filter value' => sub {
@@ -260,6 +267,43 @@ subtest 'to_hash omits undef fields' => sub {
     ok(!exists $h->{until}, 'until omitted');
     ok(!exists $h->{limit}, 'limit omitted');
     is($h->{kinds}, [1], 'kinds present');
+};
+
+###############################################################################
+# Validation: ids, authors, #e, #p must be 64-char lowercase hex
+###############################################################################
+
+subtest 'ids rejects non-64-char-lowercase-hex' => sub {
+    ok(dies { Net::Nostr::Filter->new(ids => ['short']) }, 'too short');
+    ok(dies { Net::Nostr::Filter->new(ids => ['AA' x 32]) }, 'uppercase rejected');
+    ok(dies { Net::Nostr::Filter->new(ids => ['gg' x 32]) }, 'non-hex rejected');
+    ok(dies { Net::Nostr::Filter->new(ids => ['aa' x 33]) }, 'too long');
+    ok(lives { Net::Nostr::Filter->new(ids => ['aa' x 32]) }, 'valid id accepted');
+    ok(lives { Net::Nostr::Filter->new(ids => ['aa' x 32, 'bb' x 32]) }, 'multiple valid ids accepted');
+    ok(dies { Net::Nostr::Filter->new(ids => ['aa' x 32, 'short']) }, 'one invalid in list rejects');
+};
+
+subtest 'authors rejects non-64-char-lowercase-hex' => sub {
+    ok(dies { Net::Nostr::Filter->new(authors => ['short']) }, 'too short');
+    ok(dies { Net::Nostr::Filter->new(authors => ['AA' x 32]) }, 'uppercase rejected');
+    ok(lives { Net::Nostr::Filter->new(authors => ['aa' x 32]) }, 'valid author accepted');
+};
+
+subtest '#e rejects non-64-char-lowercase-hex' => sub {
+    ok(dies { Net::Nostr::Filter->new('#e' => ['short']) }, 'too short');
+    ok(dies { Net::Nostr::Filter->new('#e' => ['AA' x 32]) }, 'uppercase rejected');
+    ok(lives { Net::Nostr::Filter->new('#e' => ['aa' x 32]) }, 'valid #e accepted');
+};
+
+subtest '#p rejects non-64-char-lowercase-hex' => sub {
+    ok(dies { Net::Nostr::Filter->new('#p' => ['short']) }, 'too short');
+    ok(dies { Net::Nostr::Filter->new('#p' => ['AA' x 32]) }, 'uppercase rejected');
+    ok(lives { Net::Nostr::Filter->new('#p' => ['aa' x 32]) }, 'valid #p accepted');
+};
+
+subtest 'other tag filters do not require hex' => sub {
+    ok(lives { Net::Nostr::Filter->new('#t' => ['nostr']) }, '#t accepts arbitrary strings');
+    ok(lives { Net::Nostr::Filter->new('#r' => ['https://example.com']) }, '#r accepts URLs');
 };
 
 done_testing;

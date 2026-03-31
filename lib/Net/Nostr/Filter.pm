@@ -2,8 +2,17 @@ package Net::Nostr::Filter;
 
 use strictures 2;
 
-my @SCALAR_FIELDS = qw(since until limit);
-my @LIST_FIELDS   = qw(ids authors kinds);
+my @SCALAR_FIELDS  = qw(since until limit);
+my @LIST_FIELDS    = qw(ids authors kinds);
+my %HEX64_REQUIRED = map { $_ => 1 } qw(ids authors e p);
+
+sub _validate_hex64 {
+    my ($field, $values) = @_;
+    for my $v (@$values) {
+        die "$field: '$v' is not 64-char lowercase hex\n"
+            unless $v =~ /^[0-9a-f]{64}$/;
+    }
+}
 
 sub new {
     my $class = shift;
@@ -14,12 +23,16 @@ sub new {
         $self->{$f} = $args{$f} if exists $args{$f};
     }
     for my $f (@LIST_FIELDS) {
-        $self->{$f} = $args{$f} if exists $args{$f};
+        if (exists $args{$f}) {
+            _validate_hex64($f, $args{$f}) if $HEX64_REQUIRED{$f};
+            $self->{$f} = $args{$f};
+        }
     }
 
     # extract #<letter> tag filters
     for my $k (keys %args) {
         if ($k =~ /^#([a-zA-Z])$/) {
+            _validate_hex64("#$1", $args{$k}) if $HEX64_REQUIRED{$1};
             $self->{_tag_filters}{$1} = $args{$k};
         }
     }
