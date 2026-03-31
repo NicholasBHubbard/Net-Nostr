@@ -76,8 +76,9 @@ sub privkey_raw {
 
 sub pubkey_hex {
     my ($self) = @_;
-    my $hex = unpack 'H*', $self->pubkey_raw;
-    return $hex;
+    my $raw = $self->pubkey_raw;
+    my $x = substr($raw, 1, 32); # skip 04 prefix, take x-only (BIP-340)
+    return unpack 'H*', $x;
 }
 
 sub privkey_hex {

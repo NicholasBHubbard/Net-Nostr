@@ -18,7 +18,7 @@ sub key { shift->{_key} }
 sub sign_event {
     my ($self, $event) = @_;
     my $sig = $self->key->schnorr_sign($event->id);
-    $event->set_sig($sig);
+    $event->sig($sig);
     return $sig;
 }
 
