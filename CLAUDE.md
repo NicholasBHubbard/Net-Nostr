@@ -20,7 +20,7 @@ The `nips/` directory is gitignored. Read the relevant NIP file (e.g. `nips/01.m
 
 All modules must `use strictures 2;`.
 
-All public functions (those not prefixed with `_`) must have POD documentation. When modifying a public function, check its POD and update it to reflect the changes.
+All public functions (those not prefixed with `_`) must have POD documentation. When modifying a public function, check its POD and update it to reflect the changes. POD should be rich in code examples. Every code example in POD must have a corresponding test, since users are very likely to copy and run examples directly.
 
 The library uses OO design. Always use `Class::Tiny` for accessor generation, with a custom `new()` constructor (do not use `BUILD`).
 
