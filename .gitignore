@@ -2,3 +2,9 @@
 /local
 /.agent-shell/
 /nips/
+/Makefile.old
+/*.tar.gz
+/MANIFEST
+/MYMETA.yml
+/MYMETA.json
+/Makefile

@@ -1,0 +1,13 @@
+# Skip everything not in lib/ or t/, except explicitly listed files
+^(?!lib/)(?!t/)(?!Makefile\.PL$)(?!MANIFEST$)(?!cpanfile$)(?!Changes$)(?!LICENSE$)
+
+# Standard build/VCS artifacts
+\.git/
+\.bak$
+\.old$
+\.swp$
+~$
+^blib/
+^Makefile$
+^pm_to_blib
+^MYMETA\.
