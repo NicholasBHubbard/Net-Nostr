@@ -6,6 +6,12 @@ Absolute compliance with supported NIPs is the highest priority for this library
 
 ## Development
 
+The complete Nostr spec can be cloned into the project for direct reference:
+
+    git clone https://github.com/nostr-protocol/nips.git nips/
+
+The `nips/` directory is gitignored. Read the relevant NIP file (e.g. `nips/01.md`) when implementing or testing against the spec.
+
 Follow TDD strictly: write tests first, run them to confirm they fail, then implement until they pass. Put great effort into making tests complete — cover edge cases, error conditions, and every MUST/SHOULD in the relevant NIP spec.
 
 Implement every MAY in a spec unless there's good reason not to. Pick sane defaults (e.g. unlimited, disabled) so MAY features are opt-in without breaking existing behavior.
@@ -13,12 +19,6 @@ Implement every MAY in a spec unless there's good reason not to. Pick sane defau
 When naming things, always try to match terminology from the spec.
 
 Each supported NIP has a dedicated conformance test file in `t/nip/` (e.g. `t/nip/01.t`). Unit tests for individual modules live in `t/` numbered by module.
-
-The complete Nostr spec can be cloned into the project for direct reference:
-
-    git clone https://github.com/nostr-protocol/nips.git nips/
-
-The `nips/` directory is gitignored. Read the relevant NIP file (e.g. `nips/01.md`) when implementing or testing against the spec.
 
 The POD in `lib/Net/Nostr.pm` has a list of supported NIPs. Update it when adding support for a new NIP.
 
