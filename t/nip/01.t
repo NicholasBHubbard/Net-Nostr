@@ -15,6 +15,8 @@ use TestFixtures qw(%FIATJAF_EVENT);
 use Net::Nostr;
 use Net::Nostr::Key;
 use Net::Nostr::Event;
+use Net::Nostr::Filter;
+use Net::Nostr::Message;
 
 ###############################################################################
 # Events and signatures
@@ -332,42 +334,36 @@ subtest 'kind 0 is user metadata (replaceable)' => sub {
 ###############################################################################
 
 subtest 'EVENT message format' => sub {
-    # ["EVENT", <event JSON>]
     my $event = Net::Nostr::Event->new(%FIATJAF_EVENT);
-    my $msg = JSON->new->utf8->encode(['EVENT', {
-        id => $event->id,
-        pubkey => $event->pubkey,
-        created_at => $event->created_at,
-        kind => $event->kind,
-        tags => $event->tags,
-        content => $event->content,
-        sig => $event->sig
-    }]);
-    my $decoded = JSON::decode_json($msg);
+    my $json = Net::Nostr::Message::event_msg($event);
+    my $decoded = JSON::decode_json($json);
     is($decoded->[0], 'EVENT', 'first element is EVENT');
     is(ref($decoded->[1]), 'HASH', 'second element is event object');
     is($decoded->[1]{id}, $FIATJAF_EVENT{id}, 'event id present');
+    is(scalar @$decoded, 2, 'client EVENT has 2 elements');
 };
 
 subtest 'REQ message format' => sub {
-    # ["REQ", <subscription_id>, <filters>...]
-    my $msg = JSON->new->utf8->encode(['REQ', 'sub1', {
+    my $filter = Net::Nostr::Filter->new(
         kinds => [1],
         authors => ['3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d'],
         limit => 10
-    }]);
-    my $decoded = JSON::decode_json($msg);
+    );
+    my $json = Net::Nostr::Message::req_msg('sub1', $filter);
+    my $decoded = JSON::decode_json($json);
     is($decoded->[0], 'REQ', 'first element is REQ');
     is($decoded->[1], 'sub1', 'second element is subscription id');
     is(ref($decoded->[2]), 'HASH', 'third element is filter object');
+    is($decoded->[2]{kinds}, [1], 'filter kinds');
+    is($decoded->[2]{limit}, 10, 'filter limit');
 };
 
 subtest 'CLOSE message format' => sub {
-    # ["CLOSE", <subscription_id>]
-    my $msg = JSON->new->utf8->encode(['CLOSE', 'sub1']);
-    my $decoded = JSON::decode_json($msg);
+    my $json = Net::Nostr::Message::close_msg('sub1');
+    my $decoded = JSON::decode_json($json);
     is($decoded->[0], 'CLOSE', 'first element is CLOSE');
     is($decoded->[1], 'sub1', 'second element is subscription id');
+    is(scalar @$decoded, 2, 'CLOSE has exactly 2 elements');
 };
 
 ###############################################################################
@@ -375,73 +371,66 @@ subtest 'CLOSE message format' => sub {
 ###############################################################################
 
 subtest 'relay EVENT message format' => sub {
-    # ["EVENT", <subscription_id>, <event JSON>]
-    my $msg = JSON->new->utf8->encode(['EVENT', 'sub1', {
-        id => $FIATJAF_EVENT{id},
-        pubkey => $FIATJAF_EVENT{pubkey},
-        created_at => $FIATJAF_EVENT{created_at},
-        kind => $FIATJAF_EVENT{kind},
-        tags => $FIATJAF_EVENT{tags},
-        content => $FIATJAF_EVENT{content},
-        sig => $FIATJAF_EVENT{sig}
-    }]);
-    my $decoded = JSON::decode_json($msg);
-    is($decoded->[0], 'EVENT', 'first element is EVENT');
-    is($decoded->[1], 'sub1', 'second element is subscription id');
-    is(ref($decoded->[2]), 'HASH', 'third element is event object');
+    my $event = Net::Nostr::Event->new(%FIATJAF_EVENT);
+    my $raw = JSON->new->utf8->encode(['EVENT', 'sub1', $event->to_hash]);
+    my $msg = Net::Nostr::Message::parse($raw);
+    is($msg->{type}, 'EVENT', 'type is EVENT');
+    is($msg->{subscription_id}, 'sub1', 'subscription id');
+    is(ref($msg->{event}), 'Net::Nostr::Event', 'event is a Net::Nostr::Event');
+    is($msg->{event}->id, $FIATJAF_EVENT{id}, 'event id preserved');
 };
 
 subtest 'OK message format' => sub {
-    # ["OK", <event_id>, <true|false>, <message>]
+    my $eid = 'b1a649ebe8' . ('0' x 54);
     my @cases = (
-        ['OK', 'b1a649ebe8' . ('0' x 54), JSON::true,  ''],
-        ['OK', 'b1a649ebe8' . ('0' x 54), JSON::true,  'duplicate: already have this event'],
-        ['OK', 'b1a649ebe8' . ('0' x 54), JSON::false, 'blocked: you are banned from posting here'],
-        ['OK', 'b1a649ebe8' . ('0' x 54), JSON::false, 'rate-limited: slow down there chief'],
-        ['OK', 'b1a649ebe8' . ('0' x 54), JSON::false, 'invalid: event creation date is too far off'],
-        ['OK', 'b1a649ebe8' . ('0' x 54), JSON::false, 'error: could not connect to the database'],
+        [JSON::true,  '',                                          1, undef],
+        [JSON::true,  'duplicate: already have this event',        1, 'duplicate'],
+        [JSON::false, 'blocked: you are banned from posting here', 0, 'blocked'],
+        [JSON::false, 'rate-limited: slow down there chief',       0, 'rate-limited'],
+        [JSON::false, 'invalid: event creation date is too far off', 0, 'invalid'],
+        [JSON::false, 'error: could not connect to the database',  0, 'error'],
     );
     for my $case (@cases) {
-        my $msg = JSON->new->utf8->encode($case);
-        my $decoded = JSON::decode_json($msg);
-        is($decoded->[0], 'OK', 'first element is OK');
-        is(length($decoded->[1]), 64, 'event_id is 64 chars');
-        ok(JSON::is_bool($decoded->[2]), 'third element is boolean');
-        ok(defined $decoded->[3], 'fourth element (message) is present');
+        my $raw = JSON->new->utf8->encode(['OK', $eid, $case->[0], $case->[1]]);
+        my $msg = Net::Nostr::Message::parse($raw);
+        is($msg->{type}, 'OK', 'type is OK');
+        is($msg->{event_id}, $eid, 'event_id');
+        is($msg->{accepted}, $case->[2], 'accepted flag');
+        is($msg->{prefix}, $case->[3], 'prefix extracted');
     }
 };
 
 subtest 'OK message prefixes are standardized' => sub {
-    my @valid_prefixes = qw(duplicate pow blocked rate-limited invalid restricted mute error);
-    for my $prefix (@valid_prefixes) {
-        my $msg = "$prefix: some human-readable message";
-        like($msg, qr/^[a-z-]+: /, "prefix '$prefix' matches machine-readable format");
+    my $eid = 'aa' x 32;
+    my @prefixes = qw(duplicate pow blocked rate-limited invalid restricted mute error);
+    for my $prefix (@prefixes) {
+        my $raw = JSON->new->utf8->encode(['OK', $eid, JSON::false, "$prefix: details"]);
+        my $msg = Net::Nostr::Message::parse($raw);
+        is($msg->{prefix}, $prefix, "prefix '$prefix' extracted");
     }
 };
 
 subtest 'EOSE message format' => sub {
-    # ["EOSE", <subscription_id>]
-    my $msg = JSON->new->utf8->encode(['EOSE', 'sub1']);
-    my $decoded = JSON::decode_json($msg);
-    is($decoded->[0], 'EOSE', 'first element is EOSE');
-    is($decoded->[1], 'sub1', 'second element is subscription id');
+    my $raw = JSON->new->utf8->encode(['EOSE', 'sub1']);
+    my $msg = Net::Nostr::Message::parse($raw);
+    is($msg->{type}, 'EOSE', 'type is EOSE');
+    is($msg->{subscription_id}, 'sub1', 'subscription id');
 };
 
 subtest 'CLOSED message format' => sub {
-    # ["CLOSED", <subscription_id>, <message>]
-    my $msg = JSON->new->utf8->encode(['CLOSED', 'sub1', 'error: shutting down idle subscription']);
-    my $decoded = JSON::decode_json($msg);
-    is($decoded->[0], 'CLOSED', 'first element is CLOSED');
-    is($decoded->[1], 'sub1', 'second element is subscription id');
-    like($decoded->[2], qr/^[a-z-]+: /, 'third element has machine-readable prefix');
+    my $raw = JSON->new->utf8->encode(['CLOSED', 'sub1', 'error: shutting down idle subscription']);
+    my $msg = Net::Nostr::Message::parse($raw);
+    is($msg->{type}, 'CLOSED', 'type is CLOSED');
+    is($msg->{subscription_id}, 'sub1', 'subscription id');
+    is($msg->{message}, 'error: shutting down idle subscription', 'full message');
+    is($msg->{prefix}, 'error', 'prefix extracted');
 };
 
 subtest 'NOTICE message format' => sub {
-    # ["NOTICE", <message>]
-    my $msg = JSON->new->utf8->encode(['NOTICE', 'this is a notice']);
-    my $decoded = JSON::decode_json($msg);
-    is($decoded->[0], 'NOTICE', 'first element is NOTICE');
-    ok(defined $decoded->[1], 'second element is message');
+    my $raw = JSON->new->utf8->encode(['NOTICE', 'this is a notice']);
+    my $msg = Net::Nostr::Message::parse($raw);
+    is($msg->{type}, 'NOTICE', 'type is NOTICE');
+    is($msg->{message}, 'this is a notice', 'message preserved');
 };
 
 ###############################################################################
@@ -449,7 +438,7 @@ subtest 'NOTICE message format' => sub {
 ###############################################################################
 
 subtest 'filter with all fields' => sub {
-    my $filter = {
+    my $filter = Net::Nostr::Filter->new(
         ids => ['aaa' . ('0' x 61)],
         authors => ['bbb' . ('0' x 61)],
         kinds => [1, 2],
@@ -458,52 +447,54 @@ subtest 'filter with all fields' => sub {
         since => 1673361254,
         until => 1673361999,
         limit => 100
-    };
-    my $json = JSON->new->utf8->encode($filter);
-    my $decoded = JSON::decode_json($json);
+    );
+    my $h = $filter->to_hash;
 
-    is(ref($decoded->{ids}), 'ARRAY', 'ids is array');
-    is(ref($decoded->{authors}), 'ARRAY', 'authors is array');
-    is(ref($decoded->{kinds}), 'ARRAY', 'kinds is array');
-    is(ref($decoded->{'#e'}), 'ARRAY', '#e is array');
-    is(ref($decoded->{'#p'}), 'ARRAY', '#p is array');
-    ok($decoded->{since} > 0, 'since is positive integer');
-    ok($decoded->{until} >= $decoded->{since}, 'until >= since');
-    ok($decoded->{limit} > 0, 'limit is positive integer');
+    is(ref($h->{ids}), 'ARRAY', 'ids is array');
+    is(ref($h->{authors}), 'ARRAY', 'authors is array');
+    is(ref($h->{kinds}), 'ARRAY', 'kinds is array');
+    is(ref($h->{'#e'}), 'ARRAY', '#e is array');
+    is(ref($h->{'#p'}), 'ARRAY', '#p is array');
+    is($h->{since}, 1673361254, 'since preserved');
+    is($h->{until}, 1673361999, 'until preserved');
+    is($h->{limit}, 100, 'limit preserved');
 };
 
 subtest 'filter ids and authors must be 64-char lowercase hex' => sub {
-    my $valid_id = 'a' x 64;
-    like($valid_id, qr/^[0-9a-f]{64}$/, 'valid id is 64 lowercase hex chars');
-
-    my $valid_author = 'b' x 64;
-    like($valid_author, qr/^[0-9a-f]{64}$/, 'valid author is 64 lowercase hex chars');
+    ok(lives { Net::Nostr::Filter->new(ids => ['a' x 64]) }, 'valid 64-char hex id accepted');
+    ok(lives { Net::Nostr::Filter->new(authors => ['b' x 64]) }, 'valid 64-char hex author accepted');
+    ok(dies { Net::Nostr::Filter->new(ids => ['short']) }, 'short id rejected');
+    ok(dies { Net::Nostr::Filter->new(authors => ['ABCD' x 16]) }, 'uppercase hex author rejected');
+    ok(dies { Net::Nostr::Filter->new('#e' => ['xyz']) }, 'invalid #e value rejected');
+    ok(dies { Net::Nostr::Filter->new('#p' => ['xyz']) }, 'invalid #p value rejected');
 };
 
 subtest 'subscription_id constraints' => sub {
-    # non-empty string, max 64 chars
-    my $sub_id = 'my-subscription-1';
-    ok(length($sub_id) > 0, 'subscription id is non-empty');
-    ok(length($sub_id) <= 64, 'subscription id is <= 64 chars');
-
-    my $max_sub_id = 'x' x 64;
-    ok(length($max_sub_id) <= 64, 'max length subscription id is valid');
+    my $f = Net::Nostr::Filter->new(kinds => [1]);
+    ok(lives { Net::Nostr::Message::req_msg('my-subscription-1', $f) }, 'normal sub id accepted');
+    ok(lives { Net::Nostr::Message::req_msg('x' x 64, $f) }, 'max length sub id accepted');
+    ok(lives { Net::Nostr::Message::req_msg('a', $f) }, 'single char sub id accepted');
+    ok(dies { Net::Nostr::Message::req_msg('', $f) }, 'empty sub id rejected');
+    ok(dies { Net::Nostr::Message::req_msg('x' x 65, $f) }, 'sub id > 64 chars rejected');
 };
 
 subtest 'multiple filters in REQ are OR conditions' => sub {
-    # ["REQ", <sub_id>, <filter1>, <filter2>]
-    my $msg = JSON->new->utf8->encode([
-        'REQ', 'sub1',
-        { kinds => [1], limit => 10 },
-        { kinds => [0], authors => ['a' x 64] }
-    ]);
-    my $decoded = JSON::decode_json($msg);
+    my $f1 = Net::Nostr::Filter->new(kinds => [1], limit => 10);
+    my $f2 = Net::Nostr::Filter->new(kinds => [0], authors => ['a' x 64]);
+    my $json = Net::Nostr::Message::req_msg('sub1', $f1, $f2);
+    my $decoded = JSON::decode_json($json);
     is($decoded->[0], 'REQ', 'REQ message');
     is($decoded->[1], 'sub1', 'subscription id');
-    is(ref($decoded->[2]), 'HASH', 'first filter');
-    is(ref($decoded->[3]), 'HASH', 'second filter');
-    is($decoded->[2]{kinds}[0], 1, 'first filter kind');
-    is($decoded->[3]{kinds}[0], 0, 'second filter kind');
+    is($decoded->[2]{kinds}, [1], 'first filter kinds');
+    is($decoded->[3]{kinds}, [0], 'second filter kinds');
+    is(scalar @$decoded, 4, 'two filters = 4 elements');
+
+    # matches_any: event matching either filter passes
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 0, content => '', sig => '',
+        created_at => 1000, tags => []
+    );
+    ok(Net::Nostr::Filter::matches_any($event, $f1, $f2), 'event matching second filter passes matches_any');
 };
 
 ###############################################################################
@@ -511,32 +502,37 @@ subtest 'multiple filters in REQ are OR conditions' => sub {
 ###############################################################################
 
 subtest 'kind range classification' => sub {
-    # Regular events
-    my @regular = (1, 2, 4, 44, 1000, 9999);
-    for my $k (@regular) {
-        my $is_regular = ($k == 1 || $k == 2 || ($k >= 4 && $k < 45) || ($k >= 1000 && $k < 10000));
-        ok($is_regular, "kind $k is regular");
+    my $make = sub {
+        Net::Nostr::Event->new(
+            pubkey => 'a', kind => $_[0], content => '', sig => '',
+            created_at => 1, tags => []
+        );
+    };
+
+    for my $k (1, 2, 4, 44, 1000, 9999) {
+        my $e = $make->($k);
+        ok($e->is_regular, "kind $k is regular");
+        ok(!$e->is_replaceable, "kind $k is not replaceable");
+        ok(!$e->is_ephemeral, "kind $k is not ephemeral");
+        ok(!$e->is_addressable, "kind $k is not addressable");
     }
 
-    # Replaceable events
-    my @replaceable = (0, 3, 10000, 19999);
-    for my $k (@replaceable) {
-        my $is_replaceable = ($k == 0 || $k == 3 || ($k >= 10000 && $k < 20000));
-        ok($is_replaceable, "kind $k is replaceable");
+    for my $k (0, 3, 10000, 19999) {
+        my $e = $make->($k);
+        ok($e->is_replaceable, "kind $k is replaceable");
+        ok(!$e->is_regular, "kind $k is not regular");
     }
 
-    # Ephemeral events
-    my @ephemeral = (20000, 25000, 29999);
-    for my $k (@ephemeral) {
-        my $is_ephemeral = ($k >= 20000 && $k < 30000);
-        ok($is_ephemeral, "kind $k is ephemeral");
+    for my $k (20000, 25000, 29999) {
+        my $e = $make->($k);
+        ok($e->is_ephemeral, "kind $k is ephemeral");
+        ok(!$e->is_regular, "kind $k is not regular");
     }
 
-    # Addressable events
-    my @addressable = (30000, 35000, 39999);
-    for my $k (@addressable) {
-        my $is_addressable = ($k >= 30000 && $k < 40000);
-        ok($is_addressable, "kind $k is addressable");
+    for my $k (30000, 35000, 39999) {
+        my $e = $make->($k);
+        ok($e->is_addressable, "kind $k is addressable");
+        ok(!$e->is_regular, "kind $k is not regular");
     }
 };
 
