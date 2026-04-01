@@ -8,6 +8,8 @@ Absolute compliance with supported NIPs is the highest priority for this library
 
 Follow TDD strictly: write tests first, run them to confirm they fail, then implement until they pass. Put great effort into making tests complete — cover edge cases, error conditions, and every MUST/SHOULD in the relevant NIP spec.
 
+When naming things, always try to match terminology from the spec.
+
 Each supported NIP has a dedicated conformance test file in `t/nip/` (e.g. `t/nip/01.t`). Unit tests for individual modules live in `t/` numbered by module.
 
 The complete Nostr spec can be cloned into the project for direct reference:
