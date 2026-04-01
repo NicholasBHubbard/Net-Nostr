@@ -5,6 +5,10 @@ requires 'AnyEvent::Socket';
 requires 'Crypt::PK::ECC';
 requires 'Crypt::PK::ECC::Schnorr';
 requires 'JSON';
-requires 'Clone';
 requires 'Class::Tiny';
-requires 'Test2::V0';
+
+on 'test' => sub {
+    requires 'Test2::V0';
+    requires 'Test::Pod';
+    requires 'Clone';
+};

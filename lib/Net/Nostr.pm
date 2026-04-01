@@ -65,69 +65,17 @@ Returns a new L<Net::Nostr::Relay> instance for running a relay server.
 
 =over 4
 
-=item L<Net::Nostr::Key>
+=item L<Net::Nostr::Client> - WebSocket client for connecting to Nostr relays
 
-Secp256k1 keypair management. Generates keys, exports in multiple formats
-(hex, raw, DER, PEM), produces BIP-340 Schnorr signatures, and creates
-signed events.
+=item L<Net::Nostr::Relay> - WebSocket relay server implementing NIP-01
 
-    my $key = Net::Nostr::Key->new;
-    say $key->pubkey_hex;
-    my $event = $key->create_event(kind => 1, content => 'hello');
+=item L<Net::Nostr::Event> - Nostr event serialization, ID computation, and verification
 
-=item L<Net::Nostr::Event>
+=item L<Net::Nostr::Filter> - Filter objects for querying events
 
-Nostr event object. Handles serialization, ID computation, tag management,
-and signature verification.
+=item L<Net::Nostr::Message> - Protocol message serialization and parsing
 
-    my $event = Net::Nostr::Event->new(
-        pubkey  => $hex, kind => 1,
-        content => 'hi', tags => [],
-    );
-    say $event->id;
-    say $event->json_serialize;
-
-=item L<Net::Nostr::Client>
-
-WebSocket client for connecting to Nostr relays. Supports publishing events,
-subscribing with filters, and receiving live events.
-
-    my $client = Net::Nostr::Client->new;
-    $client->connect("ws://relay.example.com");
-    $client->subscribe('sub1', $filter);
-    $client->publish($event);
-    $client->disconnect;
-
-=item L<Net::Nostr::Relay>
-
-WebSocket relay server implementing NIP-01 event storage, subscription
-management, and broadcasting.
-
-    my $relay = Net::Nostr::Relay->new;
-    $relay->run('127.0.0.1', 8080);  # blocks until stop
-
-=item L<Net::Nostr::Filter>
-
-Filter objects for querying events. Supports filtering by C<ids>, C<authors>,
-C<kinds>, C<since>, C<until>, C<limit>, and C<#E<lt>letterE<gt>> tag filters.
-
-    my $filter = Net::Nostr::Filter->new(
-        kinds   => [1],
-        authors => [$pubkey_hex],
-        limit   => 50,
-    );
-
-=item L<Net::Nostr::Message>
-
-Protocol message serialization and parsing. Handles all NIP-01 message types:
-C<EVENT>, C<REQ>, C<CLOSE>, C<OK>, C<EOSE>, C<CLOSED>, C<NOTICE>.
-
-    my $msg = Net::Nostr::Message->new(
-        type => 'REQ', subscription_id => 'sub1',
-        filters => [$filter],
-    );
-    my $json = $msg->serialize;
-    my $parsed = Net::Nostr::Message->parse($json);
+=item L<Net::Nostr::Key> - Secp256k1 keypair management and BIP-340 Schnorr signatures
 
 =back
 
