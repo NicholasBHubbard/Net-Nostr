@@ -10,6 +10,7 @@ use Class::Tiny qw(
     _ws_client
     _conn
     _callbacks
+    challenge
 );
 
 sub new {
@@ -83,6 +84,25 @@ sub close {
     $self->_conn->send($msg->serialize);
 }
 
+sub authenticate {
+    my ($self, $key, $relay_url) = @_;
+    croak "not connected" unless $self->is_connected;
+    croak "key is required" unless $key;
+    croak "relay_url is required" unless $relay_url;
+    croak "no challenge received" unless defined $self->challenge;
+
+    my $auth_event = $key->create_event(
+        kind    => 22242,
+        content => '',
+        tags    => [
+            ['relay', $relay_url],
+            ['challenge', $self->challenge],
+        ],
+    );
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', event => $auth_event);
+    $self->_conn->send($msg->serialize);
+}
+
 sub on {
     my ($self, $type, $cb) = @_;
     $self->_callbacks->{$type} = $cb;
@@ -111,6 +131,9 @@ sub _setup_handlers {
             $self->_emit('notice', $msg->message);
         } elsif ($msg->type eq 'CLOSED') {
             $self->_emit('closed', $msg->subscription_id, $msg->message);
+        } elsif ($msg->type eq 'AUTH') {
+            $self->challenge($msg->challenge);
+            $self->_emit('auth', $msg->challenge);
         }
     });
 
@@ -234,6 +257,30 @@ events as they arrive. Croaks if not connected.
 Sends a CLOSE message to stop receiving events for the given
 subscription ID. Croaks if not connected.
 
+=head2 authenticate
+
+    $client->authenticate($key, $relay_url);
+
+Sends a NIP-42 AUTH event to the relay. The C<$key> is a
+L<Net::Nostr::Key> object used to sign the authentication event,
+and C<$relay_url> is the relay's URL for the C<relay> tag.
+
+The client must have received an AUTH challenge from the relay first
+(stored in C<challenge>). Croaks if not connected or no challenge
+has been received.
+
+    $client->on(auth => sub {
+        my ($challenge) = @_;
+        $client->authenticate($key, 'wss://relay.example.com/');
+    });
+
+=head2 challenge
+
+    my $challenge = $client->challenge;
+
+Returns the most recent AUTH challenge string received from the relay,
+or C<undef> if no challenge has been received.
+
 =head2 on
 
     $client->on($event_type => sub { ... });
@@ -261,6 +308,11 @@ Called when the relay sends a human-readable NOTICE.
 =item C<closed> - C<sub { my ($subscription_id, $message) = @_; }>
 
 Called when the relay closes a subscription.
+
+=item C<auth> - C<sub { my ($challenge) = @_; }>
+
+Called when the relay sends an AUTH challenge (NIP-42). The client
+should respond by calling C<authenticate>.
 
 =back
 

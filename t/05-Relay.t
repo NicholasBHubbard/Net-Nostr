@@ -739,4 +739,72 @@ subtest 'POD: connections and subscriptions accessors' => sub {
     $relay->stop;
 };
 
+###############################################################################
+# AUTH (NIP-42)
+###############################################################################
+
+subtest 'relay sends AUTH challenge on new connection' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ws_client = AnyEvent::WebSocket::Client->new;
+    my $conn_ref;
+    $ws_client->connect("ws://127.0.0.1:$port")->cb(sub {
+        my $conn = eval { shift->recv };
+        return unless $conn;
+        $conn_ref = $conn;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            $cv->send($msg->body);
+        });
+    });
+
+    my $response = $cv->recv;
+    my $parsed = $JSON->decode($response);
+    is $parsed->[0], 'AUTH', 'first message is AUTH';
+    ok defined($parsed->[1]) && length($parsed->[1]) > 0, 'challenge is non-empty string';
+
+    $relay->stop;
+};
+
+subtest 'relay rejects kind 22242 via EVENT (must use AUTH)' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send($parsed) if $parsed->[0] eq 'OK';
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 22242, content => '',
+            sig => 'b' x 128, created_at => time(), tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $parsed = $cv->recv;
+    is $parsed->[2], JSON::false, 'kind 22242 via EVENT rejected';
+    like $parsed->[3], qr/auth events/, 'rejection message mentions auth';
+
+    is scalar @{$relay->events || []}, 0, 'kind 22242 not stored';
+
+    $relay->stop;
+};
+
+subtest 'authenticated_pubkeys accessor' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    my $auth = $relay->authenticated_pubkeys;
+    is ref($auth), 'HASH', 'returns hashref';
+};
+
 done_testing;

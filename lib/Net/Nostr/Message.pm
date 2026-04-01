@@ -6,7 +6,7 @@ use Carp qw(croak);
 use JSON;
 use Net::Nostr::Event;
 use Net::Nostr::Filter;
-use Class::Tiny qw(type subscription_id event event_id accepted message prefix filters);
+use Class::Tiny qw(type subscription_id event event_id accepted message prefix filters challenge);
 
 my $JSON = JSON->new->utf8;
 
@@ -60,6 +60,15 @@ sub new {
         $self->subscription_id($args{subscription_id});
         $self->message($args{message});
         $self->prefix(_extract_prefix($self->message));
+    } elsif ($type eq 'AUTH') {
+        # Bidirectional: relay sends challenge string, client sends signed event
+        if (defined $args{event}) {
+            $self->event($args{event});
+        } elsif (defined $args{challenge}) {
+            $self->challenge($args{challenge});
+        } else {
+            croak "AUTH requires either 'event' or 'challenge'";
+        }
     } else {
         croak "unknown message type: $type";
     }
@@ -88,6 +97,12 @@ sub serialize {
         return $JSON->encode(['NOTICE', $self->message]);
     } elsif ($type eq 'CLOSED') {
         return $JSON->encode(['CLOSED', $self->subscription_id, $self->message]);
+    } elsif ($type eq 'AUTH') {
+        if ($self->event) {
+            return $JSON->encode(['AUTH', $self->event->to_hash]);
+        } else {
+            return $JSON->encode(['AUTH', $self->challenge]);
+        }
     }
 }
 
@@ -159,6 +174,21 @@ my %PARSERS = (
             subscription_id => $arr->[1],
         );
     },
+    AUTH => sub {
+        my ($arr) = @_;
+        croak "AUTH message requires 2 elements\n" unless @$arr == 2;
+        # If second element is a hash, it's a signed event from client
+        if (ref($arr->[1]) eq 'HASH') {
+            my $event_hash = $arr->[1];
+            return (
+                event => Net::Nostr::Event->new(%$event_hash, id => $event_hash->{id}),
+            );
+        }
+        # Otherwise it's a challenge string from relay
+        return (
+            challenge => $arr->[1],
+        );
+    },
 );
 
 sub parse {
@@ -221,7 +251,7 @@ C<serialize>, and parsed from JSON with C<parse>.
     my $msg = Net::Nostr::Message->new(type => $type, ...);
 
 Creates a new message. C<type> is required and must be one of: C<EVENT>,
-C<REQ>, C<CLOSE>, C<OK>, C<EOSE>, C<NOTICE>, C<CLOSED>.
+C<REQ>, C<CLOSE>, C<OK>, C<EOSE>, C<NOTICE>, C<CLOSED>, C<AUTH>.
 
 Required fields by type:
 
@@ -232,6 +262,7 @@ Required fields by type:
     EOSE   - subscription_id
     NOTICE - message
     CLOSED - subscription_id, message
+    AUTH   - challenge (relay-to-client) or event (client-to-relay)
 
 Croaks on missing required fields or unknown type.
 
@@ -301,7 +332,7 @@ C<"duplicate: already have this event">.
 
 The machine-readable prefix extracted from the message string.
 Standard prefixes: C<duplicate>, C<pow>, C<blocked>, C<rate-limited>,
-C<invalid>, C<restricted>, C<mute>, C<error>.
+C<invalid>, C<restricted>, C<auth-required>, C<mute>, C<error>.
 
     my $msg = Net::Nostr::Message->parse(
         '["OK","aa...",false,"blocked: you are banned"]'
@@ -313,6 +344,15 @@ C<invalid>, C<restricted>, C<mute>, C<error>.
     my $filters = $msg->filters;  # arrayref of Net::Nostr::Filter
 
 The filter objects. Present on REQ messages.
+
+=head2 challenge
+
+    my $challenge = $msg->challenge;
+
+The challenge string. Present on AUTH messages from relays.
+
+    my $msg = Net::Nostr::Message->parse('["AUTH","challenge123"]');
+    say $msg->challenge;  # 'challenge123'
 
 =head1 SEE ALSO
 

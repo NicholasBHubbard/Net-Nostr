@@ -10,6 +10,7 @@ use AnyEvent::Socket qw(tcp_server);
 use AnyEvent::WebSocket::Server;
 use Crypt::PK::ECC;
 use Crypt::PK::ECC::Schnorr;
+use Crypt::PRNG qw(random_bytes);
 use Digest::SHA qw(sha256_hex);
 use JSON;
 
@@ -74,6 +75,11 @@ sub stop {
     $self->_stop_cleanup;
 }
 
+sub authenticated_pubkeys {
+    my ($self) = @_;
+    return { %{$self->{_authenticated} || {}} };
+}
+
 sub _stop_cleanup {
     my ($self) = @_;
     $self->_guard(undef);
@@ -83,6 +89,8 @@ sub _stop_cleanup {
     $self->connections({});
     $self->subscriptions({});
     $self->{_conn_count_by_ip} = {};
+    $self->{_challenges} = {};
+    $self->{_authenticated} = {};
 }
 
 sub broadcast {
@@ -108,8 +116,16 @@ sub _on_connection {
     $self->{connections} //= {};
     $self->{subscriptions} //= {};
     $self->{events} //= [];
+    $self->{_challenges} //= {};
+    $self->{_authenticated} //= {};
 
     $self->connections->{$conn_id} = $conn;
+
+    # Send AUTH challenge
+    my $challenge = unpack('H*', random_bytes(32));
+    $self->{_challenges}{$conn_id} = $challenge;
+    $self->{_authenticated}{$conn_id} = {};
+    $conn->send(Net::Nostr::Message->new(type => 'AUTH', challenge => $challenge)->serialize);
 
     $conn->on(each_message => sub {
         my ($conn, $message) = @_;
@@ -139,12 +155,16 @@ sub _on_connection {
             $self->_handle_event($conn_id, $msg->event);
         } elsif ($msg->type eq 'CLOSE') {
             $self->_handle_close($conn_id, $msg->subscription_id);
+        } elsif ($msg->type eq 'AUTH') {
+            $self->_handle_auth($conn_id, $msg->event);
         }
     });
 
     $conn->on(finish => sub {
         delete $self->connections->{$conn_id};
         delete $self->subscriptions->{$conn_id};
+        delete $self->{_challenges}{$conn_id};
+        delete $self->{_authenticated}{$conn_id};
         $self->{_conn_count_by_ip}{$peer_host}-- if defined $peer_host;
     });
 }
@@ -192,6 +212,12 @@ sub _handle_event {
     my $error = $self->_validate_event($event);
     if ($error) {
         $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => ($event->id // ''), accepted => 0, message => $error)->serialize);
+        return;
+    }
+
+    # Relays MUST exclude kind 22242 events from being broadcasted (NIP-42)
+    if ($event->kind == 22242) {
+        $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: auth events should use AUTH message')->serialize);
         return;
     }
 
@@ -289,6 +315,50 @@ sub _handle_deletion {
         push @kept, $stored unless $dominated;
     }
     $self->{events} = \@kept;
+}
+
+sub _handle_auth {
+    my ($self, $conn_id, $event) = @_;
+    my $conn = $self->connections->{$conn_id};
+
+    # Validate the event structure first
+    my $error = $self->_validate_event($event);
+    if ($error) {
+        $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => ($event->id // ''), accepted => 0, message => $error)->serialize);
+        return;
+    }
+
+    # Kind must be 22242
+    unless ($event->kind == 22242) {
+        $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: auth event must be kind 22242')->serialize);
+        return;
+    }
+
+    # created_at must be within ~10 minutes
+    my $now = time();
+    unless (abs($event->created_at - $now) <= 600) {
+        $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: auth event timestamp too far from current time')->serialize);
+        return;
+    }
+
+    # Challenge tag must match
+    my $expected_challenge = $self->{_challenges}{$conn_id};
+    my $got_challenge;
+    for my $tag (@{$event->tags}) {
+        if ($tag->[0] eq 'challenge') {
+            $got_challenge = $tag->[1];
+            last;
+        }
+    }
+    unless (defined $got_challenge && $got_challenge eq $expected_challenge) {
+        $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: challenge does not match')->serialize);
+        return;
+    }
+
+    # Track the authenticated pubkey for this connection
+    $self->{_authenticated}{$conn_id}{$event->pubkey} = 1;
+
+    $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => '')->serialize);
 }
 
 sub _handle_req {
@@ -454,6 +524,20 @@ address, or C<undef> if unlimited (the default).
 
     my $relay = Net::Nostr::Relay->new(max_connections_per_ip => 10);
     $relay->start('0.0.0.0', 8080);
+
+=head2 authenticated_pubkeys
+
+    my $auth = $relay->authenticated_pubkeys;
+
+Returns a hashref of authenticated pubkeys per connection (NIP-42).
+Keys are connection IDs, values are hashrefs of pubkey hex strings.
+
+    my $auth = $relay->authenticated_pubkeys;
+    for my $conn_id (keys %$auth) {
+        for my $pubkey (keys %{$auth->{$conn_id}}) {
+            say "Connection $conn_id authenticated as $pubkey";
+        }
+    }
 
 =head1 SEE ALSO
 

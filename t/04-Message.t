@@ -327,4 +327,84 @@ subtest 'POD: OK prefix extraction' => sub {
     is($msg->accepted, 0, 'not accepted');
 };
 
+###############################################################################
+# AUTH message (NIP-42)
+###############################################################################
+
+subtest 'AUTH relay-to-client (challenge) construction and serialization' => sub {
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', challenge => 'test-challenge');
+    is $msg->type, 'AUTH', 'type is AUTH';
+    is $msg->challenge, 'test-challenge', 'challenge stored';
+
+    my $json = $msg->serialize;
+    my $decoded = JSON::decode_json($json);
+    is $decoded->[0], 'AUTH', 'serialized type';
+    is $decoded->[1], 'test-challenge', 'serialized challenge';
+    is scalar @$decoded, 2, '2 elements';
+};
+
+subtest 'AUTH client-to-relay (event) construction and serialization' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 22242, content => '',
+        tags => [['relay', 'wss://r.example.com/'], ['challenge', 'ch']],
+    );
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', event => $event);
+    is $msg->type, 'AUTH', 'type is AUTH';
+    is $msg->event->kind, 22242, 'event kind';
+
+    my $json = $msg->serialize;
+    my $decoded = JSON::decode_json($json);
+    is $decoded->[0], 'AUTH', 'serialized type';
+    is ref($decoded->[1]), 'HASH', 'second element is event hash';
+    is $decoded->[1]{kind}, 22242, 'serialized event kind';
+};
+
+subtest 'AUTH requires event or challenge' => sub {
+    ok dies { Net::Nostr::Message->new(type => 'AUTH') },
+        'AUTH without event or challenge croaks';
+};
+
+subtest 'parse() AUTH challenge from relay' => sub {
+    my $raw = JSON->new->utf8->encode(['AUTH', 'my-challenge']);
+    my $msg = Net::Nostr::Message->parse($raw);
+    is $msg->type, 'AUTH', 'type is AUTH';
+    is $msg->challenge, 'my-challenge', 'challenge parsed';
+};
+
+subtest 'parse() AUTH event from client' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 22242, content => '',
+        sig => 'b' x 128, tags => [['relay', 'wss://r/'], ['challenge', 'c']],
+    );
+    my $raw = JSON->new->utf8->encode(['AUTH', $event->to_hash]);
+    my $msg = Net::Nostr::Message->parse($raw);
+    is $msg->type, 'AUTH', 'type is AUTH';
+    is $msg->event->kind, 22242, 'event kind parsed';
+};
+
+subtest 'parse() AUTH requires 2 elements' => sub {
+    my $raw = JSON->new->utf8->encode(['AUTH']);
+    ok dies { Net::Nostr::Message->parse($raw) }, 'AUTH with 1 element rejected';
+};
+
+subtest 'AUTH round-trip (challenge)' => sub {
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', challenge => 'rt-test');
+    my $parsed = Net::Nostr::Message->parse($msg->serialize);
+    is $parsed->type, 'AUTH', 'type preserved';
+    is $parsed->challenge, 'rt-test', 'challenge preserved';
+};
+
+subtest 'auth-required prefix extraction' => sub {
+    my $raw = JSON->new->utf8->encode([
+        'OK', 'dd' x 32, JSON::false, 'auth-required: please authenticate'
+    ]);
+    my $msg = Net::Nostr::Message->parse($raw);
+    is $msg->prefix, 'auth-required', 'auth-required prefix extracted';
+};
+
+subtest 'POD: AUTH challenge parse' => sub {
+    my $msg = Net::Nostr::Message->parse('["AUTH","challenge123"]');
+    is $msg->challenge, 'challenge123', 'challenge parsed from POD example';
+};
+
 done_testing;

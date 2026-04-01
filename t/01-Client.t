@@ -10,6 +10,7 @@ use Net::Nostr::Client;
 use Net::Nostr::Relay;
 use Net::Nostr::Event;
 use Net::Nostr::Filter;
+use Net::Nostr::Key;
 
 sub free_port {
     my $sock = IO::Socket::INET->new(
@@ -334,6 +335,88 @@ subtest 'subscribe before connect croaks' => sub {
 subtest 'close before connect croaks' => sub {
     my $client = Net::Nostr::Client->new;
     ok(dies { $client->close('sub1') }, 'close before connect dies');
+};
+
+###############################################################################
+# AUTH (NIP-42)
+###############################################################################
+
+subtest 'client receives AUTH challenge and stores it' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $client = Net::Nostr::Client->new;
+    my $got_challenge;
+    $client->on(auth => sub { $got_challenge = $_[0] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    ok defined($got_challenge), 'auth callback received challenge';
+    ok defined($client->challenge), 'challenge accessor returns value';
+    is $client->challenge, $got_challenge, 'challenge matches callback arg';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'authenticate sends AUTH event and receives OK' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $client = Net::Nostr::Client->new;
+    my ($auth_ok, $auth_msg);
+
+    $client->on(auth => sub {});
+    $client->on(ok => sub { $auth_ok = $_[1]; $auth_msg = $_[2] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    $client->authenticate($key, "ws://127.0.0.1:$port");
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    is $auth_ok, 1, 'authentication accepted';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'authenticate before connect croaks' => sub {
+    my $client = Net::Nostr::Client->new;
+    my $key = Net::Nostr::Key->new;
+    ok dies { $client->authenticate($key, 'ws://r/') }, 'authenticate before connect dies';
+};
+
+subtest 'authenticate without challenge croaks' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $client = Net::Nostr::Client->new;
+    # Don't register auth callback, but manually clear challenge
+    $client->on(auth => sub {});
+    $client->connect("ws://127.0.0.1:$port");
+
+    # Clear challenge to simulate no challenge state
+    $client->challenge(undef);
+
+    my $key = Net::Nostr::Key->new;
+    ok dies { $client->authenticate($key, "ws://127.0.0.1:$port") },
+        'authenticate without challenge dies';
+
+    $client->disconnect;
+    $relay->stop;
 };
 
 done_testing;
