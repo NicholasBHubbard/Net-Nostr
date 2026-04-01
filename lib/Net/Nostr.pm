@@ -61,7 +61,7 @@ Returns a new L<Net::Nostr::Relay> instance for running a relay server.
     my $relay = Net::Nostr->relay;
     $relay->run('127.0.0.1', 8080);
 
-=head1 LOWER-LEVEL MODULES
+=head1 MODULES
 
 =over 4
 
