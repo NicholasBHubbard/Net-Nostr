@@ -537,7 +537,7 @@ sub connect_to_relay {
 sub relay_store_and_query {
     my (%args) = @_;
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @result_events;
@@ -588,7 +588,7 @@ sub relay_store_and_query {
 
 subtest 'relay MUST send OK in response to EVENT' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $cv = AnyEvent->condvar;
@@ -618,7 +618,7 @@ subtest 'relay MUST send OK in response to EVENT' => sub {
 
 subtest 'relay MUST send stored events and EOSE in response to REQ' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @messages;
@@ -659,7 +659,7 @@ subtest 'relay MUST send stored events and EOSE in response to REQ' => sub {
 
 subtest 'relay MUST stop sending events after CLOSE' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @post_close_msgs;
@@ -703,7 +703,7 @@ subtest 'relay MUST stop sending events after CLOSE' => sub {
 
 subtest 'relay forwards new events to active subscribers' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @live_events;
@@ -755,7 +755,7 @@ subtest 'relay forwards new events to active subscribers' => sub {
 
 subtest 'relay filters events per subscription' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @kind1_events;
@@ -953,7 +953,7 @@ subtest 'relay does not store ephemeral events' => sub {
 
 subtest 'relay broadcasts ephemeral events to active subscribers' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @received;
@@ -1051,7 +1051,7 @@ subtest 'limit tiebreaker: same created_at, lowest id first' => sub {
 
 subtest 'new REQ with same subscription_id replaces old subscription' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @post_replace_events;
@@ -1194,7 +1194,7 @@ subtest 'relay applies #<letter> tag filters' => sub {
 
 subtest 'relay manages subscription_ids independently per connection' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     # store an event first
@@ -1262,7 +1262,7 @@ subtest 'relay manages subscription_ids independently per connection' => sub {
 
 subtest 'limit is ignored for live events after initial query' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @live_events;
@@ -1357,6 +1357,232 @@ subtest 'kind range classification' => sub {
         ok($e->is_addressable, "kind $k is addressable");
         ok(!$e->is_regular, "kind $k is not regular");
     }
+};
+
+###############################################################################
+# Multi-value filter matching (OR within a single filter field)
+###############################################################################
+
+subtest 'filter kinds array: event matching any value passes' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 2, content => '', sig => '',
+        created_at => 1000, tags => [],
+    );
+    my $filter = Net::Nostr::Filter->new(kinds => [1, 2, 3]);
+    ok($filter->matches($event), 'kind 2 matches kinds => [1, 2, 3]');
+
+    my $no_match = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 4, content => '', sig => '',
+        created_at => 1000, tags => [],
+    );
+    ok(!$filter->matches($no_match), 'kind 4 does not match kinds => [1, 2, 3]');
+};
+
+subtest 'filter authors array: event matching any value passes' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'c' x 64, kind => 1, content => '', sig => '',
+        created_at => 1000, tags => [],
+    );
+    my $filter = Net::Nostr::Filter->new(authors => ['a' x 64, 'b' x 64, 'c' x 64]);
+    ok($filter->matches($event), 'pubkey c matches authors => [a, b, c]');
+
+    my $no_match = Net::Nostr::Event->new(
+        pubkey => 'd' x 64, kind => 1, content => '', sig => '',
+        created_at => 1000, tags => [],
+    );
+    ok(!$filter->matches($no_match), 'pubkey d does not match authors => [a, b, c]');
+};
+
+subtest 'filter ids array: event matching any value passes' => sub {
+    my $e1 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'target', sig => '',
+        created_at => 1000, tags => [],
+    );
+    my $e2 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'other', sig => '',
+        created_at => 2000, tags => [],
+    );
+    my $filter = Net::Nostr::Filter->new(ids => [$e1->id, $e2->id]);
+    ok($filter->matches($e1), 'e1 matches ids => [e1.id, e2.id]');
+    ok($filter->matches($e2), 'e2 matches ids => [e1.id, e2.id]');
+};
+
+subtest 'filter tag array: event with multiple tags matches if any overlap' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => '', sig => '',
+        created_at => 1000,
+        tags => [['e', 'a' x 64], ['e', 'b' x 64]],
+    );
+    # filter asks for 'b' x 64 or 'c' x 64 — event has 'b' x 64
+    my $filter = Net::Nostr::Filter->new('#e' => ['b' x 64, 'c' x 64]);
+    ok($filter->matches($event), 'event with tag e=b matches #e => [b, c]');
+
+    my $no_match = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => '', sig => '',
+        created_at => 1000,
+        tags => [['e', 'd' x 64]],
+    );
+    ok(!$filter->matches($no_match), 'event with tag e=d does not match #e => [b, c]');
+};
+
+###############################################################################
+# Kind range validation (MUST be 0-65535)
+###############################################################################
+
+subtest 'kind must be integer between 0 and 65535' => sub {
+    ok(lives {
+        Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 0, content => '', sig => '',
+            created_at => 1000, tags => [],
+        );
+    }, 'kind 0 accepted');
+
+    ok(lives {
+        Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 65535, content => '', sig => '',
+            created_at => 1000, tags => [],
+        );
+    }, 'kind 65535 accepted');
+
+    ok(dies {
+        Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => -1, content => '', sig => '',
+            created_at => 1000, tags => [],
+        );
+    }, 'kind -1 rejected');
+
+    ok(dies {
+        Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 65536, content => '', sig => '',
+            created_at => 1000, tags => [],
+        );
+    }, 'kind 65536 rejected');
+};
+
+###############################################################################
+# Relay: signature verification (MUST verify sig)
+###############################################################################
+
+subtest 'relay rejects event with invalid signature' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $event = $key->create_event(kind => 1, content => 'valid sig');
+
+    # tamper with content to invalidate the sig (but fix the id to match new content)
+    my $bad_event = Net::Nostr::Event->new(
+        pubkey     => $event->pubkey,
+        kind       => 1,
+        content    => 'tampered',
+        sig        => $event->sig,
+        created_at => $event->created_at,
+        tags       => [],
+    );
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            $cv->send($msg->body);
+        });
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $bad_event)->serialize);
+    });
+
+    my $response = $cv->recv;
+    my $parsed = $JSON_CODEC->decode($response);
+    is($parsed->[0], 'OK', 'relay responds with OK');
+    is($parsed->[2], JSON::false, 'event rejected');
+    like($parsed->[3], qr/^invalid:/, 'rejection message has invalid: prefix');
+
+    $relay->stop;
+};
+
+subtest 'relay accepts event with valid signature' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $event = $key->create_event(kind => 1, content => 'properly signed');
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            $cv->send($msg->body);
+        });
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $response = $cv->recv;
+    my $parsed = $JSON_CODEC->decode($response);
+    is($parsed->[0], 'OK', 'relay responds with OK');
+    is($parsed->[2], JSON::true, 'event accepted');
+
+    $relay->stop;
+};
+
+###############################################################################
+# Relay: CLOSED message (MUST send when refusing REQ)
+###############################################################################
+
+subtest 'relay sends CLOSED when subscription_id is invalid' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            $cv->send($msg->body);
+        });
+        # send raw REQ with empty subscription_id
+        $conn->send($JSON_CODEC->encode(['REQ', '', { kinds => [1] }]));
+    });
+
+    my $response = $cv->recv;
+    my $parsed = $JSON_CODEC->decode($response);
+    is($parsed->[0], 'CLOSED', 'relay responds with CLOSED');
+    is($parsed->[1], '', 'CLOSED references the subscription_id');
+    like($parsed->[2], qr/^error:/, 'CLOSED message has error: prefix');
+
+    $relay->stop;
+};
+
+subtest 'relay sends CLOSED when subscription_id too long' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $long_id = 'x' x 65;
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            $cv->send($msg->body);
+        });
+        $conn->send($JSON_CODEC->encode(['REQ', $long_id, { kinds => [1] }]));
+    });
+
+    my $response = $cv->recv;
+    my $parsed = $JSON_CODEC->decode($response);
+    is($parsed->[0], 'CLOSED', 'relay responds with CLOSED');
+    is($parsed->[1], $long_id, 'CLOSED references the subscription_id');
+    like($parsed->[2], qr/^error:/, 'CLOSED message has error: prefix');
+
+    $relay->stop;
 };
 
 done_testing;

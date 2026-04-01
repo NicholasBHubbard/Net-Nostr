@@ -46,12 +46,12 @@ sub connect_to_relay {
 ###############################################################################
 
 subtest 'new creates relay' => sub {
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     isa_ok($relay, 'Net::Nostr::Relay');
 };
 
 subtest 'stop on unstarted relay is safe' => sub {
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     ok(lives { $relay->stop }, 'stop does not crash');
 };
 
@@ -61,7 +61,7 @@ subtest 'stop on unstarted relay is safe' => sub {
 
 subtest 'start accepts WebSocket connections' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $cv = AnyEvent->condvar;
@@ -74,7 +74,7 @@ subtest 'start accepts WebSocket connections' => sub {
 
 subtest 'stop closes all connections' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $cv = AnyEvent->condvar;
@@ -92,7 +92,7 @@ subtest 'stop closes all connections' => sub {
 
 subtest 'POD: run blocks until stop is called' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
 
     my $timer = AnyEvent->timer(after => 0.1, cb => sub {
         ok($relay->_guard, 'relay is running');
@@ -106,7 +106,7 @@ subtest 'POD: run blocks until stop is called' => sub {
 
 subtest 'stop prevents new connections' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
     $relay->stop;
 
@@ -127,7 +127,7 @@ subtest 'stop prevents new connections' => sub {
 
 subtest 'relay responds OK to EVENT' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $cv = AnyEvent->condvar;
@@ -158,7 +158,7 @@ subtest 'relay responds OK to EVENT' => sub {
 
 subtest 'relay stores received events' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $cv = AnyEvent->condvar;
@@ -187,7 +187,7 @@ subtest 'relay stores received events' => sub {
 
 subtest 'relay sends EOSE after REQ with no matching events' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $cv = AnyEvent->condvar;
@@ -213,7 +213,7 @@ subtest 'relay sends EOSE after REQ with no matching events' => sub {
 
 subtest 'relay sends matching stored events then EOSE' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @messages;
@@ -253,7 +253,7 @@ subtest 'relay sends matching stored events then EOSE' => sub {
 
 subtest 'relay does not send non-matching stored events' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @messages;
@@ -296,7 +296,7 @@ subtest 'relay does not send non-matching stored events' => sub {
 
 subtest 'relay removes subscription on CLOSE' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $cv = AnyEvent->condvar;
@@ -336,7 +336,7 @@ subtest 'relay removes subscription on CLOSE' => sub {
 
 subtest 'relay rejects duplicate events with OK true + duplicate: prefix' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @responses;
@@ -381,7 +381,7 @@ subtest 'relay rejects duplicate events with OK true + duplicate: prefix' => sub
 
 subtest 'relay rejects event with bad id format' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $cv = AnyEvent->condvar;
@@ -412,7 +412,7 @@ subtest 'relay rejects event with bad id format' => sub {
 
 subtest 'relay rejects event with wrong id (hash mismatch)' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $cv = AnyEvent->condvar;
@@ -449,7 +449,7 @@ subtest 'relay rejects event with wrong id (hash mismatch)' => sub {
 
 subtest 'REQ with multiple filters matches on any filter' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @messages;
@@ -491,7 +491,7 @@ subtest 'REQ with multiple filters matches on any filter' => sub {
 
 subtest 'broadcast matches against all filters in subscription' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @live_events;
@@ -546,7 +546,7 @@ subtest 'broadcast matches against all filters in subscription' => sub {
 
 subtest 'broadcast sends event to matching subscribers only' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $setup_cv = AnyEvent->condvar;
@@ -617,7 +617,7 @@ subtest 'broadcast sends event to matching subscribers only' => sub {
 
 subtest 'new events are forwarded to active subscribers' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my @live_events;
@@ -675,7 +675,7 @@ subtest 'new events are forwarded to active subscribers' => sub {
 
 subtest 'POD: events accessor returns stored events' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $cv = AnyEvent->condvar;
@@ -706,7 +706,7 @@ subtest 'POD: events accessor returns stored events' => sub {
 
 subtest 'POD: connections and subscriptions accessors' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $cv = AnyEvent->condvar;

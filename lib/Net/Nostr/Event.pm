@@ -2,6 +2,7 @@ package Net::Nostr::Event;
 
 use strictures 2;
 
+use Carp qw(croak);
 use JSON;
 use Digest::SHA qw(sha256_hex);
 use Crypt::PK::ECC::Schnorr;
@@ -19,6 +20,8 @@ use Class::Tiny qw(
 sub new { # pubkey, kind, content, and sig are required
     my $class = shift;
     my $self = bless { @_ }, $class;
+    croak "kind must be an integer between 0 and 65535"
+        if defined $self->kind && ($self->kind < 0 || $self->kind > 65535);
     $self->created_at(time())  unless defined $self->created_at;
     $self->tags([])            unless $self->tags;
     $self->id($self->_calc_id) unless $self->id;

@@ -48,7 +48,7 @@ subtest 'new creates a client' => sub {
 
 subtest 'connect blocks and returns self' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $client = Net::Nostr::Client->new;
@@ -64,7 +64,7 @@ subtest 'connect blocks and returns self' => sub {
 
 subtest 'connect with callback (async)' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $client = Net::Nostr::Client->new;
@@ -88,7 +88,7 @@ subtest 'connect with callback (async)' => sub {
 
 subtest 'publish sends EVENT and receives OK via callback' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $client = Net::Nostr::Client->new;
@@ -123,7 +123,7 @@ subtest 'publish sends EVENT and receives OK via callback' => sub {
 
 subtest 'subscribe receives stored events then EOSE' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $client = Net::Nostr::Client->new;
@@ -171,7 +171,7 @@ subtest 'subscribe receives stored events then EOSE' => sub {
 
 subtest 'close sends CLOSE message' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $client = Net::Nostr::Client->new;
@@ -212,7 +212,7 @@ subtest 'close sends CLOSE message' => sub {
 
 subtest 'subscribe with multiple filters' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $client = Net::Nostr::Client->new;
@@ -259,7 +259,7 @@ subtest 'subscribe with multiple filters' => sub {
 
 subtest 'receive live events after EOSE' => sub {
     my $port = free_port();
-    my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
     my $client1 = Net::Nostr::Client->new;

@@ -7,6 +7,8 @@ use Net::Nostr::Filter;
 
 use AnyEvent::Socket qw(tcp_server);
 use AnyEvent::WebSocket::Server;
+use Crypt::PK::ECC;
+use Crypt::PK::ECC::Schnorr;
 use Digest::SHA qw(sha256_hex);
 use JSON;
 
@@ -16,11 +18,13 @@ use Class::Tiny qw(
     subscriptions
     events
     _guard
+    verify_signatures
 );
 
 sub new {
     my $class = shift;
-    my $self = bless {}, $class;
+    my $self = bless { @_ }, $class;
+    $self->{verify_signatures} = 1 unless defined $self->{verify_signatures};
     $self->_server(AnyEvent::WebSocket::Server->new());
     return $self;
 }
@@ -93,13 +97,30 @@ sub _on_connection {
 
     $conn->on(each_message => sub {
         my ($conn, $message) = @_;
+        my $arr = eval { JSON::decode_json($message->body) };
+        return warn "bad message: $@\n" if $@ || ref($arr) ne 'ARRAY' || !@$arr;
+
+        my $type = $arr->[0];
+
+        if ($type eq 'REQ') {
+            my $sub_id = $arr->[1] // '';
+            my $msg = eval { Net::Nostr::Message->parse($message->body) };
+            if ($@) {
+                $conn->send(Net::Nostr::Message->new(
+                    type => 'CLOSED', subscription_id => $sub_id,
+                    message => "error: $@"
+                )->serialize);
+                return;
+            }
+            $self->_handle_req($conn_id, $msg->subscription_id, @{$msg->filters});
+            return;
+        }
+
         my $msg = eval { Net::Nostr::Message->parse($message->body) };
         return warn "bad message: $@\n" if $@;
 
         if ($msg->type eq 'EVENT') {
             $self->_handle_event($conn_id, $msg->event);
-        } elsif ($msg->type eq 'REQ') {
-            $self->_handle_req($conn_id, $msg->subscription_id, @{$msg->filters});
         } elsif ($msg->type eq 'CLOSE') {
             $self->_handle_close($conn_id, $msg->subscription_id);
         }
@@ -122,6 +143,20 @@ sub _validate_event {
 
     my $expected_id = sha256_hex($event->json_serialize);
     return 'invalid: id does not match hash' unless $event->id eq $expected_id;
+
+    if ($self->verify_signatures) {
+        my $sig_valid = eval {
+            my $pubkey_raw = pack('H*', $event->pubkey);
+            # BIP-340 x-only pubkey: prepend 02 prefix for compressed point
+            my $compressed = "\x02" . $pubkey_raw;
+            my $pk = Crypt::PK::ECC->new;
+            $pk->import_key_raw($compressed, 'secp256k1');
+            my $verifier = Crypt::PK::ECC::Schnorr->new(\$pk->export_key_der('public'));
+            my $sig_raw = pack('H*', $event->sig);
+            $verifier->verify_message($event->id, $sig_raw);
+        };
+        return 'invalid: bad signature' unless $sig_valid;
+    }
 
     return undef;
 }
@@ -275,8 +310,11 @@ Supports all NIP-01 event semantics:
 =head2 new
 
     my $relay = Net::Nostr::Relay->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
 
-Creates a new relay instance.
+Creates a new relay instance. By default, Schnorr signature verification
+is enabled. Pass C<verify_signatures =E<gt> 0> to disable it (useful for
+testing with synthetic events).
 
 =head1 METHODS
 
@@ -330,6 +368,12 @@ then subscription ID.
     my $events = $relay->events;  # arrayref of Net::Nostr::Event
 
 Returns the arrayref of stored events.
+
+=head2 verify_signatures
+
+    my $bool = $relay->verify_signatures;
+
+Returns whether Schnorr signature verification is enabled (default: true).
 
 =head1 SEE ALSO
 
