@@ -2,6 +2,8 @@ package Net::Nostr::Filter;
 
 use strictures 2;
 
+use Carp qw(croak);
+
 my @SCALAR_FIELDS  = qw(since until limit);
 my @LIST_FIELDS    = qw(ids authors kinds);
 my %HEX64_REQUIRED = map { $_ => 1 } qw(ids authors e p);
@@ -9,7 +11,7 @@ my %HEX64_REQUIRED = map { $_ => 1 } qw(ids authors e p);
 sub _validate_hex64 {
     my ($field, $values) = @_;
     for my $v (@$values) {
-        die "$field: '$v' is not 64-char lowercase hex\n"
+        croak "$field: '$v' is not 64-char lowercase hex"
             unless $v =~ /^[0-9a-f]{64}$/;
     }
 }

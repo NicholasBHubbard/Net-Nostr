@@ -132,6 +132,10 @@ subtest 'public functions croak on bad input' => sub {
         qr/at \Q${\__FILE__}\E/, 'req_msg croaks from caller perspective');
     like(dies { Net::Nostr::Message::close_msg('') },
         qr/at \Q${\__FILE__}\E/, 'close_msg croaks from caller perspective');
+    like(dies { Net::Nostr::Message::parse('not json') },
+        qr/at \Q${\__FILE__}\E/, 'parse croaks from caller perspective');
+    like(dies { Net::Nostr::Message::parse('[]') },
+        qr/at \Q${\__FILE__}\E/, 'parse (empty array) croaks from caller perspective');
 };
 
 ###############################################################################

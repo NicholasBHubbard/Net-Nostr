@@ -330,4 +330,15 @@ subtest 'matches_any with single filter' => sub {
     ok(Net::Nostr::Filter::matches_any($event, $f), 'single matching filter');
 };
 
+###############################################################################
+# croak on bad input
+###############################################################################
+
+subtest 'new() croaks from caller perspective on bad hex' => sub {
+    like(dies { Net::Nostr::Filter->new(ids => ['not-hex']) },
+        qr/at \Q${\__FILE__}\E/, 'bad ids croaks from caller perspective');
+    like(dies { Net::Nostr::Filter->new(authors => ['bad']) },
+        qr/at \Q${\__FILE__}\E/, 'bad authors croaks from caller perspective');
+};
+
 done_testing;

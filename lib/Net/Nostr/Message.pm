@@ -88,7 +88,7 @@ my %PARSERS = (
             };
         }
         # relay-to-client: ["EVENT", sub_id, {event}]
-        die "EVENT message requires 2 or 3 elements\n" unless @$arr == 3;
+        croak "EVENT message requires 2 or 3 elements\n" unless @$arr == 3;
         my $event_hash = $arr->[2];
         my $event = Net::Nostr::Event->new(%$event_hash, id => $event_hash->{id});
         return {
@@ -99,7 +99,7 @@ my %PARSERS = (
     },
     OK => sub {
         my ($arr) = @_;
-        die "OK message requires 4 elements\n" unless @$arr == 4;
+        croak "OK message requires 4 elements\n" unless @$arr == 4;
         return {
             type     => 'OK',
             event_id => $arr->[1],
@@ -110,7 +110,7 @@ my %PARSERS = (
     },
     EOSE => sub {
         my ($arr) = @_;
-        die "EOSE message requires 2 elements\n" unless @$arr == 2;
+        croak "EOSE message requires 2 elements\n" unless @$arr == 2;
         return {
             type            => 'EOSE',
             subscription_id => $arr->[1],
@@ -118,7 +118,7 @@ my %PARSERS = (
     },
     CLOSED => sub {
         my ($arr) = @_;
-        die "CLOSED message requires 3 elements\n" unless @$arr == 3;
+        croak "CLOSED message requires 3 elements\n" unless @$arr == 3;
         return {
             type            => 'CLOSED',
             subscription_id => $arr->[1],
@@ -128,7 +128,7 @@ my %PARSERS = (
     },
     NOTICE => sub {
         my ($arr) = @_;
-        die "NOTICE message requires 2 elements\n" unless @$arr == 2;
+        croak "NOTICE message requires 2 elements\n" unless @$arr == 2;
         return {
             type    => 'NOTICE',
             message => $arr->[1],
@@ -136,7 +136,7 @@ my %PARSERS = (
     },
     REQ => sub {
         my ($arr) = @_;
-        die "REQ message requires at least 3 elements\n" unless @$arr >= 3;
+        croak "REQ message requires at least 3 elements\n" unless @$arr >= 3;
         my $sub_id = $arr->[1];
         my @filters;
         for my $i (2 .. $#$arr) {
@@ -150,7 +150,7 @@ my %PARSERS = (
     },
     CLOSE => sub {
         my ($arr) = @_;
-        die "CLOSE message requires 2 elements\n" unless @$arr == 2;
+        croak "CLOSE message requires 2 elements\n" unless @$arr == 2;
         return {
             type            => 'CLOSE',
             subscription_id => $arr->[1],
@@ -161,12 +161,12 @@ my %PARSERS = (
 sub parse {
     my ($raw) = @_;
     my $arr = eval { $JSON->decode($raw) };
-    die "invalid JSON: $@\n" if $@;
-    die "message must be a JSON array\n" unless ref($arr) eq 'ARRAY';
-    die "message array must not be empty\n" unless @$arr;
+    croak "invalid JSON: $@\n" if $@;
+    croak "message must be a JSON array\n" unless ref($arr) eq 'ARRAY';
+    croak "message array must not be empty\n" unless @$arr;
 
     my $type = $arr->[0];
-    die "unknown message type: $type\n" unless $PARSERS{$type};
+    croak "unknown message type: $type\n" unless $PARSERS{$type};
 
     return $PARSERS{$type}->($arr);
 }
