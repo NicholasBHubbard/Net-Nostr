@@ -498,6 +498,266 @@ subtest 'multiple filters in REQ are OR conditions' => sub {
 };
 
 ###############################################################################
+# Relay protocol (NIP-01 §relay)
+###############################################################################
+
+use AnyEvent;
+use AnyEvent::WebSocket::Client;
+use IO::Socket::INET;
+use Net::Nostr::Relay;
+
+sub free_port {
+    my $sock = IO::Socket::INET->new(
+        Listen => 1, LocalAddr => '127.0.0.1', LocalPort => 0,
+    );
+    my $port = $sock->sockport;
+    close $sock;
+    return $port;
+}
+
+my $JSON_CODEC = JSON->new->utf8;
+
+sub connect_to_relay {
+    my ($port, $cb) = @_;
+    my $client = AnyEvent::WebSocket::Client->new;
+    my $client_conn;
+    $client->connect("ws://127.0.0.1:$port")->cb(sub {
+        $client_conn = eval { shift->recv };
+        return unless $client_conn;
+        my $t; $t = AnyEvent->timer(after => 0.15, cb => sub {
+            undef $t;
+            $cb->($client_conn);
+        });
+    });
+    return \$client_conn;
+}
+
+subtest 'relay MUST send OK in response to EVENT' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            $cv->send($msg->body);
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'nip01 test',
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message::event_msg($event));
+    });
+
+    my $response = $cv->recv;
+    my $parsed = $JSON_CODEC->decode($response);
+    is($parsed->[0], 'OK', 'relay responds with OK');
+    ok(defined $parsed->[1] && length($parsed->[1]) == 64, 'OK references the event id');
+    is(scalar @$parsed, 4, 'OK message has 4 elements');
+
+    $relay->stop;
+};
+
+subtest 'relay MUST send stored events and EOSE in response to REQ' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my @messages;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        my $phase = 'store';
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            if ($phase eq 'store') {
+                $phase = 'query';
+                my $filter = Net::Nostr::Filter->new(kinds => [1]);
+                $c->send(Net::Nostr::Message::req_msg('sub1', $filter));
+            } else {
+                push @messages, $parsed;
+                $cv->send() if $parsed->[0] eq 'EOSE';
+            }
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'stored',
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message::event_msg($event));
+    });
+
+    $cv->recv;
+    is($messages[0][0], 'EVENT', 'relay sends matching event');
+    is($messages[0][1], 'sub1', 'EVENT includes subscription id');
+    is(ref($messages[0][2]), 'HASH', 'EVENT includes event object');
+    is($messages[-1][0], 'EOSE', 'relay sends EOSE after events');
+    is($messages[-1][1], 'sub1', 'EOSE includes subscription id');
+
+    $relay->stop;
+};
+
+subtest 'relay MUST stop sending events after CLOSE' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my @post_close_msgs;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        my $closed = 0;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            if (!$closed && $parsed->[0] eq 'EOSE') {
+                $c->send(Net::Nostr::Message::close_msg('sub1'));
+                $closed = 1;
+                my $timer; $timer = AnyEvent->timer(after => 0.1, cb => sub {
+                    undef $timer;
+                    my $event = Net::Nostr::Event->new(
+                        pubkey => 'a' x 64, kind => 1, content => 'after close',
+                        sig => 'b' x 128, created_at => 2000, tags => [],
+                    );
+                    $relay->broadcast($event);
+                    my $t2; $t2 = AnyEvent->timer(after => 0.2, cb => sub {
+                        undef $t2;
+                        $cv->send();
+                    });
+                });
+            } elsif ($closed) {
+                push @post_close_msgs, $parsed;
+            }
+        });
+
+        my $filter = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message::req_msg('sub1', $filter));
+    });
+
+    $cv->recv;
+    is(scalar @post_close_msgs, 0, 'no events received after CLOSE');
+
+    $relay->stop;
+};
+
+subtest 'relay forwards new events to active subscribers' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my @live_events;
+
+    # subscriber
+    my $sub_cv = AnyEvent->condvar;
+    my $sub_timeout = AnyEvent->timer(after => 5, cb => sub { $sub_cv->croak("timeout") });
+    my $ref1 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            if ($parsed->[0] eq 'EOSE') {
+                $sub_cv->send();
+            } elsif ($parsed->[0] eq 'EVENT') {
+                push @live_events, $parsed;
+            }
+        });
+        my $filter = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message::req_msg('live', $filter));
+    });
+    $sub_cv->recv;
+
+    # publisher
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref2 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $timer; $timer = AnyEvent->timer(after => 0.2, cb => sub {
+                undef $timer;
+                $cv->send();
+            });
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'live',
+            sig => 'b' x 128, created_at => 3000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message::event_msg($event));
+    });
+    $cv->recv;
+
+    is(scalar @live_events, 1, 'subscriber received live event');
+
+    $relay->stop;
+};
+
+subtest 'relay filters events per subscription' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my @kind1_events;
+    my @kind2_events;
+
+    my $setup_cv = AnyEvent->condvar;
+    $setup_cv->begin; $setup_cv->begin;
+    my $setup_timeout = AnyEvent->timer(after => 5, cb => sub { $setup_cv->croak("timeout") });
+
+    # subscriber for kind 1
+    my $ref1 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            if ($parsed->[0] eq 'EOSE') { $setup_cv->end }
+            elsif ($parsed->[0] eq 'EVENT') { push @kind1_events, $parsed }
+        });
+        $conn->send(Net::Nostr::Message::req_msg('k1', Net::Nostr::Filter->new(kinds => [1])));
+    });
+
+    # subscriber for kind 2
+    my $ref2 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            if ($parsed->[0] eq 'EOSE') { $setup_cv->end }
+            elsif ($parsed->[0] eq 'EVENT') { push @kind2_events, $parsed }
+        });
+        $conn->send(Net::Nostr::Message::req_msg('k2', Net::Nostr::Filter->new(kinds => [2])));
+    });
+
+    $setup_cv->recv;
+
+    # publish kind 1 event
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'kind1 only',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+    $relay->broadcast($event);
+
+    my $cv = AnyEvent->condvar;
+    my $timer; $timer = AnyEvent->timer(after => 0.3, cb => sub {
+        undef $timer;
+        $cv->send;
+    });
+    $cv->recv;
+
+    is(scalar @kind1_events, 1, 'kind 1 subscriber received event');
+    is(scalar @kind2_events, 0, 'kind 2 subscriber did not receive event');
+
+    $relay->stop;
+};
+
+###############################################################################
 # Kind classification
 ###############################################################################
 

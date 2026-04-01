@@ -101,6 +101,40 @@ subtest 'close_msg() validates subscription_id' => sub {
 };
 
 ###############################################################################
+# Relay-to-client: OK, EVENT, EOSE (already tested via round-trip)
+###############################################################################
+
+subtest 'notice_msg() produces ["NOTICE", <message>]' => sub {
+    my $json = Net::Nostr::Message::notice_msg('hello world');
+    my $decoded = JSON::decode_json($json);
+    is($decoded->[0], 'NOTICE', 'first element is NOTICE');
+    is($decoded->[1], 'hello world', 'message');
+    is(scalar @$decoded, 2, 'message has exactly 2 elements');
+};
+
+subtest 'closed_msg() produces ["CLOSED", <sub_id>, <message>]' => sub {
+    my $json = Net::Nostr::Message::closed_msg('sub1', 'error: shutting down');
+    my $decoded = JSON::decode_json($json);
+    is($decoded->[0], 'CLOSED', 'first element is CLOSED');
+    is($decoded->[1], 'sub1', 'subscription id');
+    is($decoded->[2], 'error: shutting down', 'message');
+    is(scalar @$decoded, 3, 'message has exactly 3 elements');
+};
+
+###############################################################################
+# croak in public functions
+###############################################################################
+
+subtest 'public functions croak on bad input' => sub {
+    my $f = Net::Nostr::Filter->new(kinds => [1]);
+    # croak sets the error location to the caller, not the callee
+    like(dies { Net::Nostr::Message::req_msg('', $f) },
+        qr/at \Q${\__FILE__}\E/, 'req_msg croaks from caller perspective');
+    like(dies { Net::Nostr::Message::close_msg('') },
+        qr/at \Q${\__FILE__}\E/, 'close_msg croaks from caller perspective');
+};
+
+###############################################################################
 # Parsing relay messages
 ###############################################################################
 
