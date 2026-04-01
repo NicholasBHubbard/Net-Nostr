@@ -93,4 +93,51 @@ subtest 'constructor_keys' => sub {
     is(\@keys, [qw(privkey pubkey)], 'constructor_keys returns privkey and pubkey');
 };
 
+###############################################################################
+# sign_event and create_event
+###############################################################################
+
+use Net::Nostr::Event;
+
+subtest 'sign_event signs an existing event' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $event = Net::Nostr::Event->new(
+        pubkey  => $key->pubkey_hex,
+        kind    => 1,
+        content => 'unsigned',
+        tags    => [],
+    );
+    ok(!$event->sig, 'event starts unsigned');
+
+    my $sig = $key->sign_event($event);
+    like($sig, qr/^[0-9a-f]{128}$/, 'returns 128-char hex signature');
+    is($event->sig, $sig, 'sig set on event');
+    ok($event->verify_sig($key), 'signature verifies');
+};
+
+subtest 'create_event builds and signs an event' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $event = $key->create_event(kind => 1, content => 'hello nostr');
+
+    isa_ok($event, 'Net::Nostr::Event');
+    is($event->pubkey, $key->pubkey_hex, 'pubkey set from key');
+    is($event->kind, 1, 'kind preserved');
+    is($event->content, 'hello nostr', 'content preserved');
+    like($event->id, qr/^[0-9a-f]{64}$/, 'id computed');
+    like($event->sig, qr/^[0-9a-f]{128}$/, 'sig computed');
+    ok($event->verify_sig($key), 'signature verifies');
+};
+
+subtest 'create_event accepts tags and created_at' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $event = $key->create_event(
+        kind       => 1,
+        content    => 'tagged',
+        tags       => [['t', 'nostr']],
+        created_at => 1700000000,
+    );
+    is($event->tags, [['t', 'nostr']], 'tags preserved');
+    is($event->created_at, 1700000000, 'created_at preserved');
+};
+
 done_testing;

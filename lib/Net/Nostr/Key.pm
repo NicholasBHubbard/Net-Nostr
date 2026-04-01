@@ -4,6 +4,7 @@ use strictures 2;
 
 use Crypt::PK::ECC;
 use Crypt::PK::ECC::Schnorr;
+use Net::Nostr::Event;
 use Class::Tiny qw(_cryptpkecc);
 
 sub new {
@@ -84,6 +85,22 @@ sub privkey_hex {
     my ($self) = @_;
     my $hex = unpack 'H*', $self->privkey_raw;
     return $hex;
+}
+
+sub sign_event {
+    my ($self, $event) = @_;
+    my $sig_raw = $self->schnorr_sign($event->id);
+    my $sig_hex = unpack 'H*', $sig_raw;
+    $event->sig($sig_hex);
+    return $sig_hex;
+}
+
+sub create_event {
+    my ($self, %args) = @_;
+    $args{pubkey} = $self->pubkey_hex;
+    my $event = Net::Nostr::Event->new(%args);
+    $self->sign_event($event);
+    return $event;
 }
 
 1;
