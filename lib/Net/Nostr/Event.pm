@@ -81,6 +81,14 @@ sub is_addressable {
     return ($k >= 30000 && $k < 40000);
 }
 
+sub d_tag {
+    my ($self) = @_;
+    for my $tag (@{$self->tags}) {
+        return ($tag->[1] // '') if $tag->[0] eq 'd';
+    }
+    return '';
+}
+
 sub verify_sig {
     my ($self, $key) = @_;
     my $sig_raw = pack 'H*', $self->sig;

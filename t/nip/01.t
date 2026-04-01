@@ -532,6 +532,60 @@ sub connect_to_relay {
     return \$client_conn;
 }
 
+# Helper: store events sequentially (waiting for OK each time), then query
+# Returns arrayref of event hashes from the query results
+sub relay_store_and_query {
+    my (%args) = @_;
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my @result_events;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    my @to_store = @{$args{events} // []};
+    my @filters  = @{$args{filters}};
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        my $idx = 0;
+
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            if ($parsed->[0] eq 'OK') {
+                $idx++;
+                if ($idx < scalar @to_store) {
+                    $c->send(Net::Nostr::Message->new(type => 'EVENT', event => $to_store[$idx])->serialize);
+                } else {
+                    $c->send(Net::Nostr::Message->new(
+                        type => 'REQ', subscription_id => 'q1',
+                        filters => \@filters
+                    )->serialize);
+                }
+            } elsif ($parsed->[0] eq 'EVENT') {
+                push @result_events, $parsed->[2];
+            } elsif ($parsed->[0] eq 'EOSE') {
+                $cv->send();
+            }
+        });
+
+        if (@to_store) {
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $to_store[0])->serialize);
+        } else {
+            $conn->send(Net::Nostr::Message->new(
+                type => 'REQ', subscription_id => 'q1',
+                filters => \@filters
+            )->serialize);
+        }
+    });
+
+    $cv->recv;
+    $relay->stop;
+    return \@result_events;
+}
+
 subtest 'relay MUST send OK in response to EVENT' => sub {
     my $port = free_port();
     my $relay = Net::Nostr::Relay->new;
@@ -755,6 +809,363 @@ subtest 'relay filters events per subscription' => sub {
     is(scalar @kind2_events, 0, 'kind 2 subscriber did not receive event');
 
     $relay->stop;
+};
+
+###############################################################################
+# Relay: replaceable events (kind 0, 3, 10000-19999)
+###############################################################################
+
+subtest 'relay stores only latest replaceable event per pubkey+kind' => sub {
+    my $old = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 0, content => '{"name":"old"}',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+    my $new = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 0, content => '{"name":"new"}',
+        sig => 'b' x 128, created_at => 2000, tags => [],
+    );
+
+    my $results = relay_store_and_query(
+        events  => [$old, $new],
+        filters => [Net::Nostr::Filter->new(kinds => [0])],
+    );
+
+    is(scalar @$results, 1, 'only one replaceable event returned');
+    is($results->[0]{content}, '{"name":"new"}', 'latest event is kept');
+};
+
+subtest 'relay rejects older replaceable event arriving after newer' => sub {
+    my $new = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 0, content => '{"name":"new"}',
+        sig => 'b' x 128, created_at => 2000, tags => [],
+    );
+    my $old = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 0, content => '{"name":"old"}',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+
+    my $results = relay_store_and_query(
+        events  => [$new, $old],
+        filters => [Net::Nostr::Filter->new(kinds => [0])],
+    );
+
+    is(scalar @$results, 1, 'only one event returned');
+    is($results->[0]{content}, '{"name":"new"}', 'newer event is kept');
+};
+
+subtest 'replaceable event tiebreaker: same timestamp, lowest id wins' => sub {
+    my $e1 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 0, content => '{"name":"alpha"}',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+    my $e2 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 0, content => '{"name":"beta"}',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+
+    my ($winner, $loser) = $e1->id lt $e2->id ? ($e1, $e2) : ($e2, $e1);
+
+    my $results = relay_store_and_query(
+        events  => [$loser, $winner],
+        filters => [Net::Nostr::Filter->new(kinds => [0])],
+    );
+
+    is(scalar @$results, 1, 'only one event returned');
+    is($results->[0]{id}, $winner->id, 'event with lowest id is kept');
+};
+
+subtest 'replaceable events from different pubkeys stored separately' => sub {
+    my $e1 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 0, content => '{"name":"alice"}',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+    my $e2 = Net::Nostr::Event->new(
+        pubkey => 'c' x 64, kind => 0, content => '{"name":"carol"}',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+
+    my $results = relay_store_and_query(
+        events  => [$e1, $e2],
+        filters => [Net::Nostr::Filter->new(kinds => [0])],
+    );
+
+    is(scalar @$results, 2, 'two replaceable events from different pubkeys both stored');
+};
+
+###############################################################################
+# Relay: addressable events (kind 30000-39999)
+###############################################################################
+
+subtest 'relay stores only latest addressable event per pubkey+kind+d-tag' => sub {
+    my $old = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 30023, content => 'old version',
+        sig => 'b' x 128, created_at => 1000, tags => [['d', 'my-article']],
+    );
+    my $new = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 30023, content => 'new version',
+        sig => 'b' x 128, created_at => 2000, tags => [['d', 'my-article']],
+    );
+
+    my $results = relay_store_and_query(
+        events  => [$old, $new],
+        filters => [Net::Nostr::Filter->new(kinds => [30023])],
+    );
+
+    is(scalar @$results, 1, 'only one addressable event returned');
+    is($results->[0]{content}, 'new version', 'latest version is kept');
+};
+
+subtest 'addressable events with different d-tags stored separately' => sub {
+    my $e1 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 30023, content => 'article one',
+        sig => 'b' x 128, created_at => 1000, tags => [['d', 'article-1']],
+    );
+    my $e2 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 30023, content => 'article two',
+        sig => 'b' x 128, created_at => 1000, tags => [['d', 'article-2']],
+    );
+
+    my $results = relay_store_and_query(
+        events  => [$e1, $e2],
+        filters => [Net::Nostr::Filter->new(kinds => [30023])],
+    );
+
+    is(scalar @$results, 2, 'two addressable events with different d-tags both stored');
+};
+
+###############################################################################
+# Relay: ephemeral events (kind 20000-29999)
+###############################################################################
+
+subtest 'relay does not store ephemeral events' => sub {
+    my $ephemeral = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 20000, content => 'ephemeral',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+
+    my $results = relay_store_and_query(
+        events  => [$ephemeral],
+        filters => [Net::Nostr::Filter->new(kinds => [20000])],
+    );
+
+    is(scalar @$results, 0, 'ephemeral event not returned by query');
+};
+
+subtest 'relay broadcasts ephemeral events to active subscribers' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my @received;
+    my $sub_cv = AnyEvent->condvar;
+    my $sub_timeout = AnyEvent->timer(after => 5, cb => sub { $sub_cv->croak("timeout") });
+
+    my $ref1 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            if ($parsed->[0] eq 'EOSE') {
+                $sub_cv->send();
+            } elsif ($parsed->[0] eq 'EVENT') {
+                push @received, $parsed;
+            }
+        });
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'eph',
+            filters => [Net::Nostr::Filter->new(kinds => [20000])]
+        )->serialize);
+    });
+    $sub_cv->recv;
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref2 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $t; $t = AnyEvent->timer(after => 0.2, cb => sub {
+                undef $t;
+                $cv->send();
+            });
+        });
+
+        my $ephemeral = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 20000, content => 'ephemeral live',
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $ephemeral)->serialize);
+    });
+    $cv->recv;
+
+    is(scalar @received, 1, 'subscriber received ephemeral event via broadcast');
+
+    $relay->stop;
+};
+
+###############################################################################
+# Relay: limit handling
+###############################################################################
+
+subtest 'relay respects limit in initial query, newest first' => sub {
+    my @events;
+    for my $i (1..5) {
+        push @events, Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => "event $i",
+            sig => 'b' x 128, created_at => $i * 1000, tags => [],
+        );
+    }
+
+    my $results = relay_store_and_query(
+        events  => \@events,
+        filters => [Net::Nostr::Filter->new(kinds => [1], limit => 2)],
+    );
+
+    is(scalar @$results, 2, 'limit respected: only 2 events returned');
+    is($results->[0]{content}, 'event 5', 'first result is newest');
+    is($results->[1]{content}, 'event 4', 'second result is second newest');
+};
+
+subtest 'limit tiebreaker: same created_at, lowest id first' => sub {
+    my @events;
+    for my $letter ('a'..'e') {
+        push @events, Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => "tie-$letter",
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+    }
+
+    my $results = relay_store_and_query(
+        events  => \@events,
+        filters => [Net::Nostr::Filter->new(kinds => [1], limit => 3)],
+    );
+
+    is(scalar @$results, 3, 'limit respected');
+    ok($results->[0]{id} lt $results->[1]{id}, 'first id < second id');
+    ok($results->[1]{id} lt $results->[2]{id}, 'second id < third id');
+};
+
+###############################################################################
+# Relay: REQ replaces existing subscription
+###############################################################################
+
+subtest 'new REQ with same subscription_id replaces old subscription' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my @post_replace_events;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        my $eose_count = 0;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            if ($parsed->[0] eq 'EOSE') {
+                $eose_count++;
+                if ($eose_count == 1) {
+                    $c->send(Net::Nostr::Message->new(
+                        type => 'REQ', subscription_id => 's1',
+                        filters => [Net::Nostr::Filter->new(kinds => [2])]
+                    )->serialize);
+                } elsif ($eose_count == 2) {
+                    my $e1 = Net::Nostr::Event->new(
+                        pubkey => 'a' x 64, kind => 1, content => 'kind1',
+                        sig => 'b' x 128, created_at => 1000, tags => [],
+                    );
+                    my $e2 = Net::Nostr::Event->new(
+                        pubkey => 'a' x 64, kind => 2, content => 'kind2',
+                        sig => 'b' x 128, created_at => 1000, tags => [],
+                    );
+                    $relay->broadcast($e1);
+                    $relay->broadcast($e2);
+                    my $t; $t = AnyEvent->timer(after => 0.3, cb => sub {
+                        undef $t;
+                        $cv->send();
+                    });
+                }
+            } elsif ($parsed->[0] eq 'EVENT' && $eose_count >= 2) {
+                push @post_replace_events, $parsed;
+            }
+        });
+
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 's1',
+            filters => [Net::Nostr::Filter->new(kinds => [1])]
+        )->serialize);
+    });
+
+    $cv->recv;
+    is(scalar @post_replace_events, 1, 'only one event received after replacement');
+    is($post_replace_events[0][2]{content}, 'kind2', 'received kind 2 (new subscription), not kind 1');
+
+    $relay->stop;
+};
+
+###############################################################################
+# Relay: filter matching (since, until, ids, authors)
+###############################################################################
+
+subtest 'relay applies since and until filters' => sub {
+    my @events;
+    for my $ts (1000, 2000, 3000, 4000, 5000) {
+        push @events, Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => "at $ts",
+            sig => 'b' x 128, created_at => $ts, tags => [],
+        );
+    }
+
+    my $results = relay_store_and_query(
+        events  => \@events,
+        filters => [Net::Nostr::Filter->new(kinds => [1], since => 2000, until => 4000)],
+    );
+
+    is(scalar @$results, 3, 'three events in range [2000, 4000]');
+    for my $r (@$results) {
+        ok($r->{created_at} >= 2000 && $r->{created_at} <= 4000, "event at $r->{created_at} is within range");
+    }
+};
+
+subtest 'relay applies ids filter' => sub {
+    my $e1 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'first',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+    my $e2 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'second',
+        sig => 'b' x 128, created_at => 2000, tags => [],
+    );
+
+    my $target_id = $e1->id;
+    my $results = relay_store_and_query(
+        events  => [$e1, $e2],
+        filters => [Net::Nostr::Filter->new(ids => [$target_id])],
+    );
+
+    is(scalar @$results, 1, 'only one event matches id filter');
+    is($results->[0]{id}, $target_id, 'correct event returned');
+};
+
+subtest 'relay applies authors filter' => sub {
+    my $e1 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'from a',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+    my $e2 = Net::Nostr::Event->new(
+        pubkey => 'c' x 64, kind => 1, content => 'from c',
+        sig => 'b' x 128, created_at => 2000, tags => [],
+    );
+
+    my $results = relay_store_and_query(
+        events  => [$e1, $e2],
+        filters => [Net::Nostr::Filter->new(kinds => [1], authors => ['c' x 64])],
+    );
+
+    is(scalar @$results, 1, 'only one event matches author filter');
+    is($results->[0]{content}, 'from c', 'correct event returned');
 };
 
 ###############################################################################
