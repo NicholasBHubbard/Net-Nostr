@@ -51,6 +51,8 @@ and signing see L<Net::Nostr::Event>.
 
 =item L<NIP-19|https://github.com/nostr-protocol/nips/blob/master/19.md> - bech32-encoded entities
 
+=item L<NIP-44|https://github.com/nostr-protocol/nips/blob/master/44.md> - Encrypted payloads (versioned)
+
 =back
 
 =head1 METHODS
@@ -100,6 +102,8 @@ Returns a new L<Net::Nostr::Relay> instance for running a relay server.
 =item L<Net::Nostr::Thread> - NIP-10 text note threading
 
 =item L<Net::Nostr::Bech32> - NIP-19 bech32-encoded entities
+
+=item L<Net::Nostr::Encryption> - NIP-44 versioned encrypted payloads
 
 =back
 
