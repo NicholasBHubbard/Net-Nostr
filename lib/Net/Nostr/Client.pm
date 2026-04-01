@@ -21,21 +21,28 @@ sub new {
 }
 
 sub connect {
-    my ($self, $url) = @_;
+    my ($self, $url, $cb) = @_;
     croak "url is required" unless defined $url;
 
     my $cv = AnyEvent->condvar;
     $self->_ws_client->connect($url)->cb(sub {
         my $conn = eval { shift->recv };
         if ($@) {
-            $cv->croak("WebSocket connect failed: $@");
+            $cv->croak("connect failed: $@");
             return;
         }
         $self->_conn($conn);
         $self->_setup_handlers;
-        $cv->send(1);
+        $cv->send;
     });
-    return $cv;
+
+    if ($cb) {
+        $cv->cb(sub { eval { shift->recv }; $cb->() });
+        return;
+    }
+
+    $cv->recv;
+    return $self;
 }
 
 sub is_connected {
@@ -143,8 +150,8 @@ Net::Nostr::Client - WebSocket client for Nostr relays
         say "End of stored events for $sub_id";
     });
 
-    # Connect (returns a condvar)
-    $client->connect("ws://127.0.0.1:8080")->recv;
+    # Connect (blocks until connected)
+    $client->connect("ws://127.0.0.1:8080");
 
     # Publish an event
     $client->publish($event);
@@ -161,9 +168,9 @@ Net::Nostr::Client - WebSocket client for Nostr relays
 
 =head1 DESCRIPTION
 
-A WebSocket client for connecting to Nostr relays. Wraps
-L<AnyEvent::WebSocket::Client> and provides a callback-based interface
-for publishing events, managing subscriptions, and receiving relay messages.
+A WebSocket client for connecting to Nostr relays. Provides a callback-based
+interface for publishing events, managing subscriptions, and receiving relay
+messages.
 
 =head1 CONSTRUCTOR
 
@@ -178,14 +185,17 @@ C<connect> is called.
 
 =head2 connect
 
-    my $cv = $client->connect($url);
-    $cv->recv;  # blocks until connected
+    $client->connect($url);
 
-    # Non-blocking:
-    $client->connect($url)->cb(sub { ... });
+    # Non-blocking with callback:
+    $client->connect($url, sub { ... });
 
-Connects to the relay at the given WebSocket URL. Returns an
-L<AnyEvent> condvar that resolves when the connection is established.
+Connects to the relay at the given WebSocket URL. Blocks until the
+connection is established and returns C<$self> for chaining.
+
+If a callback is provided, connects asynchronously and calls the
+callback once connected. Returns immediately without blocking.
+
 Croaks if C<$url> is not provided.
 
 =head2 is_connected
@@ -256,6 +266,6 @@ Called when the relay closes a subscription.
 
 =head1 SEE ALSO
 
-L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Filter>
+L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Filter>, L<Net::Nostr::Relay>
 
 =cut

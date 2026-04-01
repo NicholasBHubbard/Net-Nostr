@@ -23,11 +23,11 @@ Net::Nostr - Perl client and relay library for the Nostr protocol
 
     # Connect to a relay as a client
     my $client = Net::Nostr->client;
-    $client->connect("ws://relay.example.com")->recv;
+    $client->connect("ws://relay.example.com");
 
     # Run a relay
     my $relay = Net::Nostr->relay;
-    $relay->start('127.0.0.1', 8080);
+    $relay->run('127.0.0.1', 8080);
 
 =head1 DESCRIPTION
 
@@ -47,7 +47,7 @@ Returns a new L<Net::Nostr::Client> instance for connecting to relays.
 
     my $client = Net::Nostr->client;
     $client->on(event => sub { my ($sub_id, $event) = @_; ... });
-    $client->connect("ws://relay.example.com")->recv;
+    $client->connect("ws://relay.example.com");
     $client->subscribe('my-feed', $filter);
     $client->publish($event);
     $client->disconnect;
@@ -59,8 +59,7 @@ Returns a new L<Net::Nostr::Client> instance for connecting to relays.
 Returns a new L<Net::Nostr::Relay> instance for running a relay server.
 
     my $relay = Net::Nostr->relay;
-    $relay->start('127.0.0.1', 8080);
-    AnyEvent->condvar->recv;  # run the event loop
+    $relay->run('127.0.0.1', 8080);
 
 =head1 LOWER-LEVEL MODULES
 
@@ -94,7 +93,7 @@ WebSocket client for connecting to Nostr relays. Supports publishing events,
 subscribing with filters, and receiving live events.
 
     my $client = Net::Nostr::Client->new;
-    $client->connect("ws://relay.example.com")->recv;
+    $client->connect("ws://relay.example.com");
     $client->subscribe('sub1', $filter);
     $client->publish($event);
     $client->disconnect;
@@ -105,8 +104,7 @@ WebSocket relay server implementing NIP-01 event storage, subscription
 management, and broadcasting.
 
     my $relay = Net::Nostr::Relay->new;
-    $relay->start('127.0.0.1', 8080);
-    $relay->stop;
+    $relay->run('127.0.0.1', 8080);  # blocks until stop
 
 =item L<Net::Nostr::Filter>
 

@@ -45,9 +45,9 @@ sub connect_to_relay {
 # Construction
 ###############################################################################
 
-subtest 'new creates relay with default server' => sub {
+subtest 'new creates relay' => sub {
     my $relay = Net::Nostr::Relay->new;
-    isa_ok($relay->server, 'AnyEvent::WebSocket::Server');
+    isa_ok($relay, 'Net::Nostr::Relay');
 };
 
 subtest 'stop on unstarted relay is safe' => sub {
@@ -88,6 +88,20 @@ subtest 'stop closes all connections' => sub {
 
     $cv->recv;
     ok($finish_called, 'client finish callback fired on stop');
+};
+
+subtest 'POD: run blocks until stop is called' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+
+    my $timer = AnyEvent->timer(after => 0.1, cb => sub {
+        ok($relay->_guard, 'relay is running');
+        $relay->stop;
+    });
+
+    $relay->run('127.0.0.1', $port);
+    # run returned, meaning stop unblocked it
+    ok(!$relay->_guard, 'relay stopped after stop unblocks run');
 };
 
 subtest 'stop prevents new connections' => sub {

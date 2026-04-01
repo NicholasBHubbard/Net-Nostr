@@ -11,7 +11,7 @@ use Digest::SHA qw(sha256_hex);
 use JSON;
 
 use Class::Tiny qw(
-    server
+    _server
     connections
     subscriptions
     events
@@ -21,7 +21,7 @@ use Class::Tiny qw(
 sub new {
     my $class = shift;
     my $self = bless {}, $class;
-    $self->server(AnyEvent::WebSocket::Server->new()) unless $self->server;
+    $self->_server(AnyEvent::WebSocket::Server->new());
     return $self;
 }
 
@@ -29,7 +29,7 @@ sub start {
     my ($self, $host, $port) = @_;
     $self->_guard(tcp_server($host, $port, sub {
         my ($fh) = @_;
-        $self->server->establish($fh)->cb(sub {
+        $self->_server->establish($fh)->cb(sub {
             my $conn = eval { shift->recv };
             return warn "WebSocket handshake failed: $@\n" if $@;
             $self->_on_connection($conn);
@@ -37,7 +37,25 @@ sub start {
     }));
 }
 
+sub run {
+    my ($self, $host, $port) = @_;
+    $self->start($host, $port);
+    $self->{_run_cv} = AnyEvent->condvar;
+    $self->{_run_cv}->recv;
+    delete $self->{_run_cv};
+    $self->_stop_cleanup;
+}
+
 sub stop {
+    my ($self) = @_;
+    if ($self->{_run_cv}) {
+        $self->{_run_cv}->send;
+        return;
+    }
+    $self->_stop_cleanup;
+}
+
+sub _stop_cleanup {
     my ($self) = @_;
     $self->_guard(undef);
     for my $conn (values %{$self->connections || {}}) {
@@ -230,13 +248,7 @@ Net::Nostr::Relay - Nostr WebSocket relay server
     use Net::Nostr::Relay;
 
     my $relay = Net::Nostr::Relay->new;
-    $relay->start('127.0.0.1', 8080);
-
-    # Run the event loop
-    AnyEvent->condvar->recv;
-
-    # Shut down
-    $relay->stop;
+    $relay->run('127.0.0.1', 8080);  # blocks forever
 
 =head1 DESCRIPTION
 
@@ -264,22 +276,32 @@ Supports all NIP-01 event semantics:
 
     my $relay = Net::Nostr::Relay->new;
 
-Creates a new relay instance with a default WebSocket server.
+Creates a new relay instance.
 
 =head1 METHODS
 
+=head2 run
+
+    $relay->run('127.0.0.1', 8080);
+
+Starts the relay and blocks indefinitely, serving connections until
+C<stop> is called or the process exits. Equivalent to calling C<start>
+followed by a blocking event loop.
+
 =head2 start
 
-    $relay->start($host, $port);
     $relay->start('127.0.0.1', 8080);
 
 Starts listening for WebSocket connections on the given host and port.
+Returns immediately without blocking, useful for tests or when you need
+to run other code alongside the relay.
 
 =head2 stop
 
     $relay->stop;
 
 Stops the relay, closes all connections, and clears all subscriptions.
+If the relay was started with C<run>, also unblocks it.
 Safe to call on an unstarted relay.
 
 =head2 broadcast
@@ -290,25 +312,15 @@ Sends the event to all connected clients whose subscriptions match.
 Normally called internally when a new event is accepted, but can be
 called directly for testing or custom event injection.
 
-    # Manually inject an event to subscribers
-    $relay->broadcast($event);
-
-=head2 server
-
-    my $ws_server = $relay->server;
-
-Returns the underlying L<AnyEvent::WebSocket::Server> instance.
-
 =head2 connections
 
-    my $conns = $relay->connections;  # hashref { conn_id => $conn }
+    my $conns = $relay->connections;  # hashref
 
-Returns the hashref of active WebSocket connections.
+Returns the hashref of active connections.
 
 =head2 subscriptions
 
-    my $subs = $relay->subscriptions;
-    # { conn_id => { sub_id => [$filter, ...], ... } }
+    my $subs = $relay->subscriptions;  # hashref
 
 Returns the hashref of active subscriptions, keyed by connection ID
 then subscription ID.

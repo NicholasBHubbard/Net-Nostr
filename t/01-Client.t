@@ -5,14 +5,11 @@ use strictures 2;
 use Test2::V0 -no_srand => 1;
 use AnyEvent;
 use IO::Socket::INET;
-use JSON;
 
 use Net::Nostr::Client;
 use Net::Nostr::Relay;
 use Net::Nostr::Event;
 use Net::Nostr::Filter;
-
-my $JSON_CODEC = JSON->new->utf8;
 
 sub free_port {
     my $sock = IO::Socket::INET->new(
@@ -49,27 +46,39 @@ subtest 'new creates a client' => sub {
 # Connect and disconnect
 ###############################################################################
 
-subtest 'connect to relay and disconnect' => sub {
+subtest 'connect blocks and returns self' => sub {
     my $port = free_port();
     my $relay = Net::Nostr::Relay->new;
     $relay->start('127.0.0.1', $port);
 
     my $client = Net::Nostr::Client->new;
+    my $ret = $client->connect("ws://127.0.0.1:$port");
+    is($ret, $client, 'connect returns self');
+    ok($client->is_connected, 'client reports connected');
 
+    $client->disconnect;
+    ok(!$client->is_connected, 'client reports disconnected after disconnect');
+
+    $relay->stop;
+};
+
+subtest 'connect with callback (async)' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;
     my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
 
-    $client->connect("ws://127.0.0.1:$port")->cb(sub {
-        my $ok = eval { shift->recv };
-        ok($ok, 'connect resolves successfully');
-        ok($client->is_connected, 'client reports connected');
-
-        $client->disconnect;
-        ok(!$client->is_connected, 'client reports disconnected after disconnect');
+    $client->connect("ws://127.0.0.1:$port", sub {
+        ok($client->is_connected, 'connected in callback');
         $cv->send;
     });
 
     $cv->recv;
+
+    $client->disconnect;
     $relay->stop;
 };
 
@@ -83,11 +92,10 @@ subtest 'publish sends EVENT and receives OK via callback' => sub {
     $relay->start('127.0.0.1', $port);
 
     my $client = Net::Nostr::Client->new;
+    my $event = make_event(content => 'publish test');
 
     my $cv = AnyEvent->condvar;
     my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
-
-    my $event = make_event(content => 'publish test');
 
     my @ok_received;
     $client->on(ok => sub {
@@ -96,13 +104,8 @@ subtest 'publish sends EVENT and receives OK via callback' => sub {
         $cv->send;
     });
 
-    $client->connect("ws://127.0.0.1:$port")->cb(sub {
-        eval { shift->recv };
-        my $t; $t = AnyEvent->timer(after => 0.15, cb => sub {
-            undef $t;
-            $client->publish($event);
-        });
-    });
+    $client->connect("ws://127.0.0.1:$port");
+    $client->publish($event);
 
     $cv->recv;
 
@@ -124,18 +127,15 @@ subtest 'subscribe receives stored events then EOSE' => sub {
     $relay->start('127.0.0.1', $port);
 
     my $client = Net::Nostr::Client->new;
+    my $event = make_event(content => 'stored event');
 
     my $cv = AnyEvent->condvar;
     my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
-
-    my $event = make_event(content => 'stored event');
 
     my @events_received;
     my @eose_received;
 
     $client->on(ok => sub {
-        my ($event_id, $accepted, $message) = @_;
-        # after event is stored, subscribe
         my $filter = Net::Nostr::Filter->new(kinds => [1]);
         $client->subscribe('sub1', $filter);
     });
@@ -151,13 +151,8 @@ subtest 'subscribe receives stored events then EOSE' => sub {
         $cv->send;
     });
 
-    $client->connect("ws://127.0.0.1:$port")->cb(sub {
-        eval { shift->recv };
-        my $t; $t = AnyEvent->timer(after => 0.15, cb => sub {
-            undef $t;
-            $client->publish($event);
-        });
-    });
+    $client->connect("ws://127.0.0.1:$port");
+    $client->publish($event);
 
     $cv->recv;
 
@@ -191,8 +186,6 @@ subtest 'close sends CLOSE message' => sub {
         push @eose_received, $sub_id;
         $client->close($sub_id);
 
-        # verify no more events come after close by subscribing again
-        # and getting a clean EOSE
         if ($sub_id eq 'sub1') {
             my $filter = Net::Nostr::Filter->new(kinds => [1]);
             $client->subscribe('sub2', $filter);
@@ -201,14 +194,9 @@ subtest 'close sends CLOSE message' => sub {
         }
     });
 
-    $client->connect("ws://127.0.0.1:$port")->cb(sub {
-        eval { shift->recv };
-        my $t; $t = AnyEvent->timer(after => 0.15, cb => sub {
-            undef $t;
-            my $filter = Net::Nostr::Filter->new(kinds => [1]);
-            $client->subscribe('sub1', $filter);
-        });
-    });
+    $client->connect("ws://127.0.0.1:$port");
+    my $filter = Net::Nostr::Filter->new(kinds => [1]);
+    $client->subscribe('sub1', $filter);
 
     $cv->recv;
 
@@ -228,12 +216,11 @@ subtest 'subscribe with multiple filters' => sub {
     $relay->start('127.0.0.1', $port);
 
     my $client = Net::Nostr::Client->new;
+    my $e1 = make_event(kind => 1, content => 'kind 1');
+    my $e2 = make_event(kind => 0, content => '{"name":"test"}');
 
     my $cv = AnyEvent->condvar;
     my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
-
-    my $e1 = make_event(kind => 1, content => 'kind 1');
-    my $e2 = make_event(kind => 0, content => '{"name":"test"}');
 
     my @events_received;
     my $ok_count = 0;
@@ -254,17 +241,9 @@ subtest 'subscribe with multiple filters' => sub {
 
     $client->on(eose => sub { $cv->send });
 
-    $client->connect("ws://127.0.0.1:$port")->cb(sub {
-        eval { shift->recv };
-        my $t; $t = AnyEvent->timer(after => 0.15, cb => sub {
-            undef $t;
-            $client->publish($e1);
-            my $t2; $t2 = AnyEvent->timer(after => 0.15, cb => sub {
-                undef $t2;
-                $client->publish($e2);
-            });
-        });
-    });
+    $client->connect("ws://127.0.0.1:$port");
+    $client->publish($e1);
+    $client->publish($e2);
 
     $cv->recv;
 
@@ -294,7 +273,7 @@ subtest 'receive live events after EOSE' => sub {
 
     $client1->on(eose => sub {
         $got_eose = 1;
-        # now publish from client2 — should arrive as live event
+        # publish from client2 — should arrive as live event
         my $live = make_event(content => 'live!', created_at => 2000);
         $client2->publish($live);
     });
@@ -307,20 +286,13 @@ subtest 'receive live events after EOSE' => sub {
         }
     });
 
-    # client2 gets OK, which means event was stored and broadcast
     $client2->on(ok => sub {});
 
-    $client1->connect("ws://127.0.0.1:$port")->cb(sub {
-        eval { shift->recv };
-        $client2->connect("ws://127.0.0.1:$port")->cb(sub {
-            eval { shift->recv };
-            my $t; $t = AnyEvent->timer(after => 0.15, cb => sub {
-                undef $t;
-                my $filter = Net::Nostr::Filter->new(kinds => [1]);
-                $client1->subscribe('live-test', $filter);
-            });
-        });
-    });
+    $client1->connect("ws://127.0.0.1:$port");
+    $client2->connect("ws://127.0.0.1:$port");
+
+    my $filter = Net::Nostr::Filter->new(kinds => [1]);
+    $client1->subscribe('live-test', $filter);
 
     $cv->recv;
 
@@ -340,7 +312,6 @@ subtest 'on notice callback' => sub {
     my $client = Net::Nostr::Client->new;
     my @notices;
     $client->on(notice => sub { push @notices, $_[0] });
-    # just verify the callback registration works (notice delivery tested via relay)
     ok(1, 'notice callback registered without error');
 };
 

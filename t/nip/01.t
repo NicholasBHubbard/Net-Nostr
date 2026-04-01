@@ -270,15 +270,15 @@ subtest 'signature does not verify with wrong message' => sub {
 ###############################################################################
 
 subtest 'sign_event produces valid schnorr signature over event id' => sub {
-    my $nostr = Net::Nostr->new;
+    my $key = Net::Nostr::Key->new;
     my $event = Net::Nostr::Event->new(
-        pubkey => $nostr->key->pubkey_hex,
+        pubkey => $key->pubkey_hex,
         kind => 1,
         content => 'hello nostr',
         tags => []
     );
 
-    my $sig = $nostr->sign_event($event);
+    my $sig = $key->sign_event($event);
     ok($sig, 'sign_event returns a signature');
     is($event->sig, $sig, 'signature is set on the event');
 
@@ -286,18 +286,18 @@ subtest 'sign_event produces valid schnorr signature over event id' => sub {
     like($sig, qr/^[0-9a-f]{128}$/, 'signature is 128-char lowercase hex');
 
     # verify via Event method
-    ok($event->verify_sig($nostr->key), 'signature verifies via verify_sig');
+    ok($event->verify_sig($key), 'signature verifies via verify_sig');
 };
 
 subtest 'signed event has all required fields' => sub {
-    my $nostr = Net::Nostr->new;
+    my $key = Net::Nostr::Key->new;
     my $event = Net::Nostr::Event->new(
-        pubkey => $nostr->key->pubkey_hex,
+        pubkey => $key->pubkey_hex,
         kind => 1,
         content => 'test',
         tags => []
     );
-    $nostr->sign_event($event);
+    $key->sign_event($event);
 
     ok(defined $event->id, 'event has id');
     ok(defined $event->pubkey, 'event has pubkey');
