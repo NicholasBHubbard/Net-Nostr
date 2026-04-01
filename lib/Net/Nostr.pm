@@ -45,6 +45,8 @@ and signing see L<Net::Nostr::Event>.
 
 =item L<NIP-02|https://github.com/nostr-protocol/nips/blob/master/02.md> - Follow list
 
+=item L<NIP-10|https://github.com/nostr-protocol/nips/blob/master/10.md> - Text notes and threads
+
 =back
 
 =head1 METHODS
@@ -88,6 +90,8 @@ Returns a new L<Net::Nostr::Relay> instance for running a relay server.
 =item L<Net::Nostr::Key> - Secp256k1 keypair management and BIP-340 Schnorr signatures
 
 =item L<Net::Nostr::FollowList> - NIP-02 follow list management
+
+=item L<Net::Nostr::Thread> - NIP-10 text note threading
 
 =back
 

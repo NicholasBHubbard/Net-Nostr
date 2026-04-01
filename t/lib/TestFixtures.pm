@@ -3,7 +3,7 @@ package TestFixtures;
 use strictures 2;
 use Exporter 'import';
 
-our @EXPORT_OK = qw(%FIATJAF_EVENT);
+our @EXPORT_OK = qw(%FIATJAF_EVENT make_event);
 
 # A real-world note from fiatjaf
 our %FIATJAF_EVENT = (
@@ -15,5 +15,10 @@ our %FIATJAF_EVENT = (
     tags => [],
     sig => 'f5e5e8a477c6749ef8562c23cdfec7a6917c975ec55075489cb3319b8a2ccb78317335a6850fb3a3714777b1c22611419d6c81ce4b0b88db86e2d1662bb17540'
 );
+
+sub make_event {
+    require Net::Nostr::Event;
+    return Net::Nostr::Event->new(@_);
+}
 
 1;
