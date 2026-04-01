@@ -37,6 +37,14 @@ in Perl. It provides two factory methods that return client and relay objects.
 For identity and key management see L<Net::Nostr::Key>. For event creation
 and signing see L<Net::Nostr::Event>.
 
+=head1 SUPPORTED NIPS
+
+=over 4
+
+=item L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md> - Basic protocol flow
+
+=back
+
 =head1 METHODS
 
 =head2 client
