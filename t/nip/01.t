@@ -1426,6 +1426,127 @@ subtest 'filter tag array: event with multiple tags matches if any overlap' => s
 };
 
 ###############################################################################
+# Empty filter matches all events
+###############################################################################
+
+subtest 'empty filter with no conditions matches all events' => sub {
+    my $filter = Net::Nostr::Filter->new();
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'anything',
+        sig => '', created_at => 1000, tags => [['t', 'nostr']],
+    );
+    ok($filter->matches($event), 'empty filter matches any event');
+
+    my $event2 = Net::Nostr::Event->new(
+        pubkey => 'b' x 64, kind => 30023, content => '',
+        sig => '', created_at => 9999, tags => [['d', 'test']],
+    );
+    ok($filter->matches($event2), 'empty filter matches different event too');
+};
+
+subtest 'relay returns all stored events for empty filter' => sub {
+    my @events;
+    for my $i (1..3) {
+        push @events, Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => $i, content => "event $i",
+            sig => 'b' x 128, created_at => $i * 1000, tags => [],
+        );
+    }
+
+    my $results = relay_store_and_query(
+        events  => \@events,
+        filters => [Net::Nostr::Filter->new()],
+    );
+
+    is(scalar @$results, 3, 'empty filter returns all stored events');
+};
+
+###############################################################################
+# Closing non-existent subscription is safe
+###############################################################################
+
+subtest 'CLOSE for non-existent subscription does not crash' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        # send CLOSE for subscription that was never created
+        $conn->send(Net::Nostr::Message->new(type => 'CLOSE', subscription_id => 'nonexistent')->serialize);
+        # if we get here without crashing, it's a pass
+        my $t; $t = AnyEvent->timer(after => 0.2, cb => sub {
+            undef $t;
+            $cv->send(1);
+        });
+    });
+
+    ok($cv->recv, 'CLOSE for non-existent subscription did not crash relay');
+
+    # verify relay still works after
+    my $cv2 = AnyEvent->condvar;
+    my $timeout2 = AnyEvent->timer(after => 5, cb => sub { $cv2->croak("timeout") });
+    my $ref2 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            $cv2->send($parsed->[0]) if $parsed->[0] eq 'EOSE';
+        });
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'test',
+            filters => [Net::Nostr::Filter->new(kinds => [1])]
+        )->serialize);
+    });
+
+    is($cv2->recv, 'EOSE', 'relay still functional after closing non-existent sub');
+
+    $relay->stop;
+};
+
+###############################################################################
+# Relay: duplicate event detection
+###############################################################################
+
+subtest 'relay returns OK with duplicate: prefix for duplicate events' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'dup test',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my @responses;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            push @responses, $JSON_CODEC->decode($msg->body);
+            if (@responses == 1) {
+                # send same event again after first OK
+                $c->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+            } elsif (@responses == 2) {
+                $cv->send;
+            }
+        });
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    $cv->recv;
+    is($responses[0][2], JSON::true, 'first event accepted');
+    is($responses[1][2], JSON::true, 'duplicate accepted (true per spec)');
+    like($responses[1][3], qr/^duplicate:/, 'duplicate has duplicate: prefix');
+
+    $relay->stop;
+};
+
+###############################################################################
 # Kind range validation (MUST be 0-65535)
 ###############################################################################
 

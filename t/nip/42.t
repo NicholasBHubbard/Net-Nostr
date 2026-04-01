@@ -471,6 +471,202 @@ subtest 'relay rejects AUTH with wrong kind' => sub {
 };
 
 ###############################################################################
+# AUTH event validation: relay tag must match relay URL
+###############################################################################
+
+subtest 'relay rejects AUTH with wrong relay URL' => sub {
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_url         => "ws://127.0.0.1:$port",
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $client = Net::Nostr::Client->new;
+    my ($got_challenge, $auth_accepted, $auth_msg);
+
+    $client->on(auth => sub { $got_challenge = $_[0] });
+    $client->on(ok => sub { $auth_accepted = $_[1]; $auth_msg = $_[2] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Send AUTH with wrong relay URL
+    my $auth_event = $key->create_event(
+        kind    => 22242,
+        content => '',
+        tags    => [
+            ['relay', 'wss://evil.example.com/'],
+            ['challenge', $got_challenge],
+        ],
+    );
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', event => $auth_event);
+    $client->_conn->send($msg->serialize);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    is $auth_accepted, 0, 'wrong relay URL rejected';
+    like $auth_msg, qr/relay/, 'rejection message mentions relay';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'relay accepts AUTH with matching relay URL' => sub {
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_url         => "ws://127.0.0.1:$port",
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $client = Net::Nostr::Client->new;
+    my ($got_challenge, $auth_accepted);
+
+    $client->on(auth => sub { $got_challenge = $_[0] });
+    $client->on(ok => sub { $auth_accepted = $_[1] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    $client->authenticate($key, "ws://127.0.0.1:$port");
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    is $auth_accepted, 1, 'matching relay URL accepted';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'relay URL validation is case-insensitive on host' => sub {
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_url         => "ws://127.0.0.1:$port",
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $client = Net::Nostr::Client->new;
+    my ($got_challenge, $auth_accepted);
+
+    $client->on(auth => sub { $got_challenge = $_[0] });
+    $client->on(ok => sub { $auth_accepted = $_[1] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Send AUTH with uppercase host (should still match)
+    my $auth_event = $key->create_event(
+        kind    => 22242,
+        content => '',
+        tags    => [
+            ['relay', "WS://127.0.0.1:$port"],
+            ['challenge', $got_challenge],
+        ],
+    );
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', event => $auth_event);
+    $client->_conn->send($msg->serialize);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    is $auth_accepted, 1, 'case-insensitive host comparison accepted';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'relay without relay_url skips relay tag validation' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $client = Net::Nostr::Client->new;
+    my ($got_challenge, $auth_accepted);
+
+    $client->on(auth => sub { $got_challenge = $_[0] });
+    $client->on(ok => sub { $auth_accepted = $_[1] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Send AUTH with any relay URL - should still be accepted
+    my $auth_event = $key->create_event(
+        kind    => 22242,
+        content => '',
+        tags    => [
+            ['relay', 'wss://any.relay.example.com/'],
+            ['challenge', $got_challenge],
+        ],
+    );
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', event => $auth_event);
+    $client->_conn->send($msg->serialize);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    is $auth_accepted, 1, 'no relay_url set means relay tag not validated';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'relay rejects AUTH with missing relay tag' => sub {
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_url         => "ws://127.0.0.1:$port",
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $client = Net::Nostr::Client->new;
+    my ($got_challenge, $auth_accepted, $auth_msg);
+
+    $client->on(auth => sub { $got_challenge = $_[0] });
+    $client->on(ok => sub { $auth_accepted = $_[1]; $auth_msg = $_[2] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Send AUTH without relay tag
+    my $auth_event = $key->create_event(
+        kind    => 22242,
+        content => '',
+        tags    => [
+            ['challenge', $got_challenge],
+        ],
+    );
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', event => $auth_event);
+    $client->_conn->send($msg->serialize);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    is $auth_accepted, 0, 'missing relay tag rejected';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+###############################################################################
 # auth-required and restricted prefixes
 ###############################################################################
 

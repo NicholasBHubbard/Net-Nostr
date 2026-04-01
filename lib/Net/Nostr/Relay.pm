@@ -22,6 +22,7 @@ use Class::Tiny qw(
     _guard
     verify_signatures
     max_connections_per_ip
+    relay_url
 );
 
 sub new {
@@ -167,6 +168,14 @@ sub _on_connection {
         delete $self->{_authenticated}{$conn_id};
         $self->{_conn_count_by_ip}{$peer_host}-- if defined $peer_host;
     });
+}
+
+sub _relay_host_matches {
+    my ($expected, $got) = @_;
+    my ($eh) = $expected =~ m{^wss?://([^:/]+)}i;
+    my ($gh) = $got      =~ m{^wss?://([^:/]+)}i;
+    return 0 unless defined $eh && defined $gh;
+    return lc($eh) eq lc($gh);
 }
 
 my $HEX64  = qr/\A[0-9a-f]{64}\z/;
@@ -341,6 +350,21 @@ sub _handle_auth {
         return;
     }
 
+    # Relay tag must match (if relay_url is configured)
+    if (defined $self->relay_url) {
+        my $got_relay;
+        for my $tag (@{$event->tags}) {
+            if ($tag->[0] eq 'relay') {
+                $got_relay = $tag->[1];
+                last;
+            }
+        }
+        unless (defined $got_relay && _relay_host_matches($self->relay_url, $got_relay)) {
+            $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: relay URL does not match')->serialize);
+            return;
+        }
+    }
+
     # Challenge tag must match
     my $expected_challenge = $self->{_challenges}{$conn_id};
     my $got_challenge;
@@ -442,6 +466,7 @@ Supports all NIP-01 event semantics:
     my $relay = Net::Nostr::Relay->new;
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     my $relay = Net::Nostr::Relay->new(max_connections_per_ip => 10);
+    my $relay = Net::Nostr::Relay->new(relay_url => 'wss://relay.example.com/');
 
 Creates a new relay instance. Options:
 
@@ -453,6 +478,11 @@ Pass C<0> to disable (useful for testing with synthetic events).
 =item C<max_connections_per_ip> - Maximum simultaneous WebSocket connections
 allowed from a single IP address. Connections beyond this limit are rejected
 at the TCP level. Default: C<undef> (unlimited).
+
+=item C<relay_url> - The relay's own WebSocket URL (e.g. C<wss://relay.example.com/>).
+When set, NIP-42 AUTH events are validated to ensure the C<relay> tag matches
+this URL (domain comparison, case-insensitive). Default: C<undef> (relay tag
+not validated).
 
 =back
 
@@ -523,6 +553,16 @@ Returns the maximum number of simultaneous connections allowed per IP
 address, or C<undef> if unlimited (the default).
 
     my $relay = Net::Nostr::Relay->new(max_connections_per_ip => 10);
+    $relay->start('0.0.0.0', 8080);
+
+=head2 relay_url
+
+    my $url = $relay->relay_url;
+
+Returns the relay's own WebSocket URL, or C<undef> if not set.
+Used for NIP-42 relay tag validation.
+
+    my $relay = Net::Nostr::Relay->new(relay_url => 'wss://relay.example.com/');
     $relay->start('0.0.0.0', 8080);
 
 =head2 authenticated_pubkeys

@@ -807,4 +807,12 @@ subtest 'authenticated_pubkeys accessor' => sub {
     is ref($auth), 'HASH', 'returns hashref';
 };
 
+subtest 'relay_url accessor' => sub {
+    my $relay = Net::Nostr::Relay->new(relay_url => 'wss://relay.example.com/');
+    is $relay->relay_url, 'wss://relay.example.com/', 'relay_url stored';
+
+    my $relay2 = Net::Nostr::Relay->new;
+    ok !defined($relay2->relay_url), 'relay_url defaults to undef';
+};
+
 done_testing;
