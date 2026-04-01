@@ -1585,4 +1585,76 @@ subtest 'relay sends CLOSED when subscription_id too long' => sub {
     $relay->stop;
 };
 
+###############################################################################
+# Connection limiting (NIP-01 §MAY limit connections)
+###############################################################################
+
+subtest 'relay without max_connections_per_ip allows unlimited connections' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my @clients;
+    for my $i (1..5) {
+        my $c = Net::Nostr::Client->new;
+        $c->connect("ws://127.0.0.1:$port");
+        push @clients, $c;
+    }
+
+    is(scalar keys %{$relay->connections}, 5, 'all 5 connections established');
+
+    $_->disconnect for @clients;
+    $relay->stop;
+};
+
+subtest 'relay rejects connections over max_connections_per_ip' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0, max_connections_per_ip => 2);
+    $relay->start('127.0.0.1', $port);
+
+    my $c1 = Net::Nostr::Client->new;
+    my $c2 = Net::Nostr::Client->new;
+    $c1->connect("ws://127.0.0.1:$port");
+    $c2->connect("ws://127.0.0.1:$port");
+
+    ok($c1->is_connected, 'first connection within limit');
+    ok($c2->is_connected, 'second connection within limit');
+    is(scalar keys %{$relay->connections}, 2, 'two connections tracked');
+
+    my $c3 = Net::Nostr::Client->new;
+    ok(dies { $c3->connect("ws://127.0.0.1:$port") }, 'third connection rejected');
+
+    $c1->disconnect;
+    $c2->disconnect;
+    $relay->stop;
+};
+
+subtest 'relay allows new connection after disconnect frees a slot' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0, max_connections_per_ip => 1);
+    $relay->start('127.0.0.1', $port);
+
+    my $c1 = Net::Nostr::Client->new;
+    $c1->connect("ws://127.0.0.1:$port");
+    ok($c1->is_connected, 'first connection succeeds');
+
+    $c1->disconnect;
+    # allow disconnect to propagate
+    my $cv = AnyEvent->condvar;
+    my $t = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+    $cv->recv;
+
+    my $c2 = Net::Nostr::Client->new;
+    $c2->connect("ws://127.0.0.1:$port");
+    ok($c2->is_connected, 'connection succeeds after disconnect freed slot');
+
+    $c2->disconnect;
+    $relay->stop;
+};
+
+subtest 'max_connections_per_ip default is unlimited' => sub {
+    my $relay = Net::Nostr::Relay->new;
+    ok(!defined $relay->max_connections_per_ip, 'max_connections_per_ip defaults to undef');
+};
+
 done_testing;

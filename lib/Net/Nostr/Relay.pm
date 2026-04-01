@@ -19,6 +19,7 @@ use Class::Tiny qw(
     events
     _guard
     verify_signatures
+    max_connections_per_ip
 );
 
 sub new {
@@ -31,12 +32,25 @@ sub new {
 
 sub start {
     my ($self, $host, $port) = @_;
+    $self->{_conn_count_by_ip} = {};
     $self->_guard(tcp_server($host, $port, sub {
-        my ($fh) = @_;
+        my ($fh, $peer_host) = @_;
+        if (defined $self->max_connections_per_ip) {
+            my $count = $self->{_conn_count_by_ip}{$peer_host} || 0;
+            if ($count >= $self->max_connections_per_ip) {
+                close $fh;
+                return;
+            }
+        }
+        $self->{_conn_count_by_ip}{$peer_host}++;
         $self->_server->establish($fh)->cb(sub {
             my $conn = eval { shift->recv };
-            return warn "WebSocket handshake failed: $@\n" if $@;
-            $self->_on_connection($conn);
+            if ($@) {
+                $self->{_conn_count_by_ip}{$peer_host}--;
+                warn "WebSocket handshake failed: $@\n";
+                return;
+            }
+            $self->_on_connection($conn, $peer_host);
         });
     }));
 }
@@ -67,6 +81,7 @@ sub _stop_cleanup {
     }
     $self->connections({});
     $self->subscriptions({});
+    $self->{_conn_count_by_ip} = {};
 }
 
 sub broadcast {
@@ -86,7 +101,7 @@ sub broadcast {
 my $CONN_ID = 0;
 
 sub _on_connection {
-    my ($self, $conn) = @_;
+    my ($self, $conn, $peer_host) = @_;
     my $conn_id = ++$CONN_ID;
 
     $self->{connections} //= {};
@@ -129,6 +144,7 @@ sub _on_connection {
     $conn->on(finish => sub {
         delete $self->connections->{$conn_id};
         delete $self->subscriptions->{$conn_id};
+        $self->{_conn_count_by_ip}{$peer_host}-- if defined $peer_host;
     });
 }
 
@@ -311,10 +327,20 @@ Supports all NIP-01 event semantics:
 
     my $relay = Net::Nostr::Relay->new;
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    my $relay = Net::Nostr::Relay->new(max_connections_per_ip => 10);
 
-Creates a new relay instance. By default, Schnorr signature verification
-is enabled. Pass C<verify_signatures =E<gt> 0> to disable it (useful for
-testing with synthetic events).
+Creates a new relay instance. Options:
+
+=over 4
+
+=item C<verify_signatures> - Enable Schnorr signature verification (default: true).
+Pass C<0> to disable (useful for testing with synthetic events).
+
+=item C<max_connections_per_ip> - Maximum simultaneous WebSocket connections
+allowed from a single IP address. Connections beyond this limit are rejected
+at the TCP level. Default: C<undef> (unlimited).
+
+=back
 
 =head1 METHODS
 
@@ -374,6 +400,16 @@ Returns the arrayref of stored events.
     my $bool = $relay->verify_signatures;
 
 Returns whether Schnorr signature verification is enabled (default: true).
+
+=head2 max_connections_per_ip
+
+    my $limit = $relay->max_connections_per_ip;
+
+Returns the maximum number of simultaneous connections allowed per IP
+address, or C<undef> if unlimited (the default).
+
+    my $relay = Net::Nostr::Relay->new(max_connections_per_ip => 10);
+    $relay->start('0.0.0.0', 8080);
 
 =head1 SEE ALSO
 
