@@ -47,6 +47,8 @@ and signing see L<Net::Nostr::Event>.
 
 =item L<NIP-10|https://github.com/nostr-protocol/nips/blob/master/10.md> - Text notes and threads
 
+=item L<NIP-19|https://github.com/nostr-protocol/nips/blob/master/19.md> - bech32-encoded entities
+
 =back
 
 =head1 METHODS
@@ -92,6 +94,8 @@ Returns a new L<Net::Nostr::Relay> instance for running a relay server.
 =item L<Net::Nostr::FollowList> - NIP-02 follow list management
 
 =item L<Net::Nostr::Thread> - NIP-10 text note threading
+
+=item L<Net::Nostr::Bech32> - NIP-19 bech32-encoded entities
 
 =back
 

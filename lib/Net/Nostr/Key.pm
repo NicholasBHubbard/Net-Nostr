@@ -87,6 +87,18 @@ sub privkey_hex {
     return $hex;
 }
 
+sub pubkey_npub {
+    my ($self) = @_;
+    require Net::Nostr::Bech32;
+    return Net::Nostr::Bech32::encode_npub($self->pubkey_hex);
+}
+
+sub privkey_nsec {
+    my ($self) = @_;
+    require Net::Nostr::Bech32;
+    return Net::Nostr::Bech32::encode_nsec($self->privkey_hex);
+}
+
 sub sign_event {
     my ($self, $event) = @_;
     my $sig_raw = $self->schnorr_sign($event->id);
@@ -188,6 +200,24 @@ use as a Nostr pubkey (BIP-340 format).
     my $hex = $key->privkey_hex;  # 64-char lowercase hex
 
 Returns the private key as a 64-character hex string.
+
+=head2 pubkey_npub
+
+    my $npub = $key->pubkey_npub;  # 'npub1...'
+
+Returns the public key as a NIP-19 bech32-encoded C<npub> string.
+
+    my $key = Net::Nostr::Key->new;
+    say $key->pubkey_npub;  # npub1...
+
+=head2 privkey_nsec
+
+    my $nsec = $key->privkey_nsec;  # 'nsec1...'
+
+Returns the private key as a NIP-19 bech32-encoded C<nsec> string.
+
+    my $key = Net::Nostr::Key->new;
+    say $key->privkey_nsec;  # nsec1...
 
 =head2 pubkey_raw
 

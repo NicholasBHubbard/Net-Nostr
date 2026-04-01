@@ -6,6 +6,7 @@ requires 'Crypt::PK::ECC';
 requires 'Crypt::PK::ECC::Schnorr';
 requires 'JSON';
 requires 'Class::Tiny';
+requires 'Bitcoin::Crypto::Bech32';
 
 on 'test' => sub {
     requires 'Test2::V0';
