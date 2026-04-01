@@ -4,16 +4,15 @@ use strictures 2;
 
 use Net::Nostr::Key;
 use Net::Nostr::Event;
+use Class::Tiny qw(key);
 
 sub new {
     my $class = shift;
     my $self = bless {}, $class;
     $self->{_constructor_args} = { @_ };
-    $self->{_key} = Net::Nostr::Key->new($self->key_args);
+    $self->key(Net::Nostr::Key->new($self->key_args));
     return $self;
 }
-
-sub key { shift->{_key} }
 
 sub sign_event {
     my ($self, $event) = @_;

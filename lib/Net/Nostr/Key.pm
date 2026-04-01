@@ -4,6 +4,7 @@ use strictures 2;
 
 use Crypt::PK::ECC;
 use Crypt::PK::ECC::Schnorr;
+use Class::Tiny qw(_cryptpkecc);
 
 sub new {
     my $class = shift;
@@ -13,8 +14,6 @@ sub new {
     $self->_cryptpkecc->generate_key('secp256k1') unless $self->pubkey_loaded;
     return $self;
 }
-
-sub _cryptpkecc { shift->{_cryptpkecc} }
 
 sub constructor_keys { qw(privkey pubkey) }
 

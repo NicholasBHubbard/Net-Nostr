@@ -129,7 +129,7 @@ subtest 'relay responds OK to EVENT' => sub {
             $cv->send($msg->body);
         });
 
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
 
     my $response = $cv->recv;
@@ -157,7 +157,7 @@ subtest 'relay stores received events' => sub {
             pubkey => 'a' x 64, kind => 1, content => 'stored',
             sig => 'b' x 128, created_at => 1000, tags => [],
         );
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
 
     $cv->recv;
@@ -186,7 +186,7 @@ subtest 'relay sends EOSE after REQ with no matching events' => sub {
         });
 
         my $filter = Net::Nostr::Filter->new(kinds => [1]);
-        $conn->send(Net::Nostr::Message::req_msg('sub1', $filter));
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'sub1', filters => [$filter])->serialize);
     });
 
     my $response = $cv->recv;
@@ -214,7 +214,7 @@ subtest 'relay sends matching stored events then EOSE' => sub {
             if ($phase eq 'store') {
                 $phase = 'query';
                 my $filter = Net::Nostr::Filter->new(kinds => [1]);
-                $c->send(Net::Nostr::Message::req_msg('sub1', $filter));
+                $c->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'sub1', filters => [$filter])->serialize);
             } else {
                 push @messages, $parsed;
                 $cv->send() if $parsed->[0] eq 'EOSE';
@@ -225,7 +225,7 @@ subtest 'relay sends matching stored events then EOSE' => sub {
             pubkey => 'a' x 64, kind => 1, content => 'test',
             sig => 'b' x 128, created_at => 1000, tags => [],
         );
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
 
     $cv->recv;
@@ -255,7 +255,7 @@ subtest 'relay does not send non-matching stored events' => sub {
                 $phase = 'query';
                 # query for kind 2, but stored event is kind 1
                 my $filter = Net::Nostr::Filter->new(kinds => [2]);
-                $c->send(Net::Nostr::Message::req_msg('sub1', $filter));
+                $c->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'sub1', filters => [$filter])->serialize);
             } else {
                 push @messages, $parsed;
                 $cv->send() if $parsed->[0] eq 'EOSE';
@@ -266,7 +266,7 @@ subtest 'relay does not send non-matching stored events' => sub {
             pubkey => 'a' x 64, kind => 1, content => 'wrong kind',
             sig => 'b' x 128, created_at => 1000, tags => [],
         );
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
 
     $cv->recv;
@@ -293,7 +293,7 @@ subtest 'relay removes subscription on CLOSE' => sub {
             my ($c, $msg) = @_;
             my $parsed = $JSON->decode($msg->body);
             if ($parsed->[0] eq 'EOSE') {
-                $c->send(Net::Nostr::Message::close_msg('sub1'));
+                $c->send(Net::Nostr::Message->new(type => 'CLOSE', subscription_id => 'sub1')->serialize);
                 my $timer; $timer = AnyEvent->timer(after => 0.1, cb => sub {
                     undef $timer;
                     $cv->send();
@@ -302,7 +302,7 @@ subtest 'relay removes subscription on CLOSE' => sub {
         });
 
         my $filter = Net::Nostr::Filter->new(kinds => [1]);
-        $conn->send(Net::Nostr::Message::req_msg('sub1', $filter));
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'sub1', filters => [$filter])->serialize);
     });
 
     $cv->recv;
@@ -341,10 +341,10 @@ subtest 'relay rejects duplicate events with OK true + duplicate: prefix' => sub
             sig => 'b' x 128, created_at => 1000, tags => [],
         );
         # send same event twice
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
         my $t; $t = AnyEvent->timer(after => 0.2, cb => sub {
             undef $t;
-            $conn->send(Net::Nostr::Message::event_msg($event));
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
         });
     });
 
@@ -416,7 +416,7 @@ subtest 'relay rejects event with wrong id (hash mismatch)' => sub {
             sig => 'b' x 128, created_at => 1000, tags => [],
             id => 'c' x 64,  # wrong id
         );
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
 
     my $response = $cv->recv;
@@ -452,7 +452,7 @@ subtest 'REQ with multiple filters matches on any filter' => sub {
                 # subscribe with two filters: kind 2 OR kind 1
                 my $f1 = Net::Nostr::Filter->new(kinds => [2]);
                 my $f2 = Net::Nostr::Filter->new(kinds => [1]);
-                $c->send(Net::Nostr::Message::req_msg('multi', $f1, $f2));
+                $c->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'multi', filters => [$f1, $f2])->serialize);
             } else {
                 push @messages, $parsed;
                 $cv->send() if $parsed->[0] eq 'EOSE';
@@ -464,7 +464,7 @@ subtest 'REQ with multiple filters matches on any filter' => sub {
             pubkey => 'a' x 64, kind => 1, content => 'multi-filter test',
             sig => 'b' x 128, created_at => 1000, tags => [],
         );
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
 
     $cv->recv;
@@ -497,7 +497,7 @@ subtest 'broadcast matches against all filters in subscription' => sub {
         # subscribe with filter for kind 2 OR kind 3
         my $f1 = Net::Nostr::Filter->new(kinds => [2]);
         my $f2 = Net::Nostr::Filter->new(kinds => [3]);
-        $conn->send(Net::Nostr::Message::req_msg('multi', $f1, $f2));
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'multi', filters => [$f1, $f2])->serialize);
     });
     $sub_cv->recv;
 
@@ -517,7 +517,7 @@ subtest 'broadcast matches against all filters in subscription' => sub {
             pubkey => 'a' x 64, kind => 3, content => 'multi broadcast',
             sig => 'b' x 128, created_at => 2000, tags => [],
         );
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
     $cv->recv;
 
@@ -555,7 +555,7 @@ subtest 'broadcast sends event to matching subscribers only' => sub {
             }
         });
         my $filter = Net::Nostr::Filter->new(kinds => [1]);
-        $conn->send(Net::Nostr::Message::req_msg('sub-kind1', $filter));
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'sub-kind1', filters => [$filter])->serialize);
     });
 
     # Client 2: subscribes to kind 2
@@ -571,7 +571,7 @@ subtest 'broadcast sends event to matching subscribers only' => sub {
             }
         });
         my $filter = Net::Nostr::Filter->new(kinds => [2]);
-        $conn->send(Net::Nostr::Message::req_msg('sub-kind2', $filter));
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'sub-kind2', filters => [$filter])->serialize);
     });
 
     $setup_cv->recv;
@@ -623,7 +623,7 @@ subtest 'new events are forwarded to active subscribers' => sub {
             }
         });
         my $filter = Net::Nostr::Filter->new(kinds => [1]);
-        $conn->send(Net::Nostr::Message::req_msg('live', $filter));
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'live', filters => [$filter])->serialize);
     });
     $sub_cv->recv;
 
@@ -645,7 +645,7 @@ subtest 'new events are forwarded to active subscribers' => sub {
             pubkey => 'a' x 64, kind => 1, content => 'live event',
             sig => 'b' x 128, created_at => 2000, tags => [],
         );
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
     $cv->recv;
 

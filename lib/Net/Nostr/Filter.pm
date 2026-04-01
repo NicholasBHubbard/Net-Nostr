@@ -3,6 +3,7 @@ package Net::Nostr::Filter;
 use strictures 2;
 
 use Carp qw(croak);
+use Class::Tiny qw(ids authors kinds since until limit);
 
 my @SCALAR_FIELDS  = qw(since until limit);
 my @LIST_FIELDS    = qw(ids authors kinds);
@@ -41,13 +42,6 @@ sub new {
 
     return $self;
 }
-
-sub ids     { shift->{ids} }
-sub authors { shift->{authors} }
-sub kinds   { shift->{kinds} }
-sub since   { shift->{since} }
-sub until   { shift->{until} }
-sub limit   { shift->{limit} }
 
 sub tag_filter {
     my ($self, $letter) = @_;
@@ -102,7 +96,7 @@ sub matches {
 }
 
 sub matches_any {
-    my ($event, @filters) = @_;
+    my ($class, $event, @filters) = @_;
     for my $f (@filters) {
         return 1 if $f->matches($event);
     }

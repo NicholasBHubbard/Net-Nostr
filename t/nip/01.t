@@ -335,7 +335,7 @@ subtest 'kind 0 is user metadata (replaceable)' => sub {
 
 subtest 'EVENT message format' => sub {
     my $event = Net::Nostr::Event->new(%FIATJAF_EVENT);
-    my $json = Net::Nostr::Message::event_msg($event);
+    my $json = Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize;
     my $decoded = JSON::decode_json($json);
     is($decoded->[0], 'EVENT', 'first element is EVENT');
     is(ref($decoded->[1]), 'HASH', 'second element is event object');
@@ -349,7 +349,7 @@ subtest 'REQ message format' => sub {
         authors => ['3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d'],
         limit => 10
     );
-    my $json = Net::Nostr::Message::req_msg('sub1', $filter);
+    my $json = Net::Nostr::Message->new(type => 'REQ', subscription_id => 'sub1', filters => [$filter])->serialize;
     my $decoded = JSON::decode_json($json);
     is($decoded->[0], 'REQ', 'first element is REQ');
     is($decoded->[1], 'sub1', 'second element is subscription id');
@@ -359,7 +359,7 @@ subtest 'REQ message format' => sub {
 };
 
 subtest 'CLOSE message format' => sub {
-    my $json = Net::Nostr::Message::close_msg('sub1');
+    my $json = Net::Nostr::Message->new(type => 'CLOSE', subscription_id => 'sub1')->serialize;
     my $decoded = JSON::decode_json($json);
     is($decoded->[0], 'CLOSE', 'first element is CLOSE');
     is($decoded->[1], 'sub1', 'second element is subscription id');
@@ -373,11 +373,11 @@ subtest 'CLOSE message format' => sub {
 subtest 'relay EVENT message format' => sub {
     my $event = Net::Nostr::Event->new(%FIATJAF_EVENT);
     my $raw = JSON->new->utf8->encode(['EVENT', 'sub1', $event->to_hash]);
-    my $msg = Net::Nostr::Message::parse($raw);
-    is($msg->{type}, 'EVENT', 'type is EVENT');
-    is($msg->{subscription_id}, 'sub1', 'subscription id');
-    is(ref($msg->{event}), 'Net::Nostr::Event', 'event is a Net::Nostr::Event');
-    is($msg->{event}->id, $FIATJAF_EVENT{id}, 'event id preserved');
+    my $msg = Net::Nostr::Message->parse($raw);
+    is($msg->type, 'EVENT', 'type is EVENT');
+    is($msg->subscription_id, 'sub1', 'subscription id');
+    is(ref($msg->event), 'Net::Nostr::Event', 'event is a Net::Nostr::Event');
+    is($msg->event->id, $FIATJAF_EVENT{id}, 'event id preserved');
 };
 
 subtest 'OK message format' => sub {
@@ -392,11 +392,11 @@ subtest 'OK message format' => sub {
     );
     for my $case (@cases) {
         my $raw = JSON->new->utf8->encode(['OK', $eid, $case->[0], $case->[1]]);
-        my $msg = Net::Nostr::Message::parse($raw);
-        is($msg->{type}, 'OK', 'type is OK');
-        is($msg->{event_id}, $eid, 'event_id');
-        is($msg->{accepted}, $case->[2], 'accepted flag');
-        is($msg->{prefix}, $case->[3], 'prefix extracted');
+        my $msg = Net::Nostr::Message->parse($raw);
+        is($msg->type, 'OK', 'type is OK');
+        is($msg->event_id, $eid, 'event_id');
+        is($msg->accepted, $case->[2], 'accepted flag');
+        is($msg->prefix, $case->[3], 'prefix extracted');
     }
 };
 
@@ -405,32 +405,32 @@ subtest 'OK message prefixes are standardized' => sub {
     my @prefixes = qw(duplicate pow blocked rate-limited invalid restricted mute error);
     for my $prefix (@prefixes) {
         my $raw = JSON->new->utf8->encode(['OK', $eid, JSON::false, "$prefix: details"]);
-        my $msg = Net::Nostr::Message::parse($raw);
-        is($msg->{prefix}, $prefix, "prefix '$prefix' extracted");
+        my $msg = Net::Nostr::Message->parse($raw);
+        is($msg->prefix, $prefix, "prefix '$prefix' extracted");
     }
 };
 
 subtest 'EOSE message format' => sub {
     my $raw = JSON->new->utf8->encode(['EOSE', 'sub1']);
-    my $msg = Net::Nostr::Message::parse($raw);
-    is($msg->{type}, 'EOSE', 'type is EOSE');
-    is($msg->{subscription_id}, 'sub1', 'subscription id');
+    my $msg = Net::Nostr::Message->parse($raw);
+    is($msg->type, 'EOSE', 'type is EOSE');
+    is($msg->subscription_id, 'sub1', 'subscription id');
 };
 
 subtest 'CLOSED message format' => sub {
     my $raw = JSON->new->utf8->encode(['CLOSED', 'sub1', 'error: shutting down idle subscription']);
-    my $msg = Net::Nostr::Message::parse($raw);
-    is($msg->{type}, 'CLOSED', 'type is CLOSED');
-    is($msg->{subscription_id}, 'sub1', 'subscription id');
-    is($msg->{message}, 'error: shutting down idle subscription', 'full message');
-    is($msg->{prefix}, 'error', 'prefix extracted');
+    my $msg = Net::Nostr::Message->parse($raw);
+    is($msg->type, 'CLOSED', 'type is CLOSED');
+    is($msg->subscription_id, 'sub1', 'subscription id');
+    is($msg->message, 'error: shutting down idle subscription', 'full message');
+    is($msg->prefix, 'error', 'prefix extracted');
 };
 
 subtest 'NOTICE message format' => sub {
     my $raw = JSON->new->utf8->encode(['NOTICE', 'this is a notice']);
-    my $msg = Net::Nostr::Message::parse($raw);
-    is($msg->{type}, 'NOTICE', 'type is NOTICE');
-    is($msg->{message}, 'this is a notice', 'message preserved');
+    my $msg = Net::Nostr::Message->parse($raw);
+    is($msg->type, 'NOTICE', 'type is NOTICE');
+    is($msg->message, 'this is a notice', 'message preserved');
 };
 
 ###############################################################################
@@ -471,17 +471,17 @@ subtest 'filter ids and authors must be 64-char lowercase hex' => sub {
 
 subtest 'subscription_id constraints' => sub {
     my $f = Net::Nostr::Filter->new(kinds => [1]);
-    ok(lives { Net::Nostr::Message::req_msg('my-subscription-1', $f) }, 'normal sub id accepted');
-    ok(lives { Net::Nostr::Message::req_msg('x' x 64, $f) }, 'max length sub id accepted');
-    ok(lives { Net::Nostr::Message::req_msg('a', $f) }, 'single char sub id accepted');
-    ok(dies { Net::Nostr::Message::req_msg('', $f) }, 'empty sub id rejected');
-    ok(dies { Net::Nostr::Message::req_msg('x' x 65, $f) }, 'sub id > 64 chars rejected');
+    ok(lives { Net::Nostr::Message->new(type => 'REQ', subscription_id => 'my-subscription-1', filters => [$f])->serialize }, 'normal sub id accepted');
+    ok(lives { Net::Nostr::Message->new(type => 'REQ', subscription_id => 'x' x 64, filters => [$f])->serialize }, 'max length sub id accepted');
+    ok(lives { Net::Nostr::Message->new(type => 'REQ', subscription_id => 'a', filters => [$f])->serialize }, 'single char sub id accepted');
+    ok(dies { Net::Nostr::Message->new(type => 'REQ', subscription_id => '', filters => [$f])->serialize }, 'empty sub id rejected');
+    ok(dies { Net::Nostr::Message->new(type => 'REQ', subscription_id => 'x' x 65, filters => [$f])->serialize }, 'sub id > 64 chars rejected');
 };
 
 subtest 'multiple filters in REQ are OR conditions' => sub {
     my $f1 = Net::Nostr::Filter->new(kinds => [1], limit => 10);
     my $f2 = Net::Nostr::Filter->new(kinds => [0], authors => ['a' x 64]);
-    my $json = Net::Nostr::Message::req_msg('sub1', $f1, $f2);
+    my $json = Net::Nostr::Message->new(type => 'REQ', subscription_id => 'sub1', filters => [$f1, $f2])->serialize;
     my $decoded = JSON::decode_json($json);
     is($decoded->[0], 'REQ', 'REQ message');
     is($decoded->[1], 'sub1', 'subscription id');
@@ -494,7 +494,7 @@ subtest 'multiple filters in REQ are OR conditions' => sub {
         pubkey => 'a' x 64, kind => 0, content => '', sig => '',
         created_at => 1000, tags => []
     );
-    ok(Net::Nostr::Filter::matches_any($event, $f1, $f2), 'event matching second filter passes matches_any');
+    ok(Net::Nostr::Filter->matches_any($event, $f1, $f2), 'event matching second filter passes matches_any');
 };
 
 ###############################################################################
@@ -550,7 +550,7 @@ subtest 'relay MUST send OK in response to EVENT' => sub {
             pubkey => 'a' x 64, kind => 1, content => 'nip01 test',
             sig => 'b' x 128, created_at => 1000, tags => [],
         );
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
 
     my $response = $cv->recv;
@@ -579,7 +579,7 @@ subtest 'relay MUST send stored events and EOSE in response to REQ' => sub {
             if ($phase eq 'store') {
                 $phase = 'query';
                 my $filter = Net::Nostr::Filter->new(kinds => [1]);
-                $c->send(Net::Nostr::Message::req_msg('sub1', $filter));
+                $c->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'sub1', filters => [$filter])->serialize);
             } else {
                 push @messages, $parsed;
                 $cv->send() if $parsed->[0] eq 'EOSE';
@@ -590,7 +590,7 @@ subtest 'relay MUST send stored events and EOSE in response to REQ' => sub {
             pubkey => 'a' x 64, kind => 1, content => 'stored',
             sig => 'b' x 128, created_at => 1000, tags => [],
         );
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
 
     $cv->recv;
@@ -618,7 +618,7 @@ subtest 'relay MUST stop sending events after CLOSE' => sub {
             my ($c, $msg) = @_;
             my $parsed = $JSON_CODEC->decode($msg->body);
             if (!$closed && $parsed->[0] eq 'EOSE') {
-                $c->send(Net::Nostr::Message::close_msg('sub1'));
+                $c->send(Net::Nostr::Message->new(type => 'CLOSE', subscription_id => 'sub1')->serialize);
                 $closed = 1;
                 my $timer; $timer = AnyEvent->timer(after => 0.1, cb => sub {
                     undef $timer;
@@ -638,7 +638,7 @@ subtest 'relay MUST stop sending events after CLOSE' => sub {
         });
 
         my $filter = Net::Nostr::Filter->new(kinds => [1]);
-        $conn->send(Net::Nostr::Message::req_msg('sub1', $filter));
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'sub1', filters => [$filter])->serialize);
     });
 
     $cv->recv;
@@ -669,7 +669,7 @@ subtest 'relay forwards new events to active subscribers' => sub {
             }
         });
         my $filter = Net::Nostr::Filter->new(kinds => [1]);
-        $conn->send(Net::Nostr::Message::req_msg('live', $filter));
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'live', filters => [$filter])->serialize);
     });
     $sub_cv->recv;
 
@@ -690,7 +690,7 @@ subtest 'relay forwards new events to active subscribers' => sub {
             pubkey => 'a' x 64, kind => 1, content => 'live',
             sig => 'b' x 128, created_at => 3000, tags => [],
         );
-        $conn->send(Net::Nostr::Message::event_msg($event));
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
     $cv->recv;
 
@@ -720,7 +720,7 @@ subtest 'relay filters events per subscription' => sub {
             if ($parsed->[0] eq 'EOSE') { $setup_cv->end }
             elsif ($parsed->[0] eq 'EVENT') { push @kind1_events, $parsed }
         });
-        $conn->send(Net::Nostr::Message::req_msg('k1', Net::Nostr::Filter->new(kinds => [1])));
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'k1', filters => [Net::Nostr::Filter->new(kinds => [1])])->serialize);
     });
 
     # subscriber for kind 2
@@ -732,7 +732,7 @@ subtest 'relay filters events per subscription' => sub {
             if ($parsed->[0] eq 'EOSE') { $setup_cv->end }
             elsif ($parsed->[0] eq 'EVENT') { push @kind2_events, $parsed }
         });
-        $conn->send(Net::Nostr::Message::req_msg('k2', Net::Nostr::Filter->new(kinds => [2])));
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'k2', filters => [Net::Nostr::Filter->new(kinds => [2])])->serialize);
     });
 
     $setup_cv->recv;

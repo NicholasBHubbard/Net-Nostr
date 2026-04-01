@@ -54,8 +54,8 @@ sub broadcast {
         my $conn = $self->connections->{$conn_id} or next;
         for my $sub_id (keys %{$subs->{$conn_id}}) {
             my $filters = $subs->{$conn_id}{$sub_id};
-            if (Net::Nostr::Filter::matches_any($event, @$filters)) {
-                $conn->send(Net::Nostr::Message::relay_event_msg($sub_id, $event));
+            if (Net::Nostr::Filter->matches_any($event, @$filters)) {
+                $conn->send(Net::Nostr::Message->new(type => 'EVENT', subscription_id => $sub_id, event => $event)->serialize);
             }
         }
     }
@@ -75,15 +75,15 @@ sub _on_connection {
 
     $conn->on(each_message => sub {
         my ($conn, $message) = @_;
-        my $msg = eval { Net::Nostr::Message::parse($message->body) };
+        my $msg = eval { Net::Nostr::Message->parse($message->body) };
         return warn "bad message: $@\n" if $@;
 
-        if ($msg->{type} eq 'EVENT') {
-            $self->_handle_event($conn_id, $msg->{event});
-        } elsif ($msg->{type} eq 'REQ') {
-            $self->_handle_req($conn_id, $msg->{subscription_id}, @{$msg->{filters}});
-        } elsif ($msg->{type} eq 'CLOSE') {
-            $self->_handle_close($conn_id, $msg->{subscription_id});
+        if ($msg->type eq 'EVENT') {
+            $self->_handle_event($conn_id, $msg->event);
+        } elsif ($msg->type eq 'REQ') {
+            $self->_handle_req($conn_id, $msg->subscription_id, @{$msg->filters});
+        } elsif ($msg->type eq 'CLOSE') {
+            $self->_handle_close($conn_id, $msg->subscription_id);
         }
     });
 
@@ -114,20 +114,20 @@ sub _handle_event {
 
     my $error = $self->_validate_event($event);
     if ($error) {
-        $conn->send(Net::Nostr::Message::ok_msg($event->id // '', 0, $error));
+        $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => ($event->id // ''), accepted => 0, message => $error)->serialize);
         return;
     }
 
     # duplicate detection
     for my $existing (@{$self->{events}}) {
         if ($existing->id eq $event->id) {
-            $conn->send(Net::Nostr::Message::ok_msg($event->id, 1, 'duplicate: already have this event'));
+            $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => 'duplicate: already have this event')->serialize);
             return;
         }
     }
 
     push @{$self->{events}}, $event;
-    $conn->send(Net::Nostr::Message::ok_msg($event->id, 1, ''));
+    $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => '')->serialize);
     $self->broadcast($event);
 }
 
@@ -141,12 +141,12 @@ sub _handle_req {
 
     # send stored events matching any filter
     for my $event (@{$self->{events}}) {
-        if (Net::Nostr::Filter::matches_any($event, @filters)) {
-            $conn->send(Net::Nostr::Message::relay_event_msg($sub_id, $event));
+        if (Net::Nostr::Filter->matches_any($event, @filters)) {
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', subscription_id => $sub_id, event => $event)->serialize);
         }
     }
 
-    $conn->send(Net::Nostr::Message::eose_msg($sub_id));
+    $conn->send(Net::Nostr::Message->new(type => 'EOSE', subscription_id => $sub_id)->serialize);
 }
 
 sub _handle_close {
