@@ -306,4 +306,28 @@ subtest 'other tag filters do not require hex' => sub {
     ok(lives { Net::Nostr::Filter->new('#r' => ['https://example.com']) }, '#r accepts URLs');
 };
 
+###############################################################################
+# matches_any - multiple filters are OR
+###############################################################################
+
+subtest 'matches_any returns true if any filter matches' => sub {
+    my $event = Net::Nostr::Event->new(%BASE_EVENT); # kind 1, pubkey aa..
+    my $f1 = Net::Nostr::Filter->new(kinds => [2]);      # no match
+    my $f2 = Net::Nostr::Filter->new(kinds => [1]);      # match
+    ok(Net::Nostr::Filter::matches_any($event, $f1, $f2), 'second filter matches');
+};
+
+subtest 'matches_any returns false if no filter matches' => sub {
+    my $event = Net::Nostr::Event->new(%BASE_EVENT);
+    my $f1 = Net::Nostr::Filter->new(kinds => [2]);
+    my $f2 = Net::Nostr::Filter->new(kinds => [3]);
+    ok(!Net::Nostr::Filter::matches_any($event, $f1, $f2), 'no filter matches');
+};
+
+subtest 'matches_any with single filter' => sub {
+    my $event = Net::Nostr::Event->new(%BASE_EVENT);
+    my $f = Net::Nostr::Filter->new(kinds => [1]);
+    ok(Net::Nostr::Filter::matches_any($event, $f), 'single matching filter');
+};
+
 done_testing;

@@ -99,6 +99,14 @@ sub matches {
     return 1;
 }
 
+sub matches_any {
+    my ($event, @filters) = @_;
+    for my $f (@filters) {
+        return 1 if $f->matches($event);
+    }
+    return 0;
+}
+
 sub to_hash {
     my ($self) = @_;
     my %h;

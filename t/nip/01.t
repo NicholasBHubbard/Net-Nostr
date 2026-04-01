@@ -280,13 +280,11 @@ subtest 'sign_event produces valid schnorr signature over event id' => sub {
     ok($sig, 'sign_event returns a signature');
     is($event->sig, $sig, 'signature is set on the event');
 
-    # sig is 64 bytes hex-encoded = 128 chars
-    my $sig_hex = unpack 'H*', $sig;
-    like($sig_hex, qr/^[0-9a-f]{128}$/, 'signature is 64-byte lowercase hex');
+    # sig on wire is 128-char lowercase hex (64 bytes)
+    like($sig, qr/^[0-9a-f]{128}$/, 'signature is 128-char lowercase hex');
 
-    # verify the signature against the event id
-    my $verifier = Crypt::PK::ECC::Schnorr->new(\$nostr->key->pubkey_der);
-    ok($verifier->verify_message($event->id, $sig), 'signature verifies against event id');
+    # verify via Event method
+    ok($event->verify_sig($nostr->key), 'signature verifies via verify_sig');
 };
 
 subtest 'signed event has all required fields' => sub {

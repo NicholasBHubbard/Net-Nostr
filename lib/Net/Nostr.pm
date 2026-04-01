@@ -17,9 +17,10 @@ sub key { shift->{_key} }
 
 sub sign_event {
     my ($self, $event) = @_;
-    my $sig = $self->key->schnorr_sign($event->id);
-    $event->sig($sig);
-    return $sig;
+    my $sig_raw = $self->key->schnorr_sign($event->id);
+    my $sig_hex = unpack 'H*', $sig_raw;
+    $event->sig($sig_hex);
+    return $sig_hex;
 }
 
 sub key_args {
