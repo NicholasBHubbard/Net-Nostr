@@ -16,7 +16,7 @@ The complete Nostr spec can be cloned into the project for direct reference:
 
 The `nips/` directory is gitignored. Read the relevant NIP file (e.g. `nips/01.md`) when implementing or testing against the spec.
 
-`README.md` has a checklist of supported NIPs. Update it when adding support for a new NIP.
+The POD in `lib/Net/Nostr.pm` has a list of supported NIPs. Update it when adding support for a new NIP.
 
 All modules must `use strictures 2;`.
 
