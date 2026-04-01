@@ -45,6 +45,8 @@ and signing see L<Net::Nostr::Event>.
 
 =item L<NIP-02|https://github.com/nostr-protocol/nips/blob/master/02.md> - Follow list
 
+=item L<NIP-09|https://github.com/nostr-protocol/nips/blob/master/09.md> - Event deletion request
+
 =item L<NIP-10|https://github.com/nostr-protocol/nips/blob/master/10.md> - Text notes and threads
 
 =item L<NIP-19|https://github.com/nostr-protocol/nips/blob/master/19.md> - bech32-encoded entities
@@ -90,6 +92,8 @@ Returns a new L<Net::Nostr::Relay> instance for running a relay server.
 =item L<Net::Nostr::Message> - Protocol message serialization and parsing
 
 =item L<Net::Nostr::Key> - Secp256k1 keypair management and BIP-340 Schnorr signatures
+
+=item L<Net::Nostr::Deletion> - NIP-09 event deletion requests
 
 =item L<Net::Nostr::FollowList> - NIP-02 follow list management
 

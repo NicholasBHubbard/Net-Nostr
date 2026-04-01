@@ -4,6 +4,7 @@ use strictures 2;
 
 use Net::Nostr::Message;
 use Net::Nostr::Filter;
+use Net::Nostr::Deletion;
 
 use AnyEvent::Socket qw(tcp_server);
 use AnyEvent::WebSocket::Server;
@@ -242,9 +243,52 @@ sub _handle_event {
         }
     }
 
+    # deletion requests: remove matching events, but not other kind 5 events
+    if ($event->kind == 5) {
+        $self->_handle_deletion($event);
+    }
+
     push @{$self->{events}}, $event;
     $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => '')->serialize);
     $self->broadcast($event);
+}
+
+sub _handle_deletion {
+    my ($self, $del_event) = @_;
+    my $del = Net::Nostr::Deletion->from_event($del_event);
+    my $del_pubkey = $del_event->pubkey;
+    my $del_ts = $del_event->created_at;
+
+    my @kept;
+    for my $stored (@{$self->{events}}) {
+        # Never delete other kind 5 events
+        if ($stored->kind == 5) {
+            push @kept, $stored;
+            next;
+        }
+        # Check e tags: delete if pubkey matches and event is referenced
+        my $dominated = 0;
+        if ($stored->pubkey eq $del_pubkey) {
+            for my $id (@{$del->event_ids}) {
+                if ($stored->id eq $id) {
+                    $dominated = 1;
+                    last;
+                }
+            }
+            # Check a tags: delete addressable events up to deletion timestamp
+            if (!$dominated && $stored->is_addressable) {
+                my $addr = $stored->kind . ':' . $stored->pubkey . ':' . $stored->d_tag;
+                for my $del_addr (@{$del->addresses}) {
+                    if ($addr eq $del_addr && $stored->created_at <= $del_ts) {
+                        $dominated = 1;
+                        last;
+                    }
+                }
+            }
+        }
+        push @kept, $stored unless $dominated;
+    }
+    $self->{events} = \@kept;
 }
 
 sub _handle_req {
