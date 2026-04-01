@@ -1168,6 +1168,158 @@ subtest 'relay applies authors filter' => sub {
     is($results->[0]{content}, 'from c', 'correct event returned');
 };
 
+subtest 'relay applies #<letter> tag filters' => sub {
+    my $e1 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'tagged',
+        sig => 'b' x 128, created_at => 1000,
+        tags => [['e', 'f' x 64]],
+    );
+    my $e2 = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'untagged',
+        sig => 'b' x 128, created_at => 2000, tags => [],
+    );
+
+    my $results = relay_store_and_query(
+        events  => [$e1, $e2],
+        filters => [Net::Nostr::Filter->new('#e' => ['f' x 64])],
+    );
+
+    is(scalar @$results, 1, 'only event with matching tag returned');
+    is($results->[0]{content}, 'tagged', 'correct event returned');
+};
+
+###############################################################################
+# Relay: subscription_id independent per connection (MUST)
+###############################################################################
+
+subtest 'relay manages subscription_ids independently per connection' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    # store an event first
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'shared',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+
+    my $store_cv = AnyEvent->condvar;
+    my $store_timeout = AnyEvent->timer(after => 5, cb => sub { $store_cv->croak("timeout") });
+    my $ref0 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub { $store_cv->send() });
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+    $store_cv->recv;
+
+    # two connections subscribe with same sub_id but different filters
+    my @conn1_events;
+    my @conn2_events;
+
+    my $setup_cv = AnyEvent->condvar;
+    $setup_cv->begin; $setup_cv->begin;
+    my $setup_timeout = AnyEvent->timer(after => 5, cb => sub { $setup_cv->croak("timeout") });
+
+    my $ref1 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            if ($parsed->[0] eq 'EVENT') { push @conn1_events, $parsed }
+            elsif ($parsed->[0] eq 'EOSE') { $setup_cv->end }
+        });
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'same-id',
+            filters => [Net::Nostr::Filter->new(kinds => [1])]
+        )->serialize);
+    });
+
+    my $ref2 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            if ($parsed->[0] eq 'EVENT') { push @conn2_events, $parsed }
+            elsif ($parsed->[0] eq 'EOSE') { $setup_cv->end }
+        });
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'same-id',
+            filters => [Net::Nostr::Filter->new(kinds => [9999])]
+        )->serialize);
+    });
+
+    $setup_cv->recv;
+
+    is(scalar @conn1_events, 1, 'conn1 (kind 1) received the stored event');
+    is(scalar @conn2_events, 0, 'conn2 (kind 9999) did not receive it');
+
+    $relay->stop;
+};
+
+###############################################################################
+# Relay: limit ignored for live events (MUST)
+###############################################################################
+
+subtest 'limit is ignored for live events after initial query' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my @live_events;
+    my $sub_cv = AnyEvent->condvar;
+    my $sub_timeout = AnyEvent->timer(after => 5, cb => sub { $sub_cv->croak("timeout") });
+
+    my $ref1 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            if ($parsed->[0] eq 'EOSE') {
+                $sub_cv->send();
+            } elsif ($parsed->[0] eq 'EVENT') {
+                push @live_events, $parsed;
+            }
+        });
+        # subscribe with limit => 1
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'limited',
+            filters => [Net::Nostr::Filter->new(kinds => [1], limit => 1)]
+        )->serialize);
+    });
+    $sub_cv->recv;
+
+    # publish 3 events via a second connection
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref2 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        my $ok_count = 0;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            $ok_count++;
+            if ($ok_count == 3) {
+                my $t; $t = AnyEvent->timer(after => 0.3, cb => sub {
+                    undef $t;
+                    $cv->send();
+                });
+            }
+        });
+
+        for my $i (1..3) {
+            my $event = Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 1, content => "live $i",
+                sig => 'b' x 128, created_at => $i * 1000, tags => [],
+            );
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+        }
+    });
+    $cv->recv;
+
+    is(scalar @live_events, 3, 'all 3 live events received despite limit => 1');
+
+    $relay->stop;
+};
+
 ###############################################################################
 # Kind classification
 ###############################################################################
