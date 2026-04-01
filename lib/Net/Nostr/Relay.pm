@@ -218,3 +218,109 @@ sub _handle_close {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Net::Nostr::Relay - Nostr WebSocket relay server
+
+=head1 SYNOPSIS
+
+    use Net::Nostr::Relay;
+
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', 8080);
+
+    # Run the event loop
+    AnyEvent->condvar->recv;
+
+    # Shut down
+    $relay->stop;
+
+=head1 DESCRIPTION
+
+An in-process Nostr relay implementing NIP-01. Accepts WebSocket connections,
+stores events, manages subscriptions, and broadcasts new events to matching
+subscribers.
+
+Supports all NIP-01 event semantics:
+
+=over 4
+
+=item * Regular events - stored and broadcast
+
+=item * Replaceable events (kinds 0, 3, 10000-19999) - only latest per pubkey+kind
+
+=item * Ephemeral events (kinds 20000-29999) - broadcast but never stored
+
+=item * Addressable events (kinds 30000-39999) - only latest per pubkey+kind+d_tag
+
+=back
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $relay = Net::Nostr::Relay->new;
+
+Creates a new relay instance with a default WebSocket server.
+
+=head1 METHODS
+
+=head2 start
+
+    $relay->start($host, $port);
+    $relay->start('127.0.0.1', 8080);
+
+Starts listening for WebSocket connections on the given host and port.
+
+=head2 stop
+
+    $relay->stop;
+
+Stops the relay, closes all connections, and clears all subscriptions.
+Safe to call on an unstarted relay.
+
+=head2 broadcast
+
+    $relay->broadcast($event);
+
+Sends the event to all connected clients whose subscriptions match.
+Normally called internally when a new event is accepted, but can be
+called directly for testing or custom event injection.
+
+    # Manually inject an event to subscribers
+    $relay->broadcast($event);
+
+=head2 server
+
+    my $ws_server = $relay->server;
+
+Returns the underlying L<AnyEvent::WebSocket::Server> instance.
+
+=head2 connections
+
+    my $conns = $relay->connections;  # hashref { conn_id => $conn }
+
+Returns the hashref of active WebSocket connections.
+
+=head2 subscriptions
+
+    my $subs = $relay->subscriptions;
+    # { conn_id => { sub_id => [$filter, ...], ... } }
+
+Returns the hashref of active subscriptions, keyed by connection ID
+then subscription ID.
+
+=head2 events
+
+    my $events = $relay->events;  # arrayref of Net::Nostr::Event
+
+Returns the arrayref of stored events.
+
+=head1 SEE ALSO
+
+L<Net::Nostr>, L<Net::Nostr::Client>, L<Net::Nostr::Event>
+
+=cut

@@ -304,4 +304,27 @@ subtest 'parse preserves event id (not recalculated)' => sub {
     is($msg->event->id, $FIATJAF_EVENT{id}, 'known-good event id preserved by parse');
 };
 
+###############################################################################
+# POD examples
+###############################################################################
+
+subtest 'POD: CLOSE serialize' => sub {
+    my $msg = Net::Nostr::Message->new(type => 'CLOSE', subscription_id => 'x');
+    is($msg->serialize, '["CLOSE","x"]', 'CLOSE serializes as ["CLOSE","x"]');
+};
+
+subtest 'POD: NOTICE parse' => sub {
+    my $msg = Net::Nostr::Message->parse('["NOTICE","hello"]');
+    is($msg->type, 'NOTICE', 'type is NOTICE');
+    is($msg->message, 'hello', 'message is hello');
+};
+
+subtest 'POD: OK prefix extraction' => sub {
+    my $eid = 'aa' x 32;
+    my $raw = JSON->new->utf8->encode(['OK', $eid, JSON::false, 'blocked: you are banned']);
+    my $msg = Net::Nostr::Message->parse($raw);
+    is($msg->prefix, 'blocked', 'prefix extracted as blocked');
+    is($msg->accepted, 0, 'not accepted');
+};
+
 done_testing;

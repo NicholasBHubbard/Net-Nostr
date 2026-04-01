@@ -307,6 +307,35 @@ subtest 'other tag filters do not require hex' => sub {
 };
 
 ###############################################################################
+# tag_filter accessor
+###############################################################################
+
+subtest 'POD: tag_filter returns values for a tag filter' => sub {
+    my $filter = Net::Nostr::Filter->new('#t' => ['nostr', 'perl']);
+    is($filter->tag_filter('t'), ['nostr', 'perl'], 'tag_filter returns values');
+};
+
+subtest 'POD: tag_filter returns undef for unset tag' => sub {
+    my $filter = Net::Nostr::Filter->new(kinds => [1]);
+    is($filter->tag_filter('t'), undef, 'tag_filter returns undef for unset tag');
+};
+
+subtest 'POD: matches with since filter' => sub {
+    my $filter = Net::Nostr::Filter->new(kinds => [1], since => 1000);
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => '',
+        created_at => 2000, tags => [],
+    );
+    ok($filter->matches($event), 'event after since matches');
+
+    my $old_event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => '',
+        created_at => 500, tags => [],
+    );
+    ok(!$filter->matches($old_event), 'event before since does not match');
+};
+
+###############################################################################
 # matches_any - multiple filters are OR
 ###############################################################################
 

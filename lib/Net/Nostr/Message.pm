@@ -176,3 +176,146 @@ sub parse {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Net::Nostr::Message - Nostr protocol message serialization and parsing
+
+=head1 SYNOPSIS
+
+    use Net::Nostr::Message;
+
+    # Client-to-relay: publish an event
+    my $msg = Net::Nostr::Message->new(type => 'EVENT', event => $event);
+    my $json = $msg->serialize;  # '["EVENT",{...}]'
+
+    # Client-to-relay: subscribe
+    my $msg = Net::Nostr::Message->new(
+        type            => 'REQ',
+        subscription_id => 'feed',
+        filters         => [$filter1, $filter2],
+    );
+
+    # Client-to-relay: close subscription
+    my $msg = Net::Nostr::Message->new(
+        type            => 'CLOSE',
+        subscription_id => 'feed',
+    );
+
+    # Parse a message from a relay
+    my $msg = Net::Nostr::Message->parse($json_string);
+    say $msg->type;  # 'EVENT', 'OK', 'EOSE', etc.
+
+=head1 DESCRIPTION
+
+Handles all NIP-01 message types for both client-to-relay and relay-to-client
+communication. Messages are constructed with C<new>, serialized with
+C<serialize>, and parsed from JSON with C<parse>.
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $msg = Net::Nostr::Message->new(type => $type, ...);
+
+Creates a new message. C<type> is required and must be one of: C<EVENT>,
+C<REQ>, C<CLOSE>, C<OK>, C<EOSE>, C<NOTICE>, C<CLOSED>.
+
+Required fields by type:
+
+    EVENT  - event (Net::Nostr::Event), optional subscription_id
+    REQ    - subscription_id, filters (arrayref of Net::Nostr::Filter)
+    CLOSE  - subscription_id
+    OK     - event_id, accepted (bool), message (string)
+    EOSE   - subscription_id
+    NOTICE - message
+    CLOSED - subscription_id, message
+
+Croaks on missing required fields or unknown type.
+
+=head1 METHODS
+
+=head2 serialize
+
+    my $json = $msg->serialize;
+
+Returns the JSON-encoded message string per the NIP-01 wire format.
+
+    my $msg = Net::Nostr::Message->new(type => 'CLOSE', subscription_id => 'x');
+    say $msg->serialize;  # '["CLOSE","x"]'
+
+=head2 parse
+
+    my $msg = Net::Nostr::Message->parse($json_string);
+
+Class method. Parses a JSON message string and returns a new
+Net::Nostr::Message object. Croaks on invalid JSON, unknown message
+types, or malformed messages.
+
+    my $msg = Net::Nostr::Message->parse('["NOTICE","hello"]');
+    say $msg->type;     # 'NOTICE'
+    say $msg->message;  # 'hello'
+
+=head2 type
+
+    my $type = $msg->type;  # 'EVENT', 'OK', 'REQ', etc.
+
+=head2 subscription_id
+
+    my $sub_id = $msg->subscription_id;
+
+The subscription ID. Present on EVENT (relay-to-client), REQ, CLOSE,
+EOSE, and CLOSED messages.
+
+=head2 event
+
+    my $event = $msg->event;  # Net::Nostr::Event
+
+The event object. Present on EVENT messages.
+
+=head2 event_id
+
+    my $id = $msg->event_id;
+
+The event ID string. Present on OK messages.
+
+=head2 accepted
+
+    my $bool = $msg->accepted;  # 1 or 0
+
+Whether the event was accepted. Present on OK messages.
+
+=head2 message
+
+    my $text = $msg->message;
+
+The message string. Present on OK, NOTICE, and CLOSED messages.
+For OK and CLOSED, may include a machine-readable prefix like
+C<"duplicate: already have this event">.
+
+=head2 prefix
+
+    my $prefix = $msg->prefix;  # 'duplicate', 'blocked', etc. or undef
+
+The machine-readable prefix extracted from the message string.
+Standard prefixes: C<duplicate>, C<pow>, C<blocked>, C<rate-limited>,
+C<invalid>, C<restricted>, C<mute>, C<error>.
+
+    my $msg = Net::Nostr::Message->parse(
+        '["OK","aa...",false,"blocked: you are banned"]'
+    );
+    say $msg->prefix;  # 'blocked'
+
+=head2 filters
+
+    my $filters = $msg->filters;  # arrayref of Net::Nostr::Filter
+
+The filter objects. Present on REQ messages.
+
+=head1 SEE ALSO
+
+L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Filter>
+
+=cut

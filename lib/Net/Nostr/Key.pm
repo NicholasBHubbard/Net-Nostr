@@ -89,3 +89,144 @@ sub privkey_hex {
 1;
 
 __END__
+
+=head1 NAME
+
+Net::Nostr::Key - Secp256k1 keypair management for Nostr
+
+=head1 SYNOPSIS
+
+    use Net::Nostr::Key;
+
+    # Generate a new keypair
+    my $key = Net::Nostr::Key->new;
+    say $key->pubkey_hex;   # 64-char hex (x-only, BIP-340)
+    say $key->privkey_hex;  # 64-char hex
+
+    # Load an existing private key (DER scalar ref)
+    my $key = Net::Nostr::Key->new(privkey => \$der_bytes);
+
+    # Load a public key only (for verification)
+    my $key = Net::Nostr::Key->new(pubkey => \$der_bytes);
+
+    # Sign a message with BIP-340 Schnorr
+    my $sig = $key->schnorr_sign('message to sign');  # 64 raw bytes
+
+=head1 DESCRIPTION
+
+Manages secp256k1 keypairs for the Nostr protocol. Supports key generation,
+import/export in multiple formats (hex, raw, DER, PEM), and BIP-340 Schnorr
+signatures.
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $key = Net::Nostr::Key->new;
+    my $key = Net::Nostr::Key->new(privkey => \$der_bytes);
+    my $key = Net::Nostr::Key->new(pubkey  => \$der_bytes);
+
+Without arguments, generates a new secp256k1 keypair. Pass C<privkey> or
+C<pubkey> as a scalar reference to DER-encoded key data. When only a
+public key is loaded, signing operations will fail.
+
+=head1 METHODS
+
+=head2 schnorr_sign
+
+    my $sig = $key->schnorr_sign($message);  # 64 raw bytes
+
+Signs the given message using BIP-340 Schnorr signatures. Returns the
+raw 64-byte signature. Requires a private key to be loaded.
+
+    my $key = Net::Nostr::Key->new;
+    my $sig = $key->schnorr_sign('hello');
+    say length($sig);  # 64
+
+=head2 privkey_loaded
+
+    my $bool = $key->privkey_loaded;
+
+Returns true if a private key is loaded (i.e. signing is possible).
+
+=head2 pubkey_loaded
+
+    my $bool = $key->pubkey_loaded;
+
+Returns true if any key material is loaded (public or private).
+
+    my $key = Net::Nostr::Key->new(pubkey => \$der);
+    say $key->pubkey_loaded;   # 1
+    say $key->privkey_loaded;  # 0
+
+=head2 pubkey_hex
+
+    my $hex = $key->pubkey_hex;  # 64-char lowercase hex
+
+Returns the x-only public key as a 64-character hex string, suitable for
+use as a Nostr pubkey (BIP-340 format).
+
+=head2 privkey_hex
+
+    my $hex = $key->privkey_hex;  # 64-char lowercase hex
+
+Returns the private key as a 64-character hex string.
+
+=head2 pubkey_raw
+
+    my $raw = $key->pubkey_raw;  # 65 bytes (04 || x || y)
+
+Returns the uncompressed public key as raw bytes (65 bytes with C<04> prefix).
+
+=head2 privkey_raw
+
+    my $raw = $key->privkey_raw;  # 32 bytes
+
+Returns the private key as 32 raw bytes.
+
+=head2 pubkey_der
+
+    my $der = $key->pubkey_der;
+
+Returns the public key in DER-encoded format. Can be passed to a new
+Key constructor:
+
+    my $key2 = Net::Nostr::Key->new(pubkey => \$key->pubkey_der);
+
+=head2 privkey_der
+
+    my $der = $key->privkey_der;
+
+Returns the private key in DER-encoded format.
+
+    my $key2 = Net::Nostr::Key->new(privkey => \$key->privkey_der);
+
+=head2 pubkey_pem
+
+    my $pem = $key->pubkey_pem;
+
+Returns the public key in PEM-encoded format (Base64 with header/footer).
+
+    say $key->pubkey_pem;
+    # -----BEGIN PUBLIC KEY-----
+    # ...
+    # -----END PUBLIC KEY-----
+
+=head2 privkey_pem
+
+    my $pem = $key->privkey_pem;
+
+Returns the private key in PEM-encoded format.
+
+=head2 constructor_keys
+
+    my @keys = Net::Nostr::Key->constructor_keys;  # ('privkey', 'pubkey')
+
+Returns the list of valid constructor argument names. Used internally
+by L<Net::Nostr> to extract key-related arguments.
+
+=head1 SEE ALSO
+
+L<Net::Nostr>, L<Net::Nostr::Event>
+
+=cut

@@ -121,3 +121,128 @@ sub to_hash {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Net::Nostr::Filter - Nostr event filter for subscriptions and queries
+
+=head1 SYNOPSIS
+
+    use Net::Nostr::Filter;
+
+    my $filter = Net::Nostr::Filter->new(
+        kinds   => [1],
+        authors => ['a' x 64],
+        since   => time() - 3600,
+        limit   => 50,
+    );
+
+    # Check if an event matches
+    if ($filter->matches($event)) { ... }
+
+    # Tag filters use #<letter> syntax
+    my $filter = Net::Nostr::Filter->new(
+        '#t' => ['nostr', 'perl'],
+    );
+
+    # Retrieve a tag filter
+    my $values = $filter->tag_filter('t');  # ['nostr', 'perl']
+
+    # Multiple filters act as OR conditions
+    my $f1 = Net::Nostr::Filter->new(kinds => [1]);
+    my $f2 = Net::Nostr::Filter->new(kinds => [0]);
+    if (Net::Nostr::Filter->matches_any($event, $f1, $f2)) { ... }
+
+=head1 DESCRIPTION
+
+Implements Nostr event filtering as defined by NIP-01. All conditions within
+a single filter are AND-ed together. Multiple filters in a subscription are
+OR-ed (use C<matches_any>).
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $filter = Net::Nostr::Filter->new(
+        ids     => ['a' x 64],
+        authors => ['b' x 64],
+        kinds   => [1, 2],
+        since   => 1673361254,
+        until   => 1673361999,
+        limit   => 100,
+        '#e'    => ['c' x 64],
+        '#p'    => ['d' x 64],
+        '#t'    => ['nostr'],
+    );
+
+All fields are optional. C<ids>, C<authors>, C<#e>, and C<#p> values must
+be 64-character lowercase hex strings. Croaks on invalid values.
+
+=head1 METHODS
+
+=head2 matches
+
+    my $bool = $filter->matches($event);
+
+Returns true if the event matches all conditions in this filter.
+
+    my $filter = Net::Nostr::Filter->new(kinds => [1], since => 1000);
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => '',
+        created_at => 2000, tags => [],
+    );
+    say $filter->matches($event);  # 1
+
+=head2 matches_any
+
+    my $bool = Net::Nostr::Filter->matches_any($event, @filters);
+
+Class method. Returns true if the event matches any of the given filters
+(OR logic).
+
+=head2 tag_filter
+
+    my $values = $filter->tag_filter('t');  # ['nostr'] or undef
+
+Returns the arrayref of values for a tag filter, or C<undef> if that
+tag letter was not specified.
+
+=head2 to_hash
+
+    my $hash = $filter->to_hash;
+    # { kinds => [1], authors => [...], '#t' => ['nostr'] }
+
+Returns a hashref suitable for JSON encoding in a REQ message. Only
+includes fields that were set.
+
+=head2 ids
+
+    my $ids = $filter->ids;  # arrayref or undef
+
+=head2 authors
+
+    my $authors = $filter->authors;  # arrayref or undef
+
+=head2 kinds
+
+    my $kinds = $filter->kinds;  # arrayref or undef
+
+=head2 since
+
+    my $since = $filter->since;  # Unix timestamp or undef
+
+=head2 until
+
+    my $until = $filter->until;  # Unix timestamp or undef
+
+=head2 limit
+
+    my $limit = $filter->limit;  # integer or undef
+
+=head1 SEE ALSO
+
+L<Net::Nostr>, L<Net::Nostr::Event>
+
+=cut

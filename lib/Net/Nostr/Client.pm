@@ -113,3 +113,149 @@ sub _setup_handlers {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Net::Nostr::Client - WebSocket client for Nostr relays
+
+=head1 SYNOPSIS
+
+    use Net::Nostr::Client;
+    use Net::Nostr::Filter;
+
+    my $client = Net::Nostr::Client->new;
+
+    # Register callbacks before connecting
+    $client->on(event => sub {
+        my ($sub_id, $event) = @_;
+        say "Got event: " . $event->content;
+    });
+
+    $client->on(ok => sub {
+        my ($event_id, $accepted, $message) = @_;
+        say $accepted ? "Accepted" : "Rejected: $message";
+    });
+
+    $client->on(eose => sub {
+        my ($sub_id) = @_;
+        say "End of stored events for $sub_id";
+    });
+
+    # Connect (returns a condvar)
+    $client->connect("ws://127.0.0.1:8080")->recv;
+
+    # Publish an event
+    $client->publish($event);
+
+    # Subscribe with one or more filters
+    my $filter = Net::Nostr::Filter->new(kinds => [1], limit => 20);
+    $client->subscribe('my-feed', $filter);
+
+    # Close a subscription
+    $client->close('my-feed');
+
+    # Disconnect
+    $client->disconnect;
+
+=head1 DESCRIPTION
+
+A WebSocket client for connecting to Nostr relays. Wraps
+L<AnyEvent::WebSocket::Client> and provides a callback-based interface
+for publishing events, managing subscriptions, and receiving relay messages.
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $client = Net::Nostr::Client->new;
+
+Creates a new client instance. No connection is established until
+C<connect> is called.
+
+=head1 METHODS
+
+=head2 connect
+
+    my $cv = $client->connect($url);
+    $cv->recv;  # blocks until connected
+
+    # Non-blocking:
+    $client->connect($url)->cb(sub { ... });
+
+Connects to the relay at the given WebSocket URL. Returns an
+L<AnyEvent> condvar that resolves when the connection is established.
+Croaks if C<$url> is not provided.
+
+=head2 is_connected
+
+    if ($client->is_connected) { ... }
+
+Returns true if the client has an active WebSocket connection.
+
+=head2 disconnect
+
+    $client->disconnect;
+
+Closes the WebSocket connection. C<is_connected> will return false
+afterwards.
+
+=head2 publish
+
+    $client->publish($event);
+
+Sends an EVENT message to the relay. The relay will respond with an OK
+message (received via the C<ok> callback). Croaks if not connected.
+
+=head2 subscribe
+
+    $client->subscribe('sub-id', $filter1, $filter2);
+
+Sends a REQ message to the relay with the given subscription ID and
+filters. The relay will send matching stored events (via C<event>
+callback), then an EOSE message (via C<eose> callback), then live
+events as they arrive. Croaks if not connected.
+
+=head2 close
+
+    $client->close('sub-id');
+
+Sends a CLOSE message to stop receiving events for the given
+subscription ID. Croaks if not connected.
+
+=head2 on
+
+    $client->on($event_type => sub { ... });
+
+Registers a callback for relay messages. Supported event types:
+
+=over 4
+
+=item C<event> - C<sub { my ($subscription_id, $event) = @_; }>
+
+Called for each EVENT message from the relay (both stored and live).
+
+=item C<ok> - C<sub { my ($event_id, $accepted, $message) = @_; }>
+
+Called when the relay responds to a published event.
+
+=item C<eose> - C<sub { my ($subscription_id) = @_; }>
+
+Called when the relay finishes sending stored events for a subscription.
+
+=item C<notice> - C<sub { my ($message) = @_; }>
+
+Called when the relay sends a human-readable NOTICE.
+
+=item C<closed> - C<sub { my ($subscription_id, $message) = @_; }>
+
+Called when the relay closes a subscription.
+
+=back
+
+=head1 SEE ALSO
+
+L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Filter>
+
+=cut

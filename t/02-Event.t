@@ -129,6 +129,30 @@ subtest 'kind classification' => sub {
     }
 };
 
+subtest 'POD: d_tag returns d tag value' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 30023,
+        content => '', tags => [['d', 'my-article']],
+    );
+    is($event->d_tag, 'my-article', 'd_tag returns value of d tag');
+};
+
+subtest 'POD: d_tag returns empty string when no d tag' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 30023,
+        content => '', tags => [['t', 'nostr']],
+    );
+    is($event->d_tag, '', 'd_tag returns empty string without d tag');
+};
+
+subtest 'POD: d_tag returns empty string for d tag with no value' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 30023,
+        content => '', tags => [['d']],
+    );
+    is($event->d_tag, '', 'd_tag returns empty string for valueless d tag');
+};
+
 subtest 'verify_sig()' => sub {
     my $key = Net::Nostr::Key->new;
     my $event = Net::Nostr::Event->new(

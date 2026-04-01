@@ -655,4 +655,74 @@ subtest 'new events are forwarded to active subscribers' => sub {
     $relay->stop;
 };
 
+###############################################################################
+# POD examples: accessor methods
+###############################################################################
+
+subtest 'POD: events accessor returns stored events' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send if $parsed->[0] eq 'OK';
+        });
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'stored',
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+    $cv->recv;
+
+    my $events = $relay->events;
+    is(ref($events), 'ARRAY', 'events returns arrayref');
+    is(scalar @$events, 1, 'one event stored');
+    is($events->[0]->content, 'stored', 'event content matches');
+
+    $relay->stop;
+};
+
+subtest 'POD: connections and subscriptions accessors' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send if $parsed->[0] eq 'EOSE';
+        });
+        my $filter = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'test-sub', filters => [$filter])->serialize);
+    });
+    $cv->recv;
+
+    my $conns = $relay->connections;
+    is(ref($conns), 'HASH', 'connections returns hashref');
+    ok(scalar keys %$conns >= 1, 'at least one connection');
+
+    my $subs = $relay->subscriptions;
+    is(ref($subs), 'HASH', 'subscriptions returns hashref');
+    my @all_sub_ids;
+    for my $conn_id (keys %$subs) {
+        push @all_sub_ids, keys %{$subs->{$conn_id}};
+    }
+    ok((grep { $_ eq 'test-sub' } @all_sub_ids), 'test-sub subscription found');
+
+    $relay->stop;
+};
+
 done_testing;
