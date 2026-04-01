@@ -4,7 +4,7 @@ Nostr for Perl!
 
 This library is currently in development.
 
-# Release
+# Create Distribution
 
 ```bash
 $ perl Makefile.PL
