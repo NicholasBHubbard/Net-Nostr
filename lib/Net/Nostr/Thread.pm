@@ -257,7 +257,8 @@ Croaks if the parent event is not kind 1 (use NIP-22 for other kinds).
     );
 
 Creates a kind 1 event with a C<q> tag referencing the quoted event.
-The quoted event's author is added as a C<p> tag.
+The quoted event's author is added as a C<p> tag unless the quoter
+is the same pubkey (no self-reference).
 
     my $qt = Net::Nostr::Thread->quote(
         event => $original, pubkey => $pk, content => 'wow',

@@ -265,6 +265,35 @@ Returns the public key in PEM-encoded format (Base64 with header/footer).
 
 Returns the private key in PEM-encoded format.
 
+=head2 sign_event
+
+    my $sig_hex = $key->sign_event($event);
+
+Signs the event's ID with BIP-340 Schnorr and sets the event's C<sig>
+field. Returns the signature as a 128-character hex string.
+
+    my $event = Net::Nostr::Event->new(
+        pubkey => $key->pubkey_hex, kind => 1,
+        content => 'hello', tags => [],
+    );
+    $key->sign_event($event);
+    say $event->sig;  # 128-char hex
+
+=head2 create_event
+
+    my $event = $key->create_event(kind => 1, content => 'hello', tags => []);
+
+Convenience method that creates a new L<Net::Nostr::Event> with the
+key's public key, signs it, and returns the signed event.
+
+    my $event = $key->create_event(
+        kind    => 1,
+        content => 'hello world',
+        tags    => [['t', 'nostr']],
+    );
+    say $event->id;   # set
+    say $event->sig;  # set
+
 =head2 constructor_keys
 
     my @keys = Net::Nostr::Key->constructor_keys;  # ('privkey', 'pubkey')
