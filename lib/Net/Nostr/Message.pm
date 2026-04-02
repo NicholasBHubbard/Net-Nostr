@@ -3,7 +3,7 @@ package Net::Nostr::Message;
 use strictures 2;
 
 use Carp qw(croak);
-use JSON;
+use JSON ();
 use Net::Nostr::Event;
 use Net::Nostr::Filter;
 use Class::Tiny qw(type subscription_id event event_id accepted message prefix filters challenge);

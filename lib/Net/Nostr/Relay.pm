@@ -12,7 +12,7 @@ use Crypt::PK::ECC;
 use Crypt::PK::ECC::Schnorr;
 use Crypt::PRNG qw(random_bytes);
 use Digest::SHA qw(sha256_hex);
-use JSON;
+use JSON ();
 use Socket qw(MSG_PEEK);
 
 use Net::Nostr::RelayInfo;

@@ -3,7 +3,7 @@ package Net::Nostr::Event;
 use strictures 2;
 
 use Carp qw(croak);
-use JSON;
+use JSON ();
 use Digest::SHA qw(sha256_hex);
 use Crypt::PK::ECC::Schnorr;
 

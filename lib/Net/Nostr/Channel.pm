@@ -3,7 +3,7 @@ package Net::Nostr::Channel;
 use strictures 2;
 
 use Carp qw(croak);
-use JSON;
+use JSON ();
 use Net::Nostr::Event;
 
 my $JSON = JSON->new->utf8;

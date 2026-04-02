@@ -3,7 +3,7 @@ package Net::Nostr::List;
 use strictures 2;
 
 use Carp qw(croak);
-use JSON;
+use JSON ();
 use Net::Nostr::Event;
 use Net::Nostr::Encryption;
 
