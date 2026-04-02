@@ -1,9 +1,9 @@
 0.003000   TBD
 
-  - Add NIP-11 support
-  - Add NIP-28 support
-  - Add NIP-51 support
-  - Add NIP-29 support
+  - Add NIP-11 support (Relay information document)
+  - Add NIP-28 support (Public chat)
+  - Add NIP-51 support (Lists)
+  - Add NIP-29 support (Relay-based groups)
   - Add NIP-13 support (Proof of Work)
   - Add NIP-05 support (DNS-based internet identifiers)
 
