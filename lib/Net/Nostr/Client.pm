@@ -154,8 +154,10 @@ Net::Nostr::Client - WebSocket client for Nostr relays
 =head1 SYNOPSIS
 
     use Net::Nostr::Client;
+    use Net::Nostr::Key;
     use Net::Nostr::Filter;
 
+    my $key    = Net::Nostr::Key->new;
     my $client = Net::Nostr::Client->new;
 
     # Register callbacks before connecting
@@ -174,10 +176,11 @@ Net::Nostr::Client - WebSocket client for Nostr relays
         say "End of stored events for $sub_id";
     });
 
-    # Connect (blocks until connected)
-    $client->connect("ws://127.0.0.1:8080");
+    # Connect (blocks until connected, croaks on failure)
+    $client->connect("wss://relay.example.com");
 
-    # Publish an event
+    # Create and publish an event
+    my $event = $key->create_event(kind => 1, content => 'hello', tags => []);
     $client->publish($event);
 
     # Subscribe with one or more filters
@@ -194,7 +197,7 @@ Net::Nostr::Client - WebSocket client for Nostr relays
 
 A WebSocket client for connecting to Nostr relays. Provides a callback-based
 interface for publishing events, managing subscriptions, and receiving relay
-messages.
+messages. Supports NIP-42 authentication.
 
 =head1 CONSTRUCTOR
 
@@ -215,12 +218,11 @@ C<connect> is called.
     $client->connect($url, sub { ... });
 
 Connects to the relay at the given WebSocket URL. Blocks until the
-connection is established and returns C<$self> for chaining.
+connection is established and returns C<$self> for chaining. Croaks
+if the connection fails or C<$url> is not provided.
 
 If a callback is provided, connects asynchronously and calls the
 callback once connected. Returns immediately without blocking.
-
-Croaks if C<$url> is not provided.
 
 =head2 is_connected
 
@@ -233,7 +235,8 @@ Returns true if the client has an active WebSocket connection.
     $client->disconnect;
 
 Closes the WebSocket connection. C<is_connected> will return false
-afterwards.
+afterwards. The connection is also automatically cleared if the
+relay drops the connection.
 
 =head2 publish
 
@@ -241,6 +244,10 @@ afterwards.
 
 Sends an EVENT message to the relay. The relay will respond with an OK
 message (received via the C<ok> callback). Croaks if not connected.
+
+    my $key   = Net::Nostr::Key->new;
+    my $event = $key->create_event(kind => 1, content => 'hello', tags => []);
+    $client->publish($event);
 
 =head2 subscribe
 
