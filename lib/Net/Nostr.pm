@@ -59,36 +59,14 @@ and signing see L<Net::Nostr::Event>.
 
 =item L<NIP-44|https://github.com/nostr-protocol/nips/blob/master/44.md> - Encrypted payloads (versioned)
 
+=item L<NIP-29|https://github.com/nostr-protocol/nips/blob/master/29.md> - Relay-based groups
+
 =item L<NIP-51|https://github.com/nostr-protocol/nips/blob/master/51.md> - Lists
 
 =back
 
 NIP-04 (encrypted direct messages) is deprecated and not supported.
 Use NIP-44 for encryption instead.
-
-=head1 METHODS
-
-=head2 client
-
-    my $client = Net::Nostr->client;
-
-Returns a new L<Net::Nostr::Client> instance for connecting to relays.
-
-    my $client = Net::Nostr->client;
-    $client->on(event => sub { my ($sub_id, $event) = @_; ... });
-    $client->connect("ws://relay.example.com");
-    $client->subscribe('my-feed', $filter);
-    $client->publish($event);
-    $client->disconnect;
-
-=head2 relay
-
-    my $relay = Net::Nostr->relay;
-
-Returns a new L<Net::Nostr::Relay> instance for running a relay server.
-
-    my $relay = Net::Nostr->relay;
-    $relay->run('127.0.0.1', 8080);
 
 =head1 MODULES
 
@@ -117,6 +95,8 @@ Returns a new L<Net::Nostr::Relay> instance for running a relay server.
 =item L<Net::Nostr::Channel> - NIP-28 public chat channels
 
 =item L<Net::Nostr::Encryption> - NIP-44 versioned encrypted payloads
+
+=item L<Net::Nostr::Group> - NIP-29 relay-based groups
 
 =item L<Net::Nostr::List> - NIP-51 lists and sets
 
