@@ -4,6 +4,8 @@
   - Add NIP-28 support (Public chat)
   - Add NIP-51 support (Lists)
   - Add NIP-29 support (Relay-based groups)
+  - Add NIP-59 support (Gift wrap)
+  - Add NIP-17 support (Private direct messages)
   - Add NIP-65 support (Relay list metadata)
   - Add NIP-13 support (Proof of Work)
   - Add NIP-05 support (DNS-based internet identifiers)
