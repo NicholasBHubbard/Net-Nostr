@@ -42,9 +42,6 @@ jobs:
           path: ~/perl5
           key: perl-${{ matrix.perl }}-${{ hashFiles('cpanfile', '.github/workflows/test.yml') }}
 
-      - name: Upgrade toolchain
-        run: cpanm --local-lib ~/perl5 ExtUtils::MakeMaker
-
       - name: Install dependencies
         run: cpanm --local-lib ~/perl5 --installdeps .
 
