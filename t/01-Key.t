@@ -88,6 +88,79 @@ subtest 'POD: pubkey-only key has pubkey_loaded but not privkey_loaded' => sub {
     ok(!$pub_only->privkey_loaded, 'privkey_loaded is false');
 };
 
+subtest 'load private key from file' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $tmp = File::Temp->new(SUFFIX => '.pem');
+    print $tmp $key->privkey_pem;
+    close $tmp;
+
+    my $loaded = Net::Nostr::Key->new(privkey => $tmp->filename);
+    ok($loaded->privkey_loaded, 'private key loaded from file');
+    is($loaded->pubkey_hex, $key->pubkey_hex, 'pubkey matches original');
+    is($loaded->privkey_hex, $key->privkey_hex, 'privkey matches original');
+};
+
+subtest 'load public key from file' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $tmp = File::Temp->new(SUFFIX => '.pem');
+    print $tmp $key->pubkey_pem;
+    close $tmp;
+
+    my $loaded = Net::Nostr::Key->new(pubkey => $tmp->filename);
+    ok($loaded->pubkey_loaded, 'public key loaded from file');
+    ok(!$loaded->privkey_loaded, 'no private key loaded');
+    is($loaded->pubkey_hex, $key->pubkey_hex, 'pubkey matches original');
+};
+
+subtest 'load private key from DER file' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $tmp = File::Temp->new(SUFFIX => '.der');
+    binmode $tmp;
+    print $tmp $key->privkey_der;
+    close $tmp;
+
+    my $loaded = Net::Nostr::Key->new(privkey => $tmp->filename);
+    ok($loaded->privkey_loaded, 'private key loaded from DER file');
+    is($loaded->pubkey_hex, $key->pubkey_hex, 'pubkey matches original');
+};
+
+subtest 'save_privkey writes PEM file and round-trips' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $tmp = File::Temp->new(SUFFIX => '.pem');
+    my $path = $tmp->filename;
+    close $tmp;
+
+    $key->save_privkey($path);
+    ok(-f $path, 'file created');
+
+    my $loaded = Net::Nostr::Key->new(privkey => $path);
+    ok($loaded->privkey_loaded, 'private key loaded from saved file');
+    is($loaded->pubkey_hex, $key->pubkey_hex, 'pubkey matches original');
+    is($loaded->privkey_hex, $key->privkey_hex, 'privkey matches original');
+};
+
+subtest 'save_pubkey writes PEM file and round-trips' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $tmp = File::Temp->new(SUFFIX => '.pem');
+    my $path = $tmp->filename;
+    close $tmp;
+
+    $key->save_pubkey($path);
+    ok(-f $path, 'file created');
+
+    my $loaded = Net::Nostr::Key->new(pubkey => $path);
+    ok($loaded->pubkey_loaded, 'public key loaded from saved file');
+    ok(!$loaded->privkey_loaded, 'no private key loaded');
+    is($loaded->pubkey_hex, $key->pubkey_hex, 'pubkey matches original');
+};
+
+subtest 'save_privkey croaks without privkey loaded' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $pub_only = Net::Nostr::Key->new(pubkey => \$key->pubkey_der);
+    ok(dies { $pub_only->save_privkey('/tmp/should_not_exist.pem') },
+       'croaks when no private key loaded');
+};
+
 subtest 'constructor_keys' => sub {
     my @keys = Net::Nostr::Key->constructor_keys;
     is(\@keys, [qw(privkey pubkey)], 'constructor_keys returns privkey and pubkey');

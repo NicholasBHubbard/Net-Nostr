@@ -2,6 +2,7 @@ package Net::Nostr::Key;
 
 use strictures 2;
 
+use Carp qw(croak);
 use Crypt::PK::ECC;
 use Crypt::PK::ECC::Schnorr;
 use Net::Nostr::Event;
@@ -102,6 +103,23 @@ sub privkey_nsec {
     return Net::Nostr::Bech32::encode_nsec($self->privkey_hex);
 }
 
+sub save_privkey {
+    my ($self, $path) = @_;
+    croak "no private key loaded" unless $self->privkey_loaded;
+    open my $fh, '>', $path or croak "cannot open $path: $!";
+    binmode $fh;
+    print $fh $self->privkey_pem;
+    close $fh;
+}
+
+sub save_pubkey {
+    my ($self, $path) = @_;
+    open my $fh, '>', $path or croak "cannot open $path: $!";
+    binmode $fh;
+    print $fh $self->pubkey_pem;
+    close $fh;
+}
+
 sub sign_event {
     my ($self, $event) = @_;
     my $sig_raw = $self->schnorr_sign($event->id);
@@ -157,10 +175,16 @@ signatures.
     my $key = Net::Nostr::Key->new;
     my $key = Net::Nostr::Key->new(privkey => \$der_bytes);
     my $key = Net::Nostr::Key->new(pubkey  => \$der_bytes);
+    my $key = Net::Nostr::Key->new(privkey => 'my_key.pem');
 
 Without arguments, generates a new secp256k1 keypair. Pass C<privkey> or
-C<pubkey> as a scalar reference to DER-encoded key data. When only a
-public key is loaded, signing operations will fail.
+C<pubkey> as a scalar reference to key data (DER or PEM), or as a filename
+string to load from a file (PEM or DER format). When only a public key is
+loaded, signing operations will fail.
+
+    # Save a key to a file and load it back
+    $key->save_privkey('my_key.pem');
+    my $key = Net::Nostr::Key->new(privkey => 'my_key.pem');
 
 =head1 METHODS
 
@@ -267,6 +291,30 @@ Returns the public key in PEM-encoded format (Base64 with header/footer).
     my $pem = $key->privkey_pem;
 
 Returns the private key in PEM-encoded format.
+
+=head2 save_privkey
+
+    $key->save_privkey('my_key.pem');
+
+Saves the private key to the given file path in PEM format. Croaks if
+no private key is loaded.
+
+    my $key = Net::Nostr::Key->new;
+    $key->save_privkey('my_key.pem');
+
+    # Load it back later
+    my $same_key = Net::Nostr::Key->new(privkey => 'my_key.pem');
+
+=head2 save_pubkey
+
+    $key->save_pubkey('my_pubkey.pem');
+
+Saves the public key to the given file path in PEM format.
+
+    my $key = Net::Nostr::Key->new;
+    $key->save_pubkey('my_pubkey.pem');
+
+    my $pub_only = Net::Nostr::Key->new(pubkey => 'my_pubkey.pem');
 
 =head2 sign_event
 
