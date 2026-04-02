@@ -150,23 +150,27 @@ Net::Nostr::Key - Secp256k1 keypair management for Nostr
 
     # Generate a new keypair
     my $key = Net::Nostr::Key->new;
-    say $key->pubkey_hex;   # 64-char hex (x-only, BIP-340)
-    say $key->privkey_hex;  # 64-char hex
+    say $key->pubkey_npub;   # npub1...
+    say $key->privkey_nsec;  # nsec1...
+    say $key->pubkey_hex;    # 64-char hex (x-only, BIP-340)
+    say $key->privkey_hex;   # 64-char hex
 
-    # Load an existing private key (DER scalar ref)
+    # Save and load from file
+    $key->save_privkey('my_key.pem');
+    my $key = Net::Nostr::Key->new(privkey => 'my_key.pem');
+
+    # Create and sign an event
+    my $event = $key->create_event(kind => 1, content => 'hello', tags => []);
+
+    # Load from DER data
     my $key = Net::Nostr::Key->new(privkey => \$der_bytes);
-
-    # Load a public key only (for verification)
-    my $key = Net::Nostr::Key->new(pubkey => \$der_bytes);
-
-    # Sign a message with BIP-340 Schnorr
-    my $sig = $key->schnorr_sign('message to sign');  # 64 raw bytes
+    my $key = Net::Nostr::Key->new(pubkey  => \$der_bytes);
 
 =head1 DESCRIPTION
 
 Manages secp256k1 keypairs for the Nostr protocol. Supports key generation,
-import/export in multiple formats (hex, raw, DER, PEM), and BIP-340 Schnorr
-signatures.
+import/export in multiple formats (hex, raw, DER, PEM, NIP-19 bech32),
+file-based key storage, and BIP-340 Schnorr signatures.
 
 =head1 CONSTRUCTOR
 

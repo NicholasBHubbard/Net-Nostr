@@ -111,8 +111,4 @@ Returns a new L<Net::Nostr::Relay> instance for running a relay server.
 
 =back
 
-=head1 SEE ALSO
-
-L<https://github.com/nostr-protocol/nips/blob/master/01.md> - NIP-01 specification
-
 =cut
