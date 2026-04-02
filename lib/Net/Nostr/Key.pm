@@ -5,13 +5,16 @@ use strictures 2;
 use Crypt::PK::ECC;
 use Crypt::PK::ECC::Schnorr;
 use Net::Nostr::Event;
+
 use Class::Tiny qw(_cryptpkecc);
 
 sub new {
-    my $class = shift;
-    my $self = bless { @_ }, $class; # we can add more options later. For now its just 'privkey' and 'pubkey'
-    $self->{_cryptpkecc} = Crypt::PK::ECC->new($self->{privkey} // $self->{pubkey} // ());
-    delete @{$self}{qw(privkey pubkey)}; # keys are managed by Crypt::PK::ECC
+    my ($class, %args) = @_;
+    my $self = bless {}, $class;
+    my @key_arg = defined $args{privkey} ? ($args{privkey})
+                : defined $args{pubkey}  ? ($args{pubkey})
+                :                          ();
+    $self->_cryptpkecc(Crypt::PK::ECC->new(@key_arg));
     $self->_cryptpkecc->generate_key('secp256k1') unless $self->pubkey_loaded;
     return $self;
 }

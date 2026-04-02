@@ -7,9 +7,13 @@ use Net::Nostr::Event;
 
 my $HEX64 = qr/\A[0-9a-f]{64}\z/;
 
+use Class::Tiny qw(_follows);
+
 sub new {
     my $class = shift;
-    return bless { _follows => [] }, $class;
+    my $self = bless {}, $class;
+    $self->_follows([]);
+    return $self;
 }
 
 sub from_event {
@@ -18,7 +22,7 @@ sub from_event {
     my $self = $class->new;
     for my $tag (@{$event->tags}) {
         next unless $tag->[0] eq 'p';
-        push @{$self->{_follows}}, {
+        push @{$self->_follows}, {
             pubkey  => $tag->[1],
             relay   => $tag->[2] // '',
             petname => $tag->[3] // '',
@@ -37,25 +41,25 @@ sub add {
         petname => $opts{petname} // '',
     };
     # replace existing entry in place
-    for my $i (0 .. $#{$self->{_follows}}) {
-        if ($self->{_follows}[$i]{pubkey} eq $pubkey) {
-            $self->{_follows}[$i] = $entry;
+    for my $i (0 .. $#{$self->_follows}) {
+        if ($self->_follows->[$i]{pubkey} eq $pubkey) {
+            $self->_follows->[$i] = $entry;
             return $self;
         }
     }
-    push @{$self->{_follows}}, $entry;
+    push @{$self->_follows}, $entry;
     return $self;
 }
 
 sub remove {
     my ($self, $pubkey) = @_;
-    $self->{_follows} = [grep { $_->{pubkey} ne $pubkey } @{$self->{_follows}}];
+    $self->_follows([grep { $_->{pubkey} ne $pubkey } @{$self->_follows}]);
     return $self;
 }
 
 sub contains {
     my ($self, $pubkey) = @_;
-    for my $entry (@{$self->{_follows}}) {
+    for my $entry (@{$self->_follows}) {
         return 1 if $entry->{pubkey} eq $pubkey;
     }
     return 0;
@@ -63,17 +67,17 @@ sub contains {
 
 sub count {
     my ($self) = @_;
-    return scalar @{$self->{_follows}};
+    return scalar @{$self->_follows};
 }
 
 sub follows {
     my ($self) = @_;
-    return @{$self->{_follows}};
+    return @{$self->_follows};
 }
 
 sub to_tags {
     my ($self) = @_;
-    return [map { ['p', $_->{pubkey}, $_->{relay}, $_->{petname}] } @{$self->{_follows}}];
+    return [map { ['p', $_->{pubkey}, $_->{relay}, $_->{petname}] } @{$self->_follows}];
 }
 
 sub to_event {

@@ -5,54 +5,54 @@ use strictures 2;
 use Carp qw(croak);
 use Net::Nostr::Event;
 
+use Class::Tiny qw(reason _events _addresses _kinds);
+
 sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
-    $self->{_events}   //= [];
-    $self->{_addresses} //= [];
-    $self->{_kinds}     //= {};
-    $self->{reason}     //= '';
+    $self->_events($self->_events // []);
+    $self->_addresses($self->_addresses // []);
+    $self->_kinds($self->_kinds // {});
+    $self->reason($self->reason // '');
     return $self;
 }
-
-sub reason { $_[0]->{reason} }
 
 sub add_event {
     my ($self, $event_id, %opts) = @_;
     my $kind = $opts{kind} // croak "add_event requires 'kind'";
-    push @{$self->{_events}}, $event_id;
-    $self->{_kinds}{$kind} = 1;
+    push @{$self->_events}, $event_id;
+    $self->_kinds->{$kind} = 1;
     return $self;
 }
 
 sub add_address {
     my ($self, $address, %opts) = @_;
     my $kind = $opts{kind} // croak "add_address requires 'kind'";
-    push @{$self->{_addresses}}, $address;
-    $self->{_kinds}{$kind} = 1;
+    push @{$self->_addresses}, $address;
+    $self->_kinds->{$kind} = 1;
     return $self;
 }
 
-sub event_ids { [@{$_[0]->{_events}}] }
+sub event_ids { [@{$_[0]->_events}] }
 
-sub addresses { [@{$_[0]->{_addresses}}] }
+sub addresses { [@{$_[0]->_addresses}] }
 
 sub to_event {
     my ($self, %args) = @_;
     my @tags;
-    for my $id (@{$self->{_events}}) {
+    for my $id (@{$self->_events}) {
         push @tags, ['e', $id];
     }
-    for my $addr (@{$self->{_addresses}}) {
+    for my $addr (@{$self->_addresses}) {
         push @tags, ['a', $addr];
     }
-    for my $kind (sort { $a <=> $b } keys %{$self->{_kinds}}) {
+    for my $kind (sort { $a <=> $b } keys %{$self->_kinds}) {
         push @tags, ['k', "$kind"];
     }
     return Net::Nostr::Event->new(
         %args,
         kind    => 5,
-        content => $self->{reason},
+        content => $self->reason,
         tags    => \@tags,
     );
 }
@@ -64,11 +64,11 @@ sub from_event {
     my $self = $class->new(reason => $event->content);
     for my $tag (@{$event->tags}) {
         if ($tag->[0] eq 'e') {
-            push @{$self->{_events}}, $tag->[1];
+            push @{$self->_events}, $tag->[1];
         } elsif ($tag->[0] eq 'a') {
-            push @{$self->{_addresses}}, $tag->[1];
+            push @{$self->_addresses}, $tag->[1];
         } elsif ($tag->[0] eq 'k') {
-            $self->{_kinds}{$tag->[1]} = 1;
+            $self->_kinds->{$tag->[1]} = 1;
         }
     }
     return $self;
@@ -79,14 +79,14 @@ sub applies_to {
     return 0 unless $target_event->pubkey eq $deletion_pubkey;
 
     # Check e tags
-    for my $id (@{$self->{_events}}) {
+    for my $id (@{$self->_events}) {
         return 1 if $target_event->id eq $id;
     }
 
     # Check a tags for addressable events
     if ($target_event->is_addressable) {
         my $target_addr = $target_event->kind . ':' . $target_event->pubkey . ':' . $target_event->d_tag;
-        for my $addr (@{$self->{_addresses}}) {
+        for my $addr (@{$self->_addresses}) {
             return 1 if $addr eq $target_addr;
         }
     }

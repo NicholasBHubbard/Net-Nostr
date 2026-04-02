@@ -18,7 +18,7 @@ use Class::Tiny qw(
 sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
-    $self->{mentions} //= [];
+    $self->mentions($self->mentions // []);
     return $self;
 }
 

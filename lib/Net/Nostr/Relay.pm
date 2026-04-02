@@ -23,33 +23,37 @@ use Class::Tiny qw(
     verify_signatures
     max_connections_per_ip
     relay_url
+    _conn_count_by_ip
+    _run_cv
+    _challenges
+    _authenticated
 );
 
 sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
-    $self->{verify_signatures} = 1 unless defined $self->{verify_signatures};
+    $self->verify_signatures(1) unless defined $self->verify_signatures;
     $self->_server(AnyEvent::WebSocket::Server->new());
     return $self;
 }
 
 sub start {
     my ($self, $host, $port) = @_;
-    $self->{_conn_count_by_ip} = {};
+    $self->_conn_count_by_ip({});
     $self->_guard(tcp_server($host, $port, sub {
         my ($fh, $peer_host) = @_;
         if (defined $self->max_connections_per_ip) {
-            my $count = $self->{_conn_count_by_ip}{$peer_host} || 0;
+            my $count = $self->_conn_count_by_ip->{$peer_host} || 0;
             if ($count >= $self->max_connections_per_ip) {
                 close $fh;
                 return;
             }
         }
-        $self->{_conn_count_by_ip}{$peer_host}++;
+        $self->_conn_count_by_ip->{$peer_host}++;
         $self->_server->establish($fh)->cb(sub {
             my $conn = eval { shift->recv };
             if ($@) {
-                $self->{_conn_count_by_ip}{$peer_host}--;
+                $self->_conn_count_by_ip->{$peer_host}--;
                 warn "WebSocket handshake failed: $@\n";
                 return;
             }
@@ -61,16 +65,16 @@ sub start {
 sub run {
     my ($self, $host, $port) = @_;
     $self->start($host, $port);
-    $self->{_run_cv} = AnyEvent->condvar;
-    $self->{_run_cv}->recv;
-    delete $self->{_run_cv};
+    $self->_run_cv(AnyEvent->condvar);
+    $self->_run_cv->recv;
+    $self->_run_cv(undef);
     $self->_stop_cleanup;
 }
 
 sub stop {
     my ($self) = @_;
-    if ($self->{_run_cv}) {
-        $self->{_run_cv}->send;
+    if ($self->_run_cv) {
+        $self->_run_cv->send;
         return;
     }
     $self->_stop_cleanup;
@@ -78,7 +82,7 @@ sub stop {
 
 sub authenticated_pubkeys {
     my ($self) = @_;
-    return { %{$self->{_authenticated} || {}} };
+    return { %{$self->_authenticated || {}} };
 }
 
 sub _stop_cleanup {
@@ -89,9 +93,9 @@ sub _stop_cleanup {
     }
     $self->connections({});
     $self->subscriptions({});
-    $self->{_conn_count_by_ip} = {};
-    $self->{_challenges} = {};
-    $self->{_authenticated} = {};
+    $self->_conn_count_by_ip({});
+    $self->_challenges({});
+    $self->_authenticated({});
 }
 
 sub broadcast {
@@ -114,18 +118,18 @@ sub _on_connection {
     my ($self, $conn, $peer_host) = @_;
     my $conn_id = ++$CONN_ID;
 
-    $self->{connections} //= {};
-    $self->{subscriptions} //= {};
-    $self->{events} //= [];
-    $self->{_challenges} //= {};
-    $self->{_authenticated} //= {};
+    $self->connections($self->connections // {});
+    $self->subscriptions($self->subscriptions // {});
+    $self->events($self->events // []);
+    $self->_challenges($self->_challenges // {});
+    $self->_authenticated($self->_authenticated // {});
 
     $self->connections->{$conn_id} = $conn;
 
     # Send AUTH challenge
     my $challenge = unpack('H*', random_bytes(32));
-    $self->{_challenges}{$conn_id} = $challenge;
-    $self->{_authenticated}{$conn_id} = {};
+    $self->_challenges->{$conn_id} = $challenge;
+    $self->_authenticated->{$conn_id} = {};
     $conn->send(Net::Nostr::Message->new(type => 'AUTH', challenge => $challenge)->serialize);
 
     $conn->on(each_message => sub {
@@ -164,9 +168,9 @@ sub _on_connection {
     $conn->on(finish => sub {
         delete $self->connections->{$conn_id};
         delete $self->subscriptions->{$conn_id};
-        delete $self->{_challenges}{$conn_id};
-        delete $self->{_authenticated}{$conn_id};
-        $self->{_conn_count_by_ip}{$peer_host}-- if defined $peer_host;
+        delete $self->_challenges->{$conn_id};
+        delete $self->_authenticated->{$conn_id};
+        $self->_conn_count_by_ip->{$peer_host}-- if defined $peer_host;
     });
 }
 
@@ -231,7 +235,7 @@ sub _handle_event {
     }
 
     # duplicate detection
-    for my $existing (@{$self->{events}}) {
+    for my $existing (@{$self->events}) {
         if ($existing->id eq $event->id) {
             $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => 'duplicate: already have this event')->serialize);
             return;
@@ -247,11 +251,11 @@ sub _handle_event {
 
     # replaceable events: keep only latest per pubkey+kind
     if ($event->is_replaceable) {
-        for my $i (0 .. $#{$self->{events}}) {
-            my $existing = $self->{events}[$i];
+        for my $i (0 .. $#{$self->events}) {
+            my $existing = $self->events->[$i];
             if ($existing->pubkey eq $event->pubkey && $existing->kind == $event->kind) {
                 if (_is_newer($event, $existing)) {
-                    splice @{$self->{events}}, $i, 1;
+                    splice @{$self->events}, $i, 1;
                 } else {
                     $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => 'duplicate: have a newer version')->serialize);
                     return;
@@ -264,11 +268,11 @@ sub _handle_event {
     # addressable events: keep only latest per pubkey+kind+d_tag
     if ($event->is_addressable) {
         my $d = $event->d_tag;
-        for my $i (0 .. $#{$self->{events}}) {
-            my $existing = $self->{events}[$i];
+        for my $i (0 .. $#{$self->events}) {
+            my $existing = $self->events->[$i];
             if ($existing->pubkey eq $event->pubkey && $existing->kind == $event->kind && $existing->d_tag eq $d) {
                 if (_is_newer($event, $existing)) {
-                    splice @{$self->{events}}, $i, 1;
+                    splice @{$self->events}, $i, 1;
                 } else {
                     $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => 'duplicate: have a newer version')->serialize);
                     return;
@@ -283,7 +287,7 @@ sub _handle_event {
         $self->_handle_deletion($event);
     }
 
-    push @{$self->{events}}, $event;
+    push @{$self->events}, $event;
     $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => '')->serialize);
     $self->broadcast($event);
 }
@@ -295,7 +299,7 @@ sub _handle_deletion {
     my $del_ts = $del_event->created_at;
 
     my @kept;
-    for my $stored (@{$self->{events}}) {
+    for my $stored (@{$self->events}) {
         # Never delete other kind 5 events
         if ($stored->kind == 5) {
             push @kept, $stored;
@@ -323,7 +327,7 @@ sub _handle_deletion {
         }
         push @kept, $stored unless $dominated;
     }
-    $self->{events} = \@kept;
+    $self->events(\@kept);
 }
 
 sub _handle_auth {
@@ -366,7 +370,7 @@ sub _handle_auth {
     }
 
     # Challenge tag must match
-    my $expected_challenge = $self->{_challenges}{$conn_id};
+    my $expected_challenge = $self->_challenges->{$conn_id};
     my $got_challenge;
     for my $tag (@{$event->tags}) {
         if ($tag->[0] eq 'challenge') {
@@ -380,7 +384,7 @@ sub _handle_auth {
     }
 
     # Track the authenticated pubkey for this connection
-    $self->{_authenticated}{$conn_id}{$event->pubkey} = 1;
+    $self->_authenticated->{$conn_id}{$event->pubkey} = 1;
 
     $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => '')->serialize);
 }
@@ -389,12 +393,12 @@ sub _handle_req {
     my ($self, $conn_id, $sub_id, @filters) = @_;
     my $conn = $self->connections->{$conn_id};
 
-    $self->{subscriptions}{$conn_id} //= {};
-    $self->{subscriptions}{$conn_id}{$sub_id} = \@filters;
+    $self->subscriptions->{$conn_id} //= {};
+    $self->subscriptions->{$conn_id}{$sub_id} = \@filters;
 
     # collect matching events
     my @matching;
-    for my $event (@{$self->{events}}) {
+    for my $event (@{$self->events}) {
         push @matching, $event if Net::Nostr::Filter->matches_any($event, @filters);
     }
 
@@ -421,7 +425,7 @@ sub _handle_req {
 
 sub _handle_close {
     my ($self, $conn_id, $sub_id) = @_;
-    delete $self->{subscriptions}{$conn_id}{$sub_id} if $self->{subscriptions}{$conn_id};
+    delete $self->subscriptions->{$conn_id}{$sub_id} if $self->subscriptions->{$conn_id};
 }
 
 1;
