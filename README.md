@@ -1,8 +1,10 @@
 # Net::Nostr
 
-Nostr for Perl!
+A Nostr client and relay library for Perl!
 
-This library is currently in development.
+# Documentation
+
+https://metacpan.org/pod/Net::Nostr
 
 # Create Distribution
 
