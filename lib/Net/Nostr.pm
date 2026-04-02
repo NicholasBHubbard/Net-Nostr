@@ -33,11 +33,10 @@ Net::Nostr - Perl client and relay library for the Nostr protocol
 
 =head1 DESCRIPTION
 
-Net::Nostr is the top-level entry point for working with the Nostr protocol
-in Perl. It provides two factory methods that return client and relay objects.
-
-For identity and key management see L<Net::Nostr::Key>. For event creation
-and signing see L<Net::Nostr::Event>.
+Net::Nostr is a Perl implementation of the Nostr protocol that provides both
+client and relay functionality. Most of the useful functionality lives in the
+individual modules listed below -- start with L<Net::Nostr::Key> for identity
+management and L<Net::Nostr::Event> for creating events.
 
 =head1 SUPPORTED NIPS
 
