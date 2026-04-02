@@ -1,3 +1,8 @@
+0.003000   TBD
+
+  - Add NIP-28
+  - Add NIP-51
+
 0.002000   2026-04-01
 
   - Add save_privkey() and save_pubkey() methods to Net::Nostr::Key

@@ -59,6 +59,8 @@ and signing see L<Net::Nostr::Event>.
 
 =item L<NIP-44|https://github.com/nostr-protocol/nips/blob/master/44.md> - Encrypted payloads (versioned)
 
+=item L<NIP-51|https://github.com/nostr-protocol/nips/blob/master/51.md> - Lists
+
 =back
 
 =head1 METHODS
@@ -112,6 +114,8 @@ Returns a new L<Net::Nostr::Relay> instance for running a relay server.
 =item L<Net::Nostr::Channel> - NIP-28 public chat channels
 
 =item L<Net::Nostr::Encryption> - NIP-44 versioned encrypted payloads
+
+=item L<Net::Nostr::List> - NIP-51 lists and sets
 
 =back
 
