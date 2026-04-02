@@ -1,7 +1,7 @@
 0.002000   TBD
 
   - Add save_privkey() and save_pubkey() methods to Net::Nostr::Key
-  - Document loading keys from files via constructor
+  - Improved documentation
 
 0.001000   2026-04-01
 
