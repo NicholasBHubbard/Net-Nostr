@@ -46,6 +46,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-02|https://github.com/nostr-protocol/nips/blob/master/02.md> - Follow list
 
+=item L<NIP-05|https://github.com/nostr-protocol/nips/blob/master/05.md> - Mapping Nostr keys to DNS-based internet identifiers
+
 =item L<NIP-09|https://github.com/nostr-protocol/nips/blob/master/09.md> - Event deletion request
 
 =item L<NIP-10|https://github.com/nostr-protocol/nips/blob/master/10.md> - Text notes and threads
@@ -104,6 +106,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Group> - NIP-29 relay-based groups
 
 =item L<Net::Nostr::List> - NIP-51 lists and sets
+
+=item L<Net::Nostr::Identifier> - NIP-05 DNS-based internet identifiers
 
 =back
 

@@ -5,6 +5,7 @@
   - Add NIP-51 support
   - Add NIP-29 support
   - Add NIP-13 support (Proof of Work)
+  - Add NIP-05 support (DNS-based internet identifiers)
 
 0.002000   2026-04-01
 

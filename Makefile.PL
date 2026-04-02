@@ -17,6 +17,7 @@ WriteMakefile(
         'AnyEvent::WebSocket::Client'   => 0,
         'AnyEvent::WebSocket::Server'   => 0,
         'AnyEvent::Socket'              => 0,
+        'AnyEvent::HTTP'                => 0,
         'Crypt::KeyDerivation'          => 0,
         'Crypt::Mac::HMAC'             => 0,
         'Crypt::PK::ECC'               => 0,

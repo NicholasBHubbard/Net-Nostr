@@ -3,6 +3,7 @@ requires 'AnyEvent';
 requires 'AnyEvent::WebSocket::Client';
 requires 'AnyEvent::WebSocket::Server';
 requires 'AnyEvent::Socket';
+requires 'AnyEvent::HTTP';
 requires 'Crypt::KeyDerivation';
 requires 'Crypt::Mac::HMAC';
 requires 'Crypt::PK::ECC';
