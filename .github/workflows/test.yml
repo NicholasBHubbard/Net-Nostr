@@ -1,4 +1,4 @@
-name: CI
+name: run-tests
 
 on:
   push:
@@ -25,6 +25,11 @@ jobs:
       matrix:
         perl: ['5.14', 'latest']
     name: Perl ${{ matrix.perl }}
+    env:
+      PERL5LIB: /home/runner/perl5/lib/perl5
+      PERL_LOCAL_LIB_ROOT: /home/runner/perl5
+      PERL_MB_OPT: --install_base /home/runner/perl5
+      PERL_MM_OPT: INSTALL_BASE=/home/runner/perl5
     steps:
       - uses: actions/checkout@v4
 
@@ -32,8 +37,13 @@ jobs:
         with:
           perl-version: ${{ matrix.perl }}
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/perl5
+          key: perl-${{ matrix.perl }}-${{ hashFiles('cpanfile') }}
+
       - name: Install dependencies
-        run: cpanm --notest --installdeps .
+        run: cpanm --local-lib ~/perl5 --installdeps .
 
       - name: Build
         run: perl Makefile.PL && make
