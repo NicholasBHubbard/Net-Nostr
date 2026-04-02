@@ -1310,4 +1310,22 @@ subtest 'kind 10009 round-trip via List' => sub {
     is($items->[1][0], 'r', 'second item is r tag');
 };
 
+###############################################################################
+# Group metadata MUST be signed by relay's NIP-11 "self" pubkey
+###############################################################################
+
+subtest 'relay self pubkey available for signing group metadata' => sub {
+    use Net::Nostr::RelayInfo;
+    my $info = Net::Nostr::RelayInfo->new(self => $relay_pk);
+    is($info->self, $relay_pk, 'self pubkey accessible from RelayInfo');
+
+    # Group metadata event (kind 39000) must be signed by the self pubkey
+    my $meta = Net::Nostr::Group->metadata(
+        pubkey   => $info->self,
+        group_id => 'pizza',
+        name     => 'Pizza Lovers',
+    );
+    is($meta->pubkey, $relay_pk, 'group metadata uses relay self pubkey');
+};
+
 done_testing;
