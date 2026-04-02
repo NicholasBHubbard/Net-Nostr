@@ -63,6 +63,9 @@ and signing see L<Net::Nostr::Event>.
 
 =back
 
+NIP-04 (encrypted direct messages) is deprecated and not supported.
+Use NIP-44 for encryption instead.
+
 =head1 METHODS
 
 =head2 client

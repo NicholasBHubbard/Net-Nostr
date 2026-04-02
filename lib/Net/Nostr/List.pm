@@ -225,7 +225,8 @@ C<d> tag value for sets (defaults to empty string).
 
 Parses a list from an existing event. Public items are extracted from
 the event tags. If a L<Net::Nostr::Key> is provided, private items
-are decrypted from the event content using NIP-44.
+are decrypted from the event content using NIP-44. Croaks if the
+content uses deprecated NIP-04 encryption.
 
     my $list = Net::Nostr::List->from_event($mute_event, key => $my_key);
     say scalar @{$list->private_items};  # number of privately muted items
