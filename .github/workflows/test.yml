@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 't/**'
+      - 'cpanfile'
+      - 'Makefile.PL'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 't/**'
+      - 'cpanfile'
+      - 'Makefile.PL'
+      - '.github/workflows/test.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        perl: ['5.14', 'latest']
+    name: Perl ${{ matrix.perl }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: ${{ matrix.perl }}
+
+      - name: Install dependencies
+        run: cpanm --notest --installdeps .
+
+      - name: Build
+        run: perl Makefile.PL && make
+
+      - name: Test
+        run: prove -r -l -v t/

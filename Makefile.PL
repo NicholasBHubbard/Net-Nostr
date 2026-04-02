@@ -10,6 +10,7 @@ WriteMakefile(
     ABSTRACT     => 'Client and relay library for the Nostr protocol',
     VERSION_FROM => 'lib/Net/Nostr.pm',
     LICENSE      => 'gpl_3',
+    MIN_PERL_VERSION => '5.014',
     PREREQ_PM    => {
         'strictures'                    => 2,
         'AnyEvent'                      => 0,
