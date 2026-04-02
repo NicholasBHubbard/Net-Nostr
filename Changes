@@ -10,6 +10,7 @@
   - Add NIP-13 support (Proof of Work)
   - Add NIP-05 support (DNS-based internet identifiers)
   - Add NIP-57 support (Lightning Zaps)
+  - Add NIP-22 support (Comment)
 
 0.002000   2026-04-01
 

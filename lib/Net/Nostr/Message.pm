@@ -267,7 +267,7 @@ Required fields by type:
     EVENT  - event (Net::Nostr::Event), optional subscription_id
     REQ    - subscription_id, filters (arrayref of Net::Nostr::Filter)
     CLOSE  - subscription_id
-    OK     - event_id, accepted (bool), message (string)
+    OK     - event_id, accepted (bool), optional message (defaults to '')
     EOSE   - subscription_id
     NOTICE - message
     CLOSED - subscription_id, message
@@ -368,6 +368,7 @@ The challenge string. Present on AUTH messages from relays.
 =head1 SEE ALSO
 
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
+L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Filter>
 
 =cut

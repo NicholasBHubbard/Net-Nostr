@@ -72,6 +72,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-17|https://github.com/nostr-protocol/nips/blob/master/17.md> - Private direct messages
 
+=item L<NIP-22|https://github.com/nostr-protocol/nips/blob/master/22.md> - Comment
+
 =item L<NIP-57|https://github.com/nostr-protocol/nips/blob/master/57.md> - Lightning Zaps
 
 =item L<NIP-65|https://github.com/nostr-protocol/nips/blob/master/65.md> - Relay list metadata
@@ -124,6 +126,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::DirectMessage> - NIP-17 private direct messages
 
 =item L<Net::Nostr::Zap> - NIP-57 Lightning Zaps
+
+=item L<Net::Nostr::Comment> - NIP-22 comment threading
 
 =back
 
