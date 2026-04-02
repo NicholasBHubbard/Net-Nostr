@@ -1,6 +1,6 @@
 # Net::Nostr
 
-A Nostr client and relay library for Perl!
+A [Nostr](https://nostr.org/) client and relay library for Perl!
 
 # Documentation
 
