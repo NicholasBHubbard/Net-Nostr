@@ -440,14 +440,41 @@ Net::Nostr::Relay - Nostr WebSocket relay server
 
     use Net::Nostr::Relay;
 
+    # Standalone relay (blocks until stop is called)
     my $relay = Net::Nostr::Relay->new;
-    $relay->run('127.0.0.1', 8080);  # blocks forever
+    $relay->run('127.0.0.1', 8080);
+
+    # Non-blocking: run a relay and client together
+    use Net::Nostr::Key;
+    use Net::Nostr::Client;
+
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', 8080);
+
+    my $key    = Net::Nostr::Key->new;
+    my $client = Net::Nostr::Client->new;
+    $client->connect('ws://127.0.0.1:8080');
+
+    my $event = $key->create_event(kind => 1, content => 'hello', tags => []);
+    $client->publish($event);
 
 =head1 DESCRIPTION
 
-An in-process Nostr relay implementing NIP-01. Accepts WebSocket connections,
-stores events, manages subscriptions, and broadcasts new events to matching
-subscribers.
+An in-process Nostr relay. Accepts WebSocket connections, stores events in
+memory, manages subscriptions, and broadcasts new events to matching
+subscribers. Events do not persist across restarts.
+
+Implements:
+
+=over 4
+
+=item * L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md> - Basic protocol flow
+
+=item * L<NIP-09|https://github.com/nostr-protocol/nips/blob/master/09.md> - Event deletion requests
+
+=item * L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md> - Authentication of clients to relays
+
+=back
 
 Supports all NIP-01 event semantics:
 
@@ -496,17 +523,24 @@ not validated).
 
     $relay->run('127.0.0.1', 8080);
 
-Starts the relay and blocks indefinitely, serving connections until
-C<stop> is called or the process exits. Equivalent to calling C<start>
-followed by a blocking event loop.
+Starts the relay and blocks until C<stop> is called. Equivalent to
+calling C<start> followed by a blocking event loop.
 
 =head2 start
 
     $relay->start('127.0.0.1', 8080);
 
 Starts listening for WebSocket connections on the given host and port.
-Returns immediately without blocking, useful for tests or when you need
-to run other code alongside the relay.
+Returns immediately without blocking. Use this when you want to embed
+the relay in a larger application, run a client and relay in the same
+process, or compose with other AnyEvent watchers.
+
+    # Run a relay and client together
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', 8080);
+
+    my $client = Net::Nostr::Client->new;
+    $client->connect('ws://127.0.0.1:8080');
 
 =head2 stop
 
@@ -541,7 +575,10 @@ then subscription ID.
 
     my $events = $relay->events;  # arrayref of Net::Nostr::Event
 
-Returns the arrayref of stored events.
+Returns the arrayref of stored events. This list is kept in memory only
+and reflects replaceable/addressable semantics (only the latest version
+of each replaceable or addressable event is retained). Ephemeral events
+are never stored here.
 
 =head2 verify_signatures
 
