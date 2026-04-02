@@ -9,6 +9,7 @@
   - Add NIP-65 support (Relay list metadata)
   - Add NIP-13 support (Proof of Work)
   - Add NIP-05 support (DNS-based internet identifiers)
+  - Add NIP-57 support (Lightning Zaps)
 
 0.002000   2026-04-01
 
