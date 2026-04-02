@@ -1,6 +1,6 @@
 # Net::Nostr
 
-Perl Nostr protocol library providing both client and relay functionality. Must work on all platforms. Minimum Perl version: 5.14.
+Perl Nostr protocol library providing both client and relay functionality. Must work on all platforms. Minimum Perl version: 5.16.
 
 Absolute compliance with supported NIPs is the highest priority for this library.
 

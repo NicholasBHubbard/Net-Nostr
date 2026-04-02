@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        perl: ['5.14', 'latest']
+        perl: ['5.16', 'latest']
     name: Perl ${{ matrix.perl }}
     env:
       PERL5LIB: /home/runner/perl5/lib/perl5
