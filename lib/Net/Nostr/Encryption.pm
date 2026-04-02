@@ -269,8 +269,9 @@ key is 32 raw bytes (from C<get_conversation_key>). An optional 32-byte
 nonce can be provided for deterministic encryption (useful for testing);
 otherwise a cryptographically random nonce is generated.
 
-Returns a base64-encoded payload string. Croaks if the plaintext is empty
-or exceeds 65535 bytes.
+Returns a base64-encoded payload string. The plaintext is UTF-8 encoded
+before encryption and UTF-8 decoded after decryption. Croaks if the
+plaintext is empty or exceeds 65535 bytes (after UTF-8 encoding).
 
     my $payload = Net::Nostr::Encryption->encrypt('secret message', $conv_key);
 

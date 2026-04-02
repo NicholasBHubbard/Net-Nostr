@@ -116,18 +116,24 @@ Net::Nostr::Event - Nostr protocol event object
 =head1 SYNOPSIS
 
     use Net::Nostr::Event;
+    use Net::Nostr::Key;
 
+    # Typical usage: create via Key (sets pubkey and signs automatically)
+    my $key   = Net::Nostr::Key->new;
+    my $event = $key->create_event(kind => 1, content => 'hello', tags => []);
+    say $event->id;   # 64-char hex sha256
+    say $event->sig;  # 128-char hex signature
+
+    # Manual construction (e.g. when parsing from the wire)
     my $event = Net::Nostr::Event->new(
-        pubkey     => 'a' x 64,
+        pubkey     => $key->pubkey_hex,
         kind       => 1,
         content    => 'hello world',
         tags       => [['t', 'nostr']],
         created_at => 1700000000,
     );
 
-    say $event->id;              # 64-char hex sha256
     say $event->json_serialize;  # canonical JSON array for hashing
-
     my $hash = $event->to_hash;  # { id, pubkey, created_at, kind, tags, content, sig }
 
 =head1 DESCRIPTION
@@ -153,6 +159,7 @@ Creates a new event. C<pubkey>, C<kind>, and C<content> are required.
 C<tags> defaults to C<[]>, C<created_at> defaults to C<time()>, and C<id>
 is automatically computed from the canonical serialization. If C<id> is
 passed explicitly (e.g. when parsing from the wire), it is preserved as-is.
+Croaks if C<kind> is outside the valid range (0-65535).
 
 =head1 METHODS
 
@@ -277,12 +284,8 @@ pubkey+kind+d_tag is kept).
 Verifies the event's Schnorr signature against the given
 L<Net::Nostr::Key> object. Returns true if the signature is valid.
 
-    my $key = Net::Nostr::Key->new;
-    my $event = Net::Nostr::Event->new(
-        pubkey => $key->pubkey_hex, kind => 1,
-        content => 'signed', tags => [],
-    );
-    $event->sig(unpack 'H*', $key->schnorr_sign($event->id));
+    my $key   = Net::Nostr::Key->new;
+    my $event = $key->create_event(kind => 1, content => 'signed', tags => []);
     say $event->verify_sig($key);  # 1
 
 =head1 SEE ALSO

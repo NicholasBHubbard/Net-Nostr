@@ -234,9 +234,18 @@ Net::Nostr::Message - Nostr protocol message serialization and parsing
         subscription_id => 'feed',
     );
 
-    # Parse a message from a relay
+    # Parse a relay EVENT message
     my $msg = Net::Nostr::Message->parse($json_string);
-    say $msg->type;  # 'EVENT', 'OK', 'EOSE', etc.
+    say $msg->type;             # 'EVENT'
+    say $msg->subscription_id;  # 'feed'
+    say $msg->event->content;   # event content
+
+    # Client-to-relay: NIP-42 authentication
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', event => $auth_event);
+
+    # Relay-to-client: AUTH challenge
+    my $msg = Net::Nostr::Message->parse('["AUTH","challenge-string"]');
+    say $msg->challenge;  # 'challenge-string'
 
 =head1 DESCRIPTION
 
@@ -264,7 +273,9 @@ Required fields by type:
     CLOSED - subscription_id, message
     AUTH   - challenge (relay-to-client) or event (client-to-relay)
 
-Croaks on missing required fields or unknown type.
+C<subscription_id> must be a non-empty string of at most 64 characters
+for REQ and CLOSE messages. Croaks on missing required fields, invalid
+subscription IDs, or unknown type.
 
 =head1 METHODS
 
@@ -304,7 +315,7 @@ EOSE, and CLOSED messages.
 
     my $event = $msg->event;  # Net::Nostr::Event
 
-The event object. Present on EVENT messages.
+The event object. Present on EVENT and AUTH (client-to-relay) messages.
 
 =head2 event_id
 
