@@ -84,6 +84,61 @@ sub is_addressable {
     return ($k >= 30000 && $k < 40000);
 }
 
+sub difficulty {
+    my ($self) = @_;
+    my $id = $self->id;
+    my $count = 0;
+    for my $i (0 .. length($id) - 1) {
+        my $nibble = hex(substr($id, $i, 1));
+        if ($nibble == 0) {
+            $count += 4;
+        } else {
+            # count leading zero bits in this nibble (4-bit value)
+            my $bits = 0;
+            for my $shift (3, 2, 1, 0) {
+                last if $nibble & (1 << $shift);
+                $bits++;
+            }
+            $count += $bits;
+            last;
+        }
+    }
+    return $count;
+}
+
+sub committed_target_difficulty {
+    my ($self) = @_;
+    for my $tag (@{$self->tags}) {
+        if ($tag->[0] eq 'nonce' && defined $tag->[2]) {
+            return $tag->[2] + 0;
+        }
+    }
+    return undef;
+}
+
+sub mine {
+    my ($self, $target) = @_;
+    croak "target difficulty required" unless defined $target;
+
+    # Build tags: replace existing nonce tag or add one
+    my @tags = grep { $_->[0] ne 'nonce' } @{$self->tags};
+
+    my $nonce = 0;
+    while (1) {
+        my $candidate = Net::Nostr::Event->new(
+            pubkey     => $self->pubkey,
+            kind       => $self->kind,
+            content    => $self->content,
+            tags       => [@tags, ['nonce', "$nonce", "$target"]],
+            created_at => time(),
+        );
+        if ($candidate->difficulty >= $target) {
+            return $candidate;
+        }
+        $nonce++;
+    }
+}
+
 sub d_tag {
     my ($self) = @_;
     for my $tag (@{$self->tags}) {
@@ -236,6 +291,53 @@ Appends a C<p> tag referencing the given pubkey hex string.
     # tags now includes ['e', 'abcd1234...']
 
 Appends an C<e> tag referencing the given event ID hex string.
+
+=head2 difficulty
+
+    my $bits = $event->difficulty;  # e.g. 21
+
+Returns the Proof of Work difficulty of the event, defined as the number of
+leading zero bits in the event ID (NIP-13). For example, an ID starting with
+C<000006d8> has 21 leading zero bits.
+
+    my $event = $key->create_event(kind => 1, content => 'hello', tags => []);
+    my $mined = $event->mine(16);
+    say $mined->difficulty;  # >= 16
+
+=head2 committed_target_difficulty
+
+    my $target = $event->committed_target_difficulty;  # e.g. 20, or undef
+
+Returns the committed target difficulty from the C<nonce> tag's third entry
+(NIP-13), or C<undef> if no nonce tag or no target is present. This allows
+clients and relays to reject events where the miner committed to a lower
+difficulty than required, even if the actual difficulty happens to be higher.
+
+    my $mined = $event->mine(20);
+    say $mined->committed_target_difficulty;  # 20
+
+=head2 mine
+
+    my $mined = $event->mine($target_difficulty);
+
+Returns a new L<Net::Nostr::Event> with a C<nonce> tag that gives the event
+at least C<$target_difficulty> leading zero bits in its ID (NIP-13). The
+original event is not modified. The nonce tag's third entry records the
+committed target difficulty.
+
+The returned event is unsigned -- call C<< $key->sign_event($mined) >> to
+sign it after mining.
+
+    my $event = $key->create_event(kind => 1, content => 'hello', tags => []);
+    my $mined = $event->mine(20);
+    $key->sign_event($mined);
+    say $mined->difficulty;  # >= 20
+
+Existing tags are preserved. If the event already has a C<nonce> tag, it is
+replaced. The C<created_at> timestamp is updated during mining.
+
+Since the NIP-01 event ID does not commit to the signature, mining can be
+delegated to a third party (delegated Proof of Work).
 
 =head2 d_tag
 

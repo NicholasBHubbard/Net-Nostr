@@ -32,6 +32,7 @@ use Class::Tiny qw(
     _challenges
     _authenticated
     _nip11_watchers
+    min_pow_difficulty
 );
 
 sub new {
@@ -280,6 +281,20 @@ sub _handle_event {
         return;
     }
 
+    # NIP-13: Proof of Work check
+    if (defined $self->min_pow_difficulty) {
+        my $min = $self->min_pow_difficulty;
+        my $committed = $event->committed_target_difficulty;
+        if (!defined $committed || $committed < $min) {
+            $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => "pow: difficulty commitment below required $min")->serialize);
+            return;
+        }
+        if ($event->difficulty < $min) {
+            $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => "pow: insufficient proof of work (need $min bits)")->serialize);
+            return;
+        }
+    }
+
     # Relays MUST exclude kind 22242 events from being broadcasted (NIP-42)
     if ($event->kind == 22242) {
         $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: auth events should use AUTH message')->serialize);
@@ -526,6 +541,8 @@ Implements:
 
 =item * L<NIP-11|https://github.com/nostr-protocol/nips/blob/master/11.md> - Relay information document
 
+=item * L<NIP-13|https://github.com/nostr-protocol/nips/blob/master/13.md> - Proof of Work
+
 =item * L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md> - Authentication of clients to relays
 
 =back
@@ -553,6 +570,7 @@ Supports all NIP-01 event semantics:
     my $relay = Net::Nostr::Relay->new(max_connections_per_ip => 10);
     my $relay = Net::Nostr::Relay->new(relay_url => 'wss://relay.example.com/');
     my $relay = Net::Nostr::Relay->new(relay_info => $info);
+    my $relay = Net::Nostr::Relay->new(min_pow_difficulty => 16);
 
 Creates a new relay instance. Options:
 
@@ -569,6 +587,14 @@ at the TCP level. Default: C<undef> (unlimited).
 When set, NIP-42 AUTH events are validated to ensure the C<relay> tag matches
 this URL (domain comparison, case-insensitive). Default: C<undef> (relay tag
 not validated).
+
+=item C<min_pow_difficulty> - Minimum Proof of Work difficulty required for
+events (NIP-13). Events must have a C<nonce> tag committing to at least this
+difficulty, and the event ID must have at least this many leading zero bits.
+Events without a difficulty commitment are also rejected. Default: C<undef>
+(no PoW required).
+
+    my $relay = Net::Nostr::Relay->new(min_pow_difficulty => 16);
 
 =item C<relay_info> - A L<Net::Nostr::RelayInfo> object (NIP-11). When set, the
 relay serves the information document in response to HTTP requests with
@@ -664,6 +690,16 @@ Returns the maximum number of simultaneous connections allowed per IP
 address, or C<undef> if unlimited (the default).
 
     my $relay = Net::Nostr::Relay->new(max_connections_per_ip => 10);
+    $relay->start('0.0.0.0', 8080);
+
+=head2 min_pow_difficulty
+
+    my $min = $relay->min_pow_difficulty;
+
+Returns the minimum Proof of Work difficulty required for events (NIP-13),
+or C<undef> if not set (the default).
+
+    my $relay = Net::Nostr::Relay->new(min_pow_difficulty => 16);
     $relay->start('0.0.0.0', 8080);
 
 =head2 relay_url

@@ -52,6 +52,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-11|https://github.com/nostr-protocol/nips/blob/master/11.md> - Relay information document
 
+=item L<NIP-13|https://github.com/nostr-protocol/nips/blob/master/13.md> - Proof of Work
+
 =item L<NIP-19|https://github.com/nostr-protocol/nips/blob/master/19.md> - bech32-encoded entities
 
 =item L<NIP-28|https://github.com/nostr-protocol/nips/blob/master/28.md> - Public chat
