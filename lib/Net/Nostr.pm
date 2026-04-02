@@ -68,6 +68,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-51|https://github.com/nostr-protocol/nips/blob/master/51.md> - Lists
 
+=item L<NIP-65|https://github.com/nostr-protocol/nips/blob/master/65.md> - Relay list metadata
+
 =back
 
 NIP-04 (encrypted direct messages) is deprecated and not supported.
@@ -108,6 +110,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::List> - NIP-51 lists and sets
 
 =item L<Net::Nostr::Identifier> - NIP-05 DNS-based internet identifiers
+
+=item L<Net::Nostr::RelayList> - NIP-65 relay list metadata
 
 =back
 
