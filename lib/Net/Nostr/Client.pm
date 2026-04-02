@@ -6,6 +6,7 @@ use Carp qw(croak);
 use AnyEvent;
 use AnyEvent::WebSocket::Client;
 use Net::Nostr::Message;
+
 use Class::Tiny qw(
     _ws_client
     _conn
