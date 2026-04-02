@@ -815,4 +815,87 @@ subtest 'relay_url accessor' => sub {
     ok !defined($relay2->relay_url), 'relay_url defaults to undef';
 };
 
+###############################################################################
+# NIP-11: Relay Information Document
+###############################################################################
+
+subtest 'relay_info accessor' => sub {
+    use Net::Nostr::RelayInfo;
+    my $info = Net::Nostr::RelayInfo->new(name => 'Test');
+    my $relay = Net::Nostr::Relay->new(relay_info => $info);
+    isa_ok($relay->relay_info, 'Net::Nostr::RelayInfo');
+    is($relay->relay_info->name, 'Test', 'relay_info name');
+};
+
+subtest 'relay_info defaults to undef' => sub {
+    my $relay = Net::Nostr::Relay->new;
+    ok(!defined($relay->relay_info), 'relay_info defaults to undef');
+};
+
+subtest 'relay with relay_info serves NIP-11 document' => sub {
+    use Net::Nostr::RelayInfo;
+    use AnyEvent::Handle;
+    use AnyEvent::Socket qw(tcp_connect);
+
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_info => Net::Nostr::RelayInfo->new(
+            name    => 'Unit Test Relay',
+            version => '0.0.1',
+        ),
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    tcp_connect '127.0.0.1', $port, sub {
+        my ($fh) = @_ or return $cv->croak("connect failed: $!");
+        my $response = '';
+        my $hdl; $hdl = AnyEvent::Handle->new(
+            fh       => $fh,
+            on_error => sub { undef $hdl; $cv->send($response) },
+            on_eof   => sub { undef $hdl; $cv->send($response) },
+            on_read  => sub { $response .= $_[0]->rbuf; $_[0]->rbuf = '' },
+        );
+        $hdl->push_write(
+            "GET / HTTP/1.1\r\n" .
+            "Host: 127.0.0.1:$port\r\n" .
+            "Accept: application/nostr+json\r\n" .
+            "Connection: close\r\n\r\n"
+        );
+    };
+
+    my $resp = $cv->recv;
+    like($resp, qr{HTTP/1\.1 200 OK}, 'status 200');
+    like($resp, qr{application/nostr\+json}, 'content-type');
+    like($resp, qr{Access-Control-Allow-Origin}, 'CORS header');
+
+    my ($body) = $resp =~ /\r\n\r\n(.+)/s;
+    my $doc = $JSON->decode($body);
+    is($doc->{name}, 'Unit Test Relay', 'name in response');
+    is($doc->{version}, '0.0.1', 'version in response');
+
+    $relay->stop;
+};
+
+subtest 'relay with relay_info still accepts WebSocket' => sub {
+    use Net::Nostr::RelayInfo;
+
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_info => Net::Nostr::RelayInfo->new(name => 'Test'),
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub { $cv->send('connected') });
+
+    is($cv->recv, 'connected', 'WebSocket connects with relay_info set');
+    $relay->stop;
+};
+
 done_testing;

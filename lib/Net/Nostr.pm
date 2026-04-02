@@ -50,6 +50,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-10|https://github.com/nostr-protocol/nips/blob/master/10.md> - Text notes and threads
 
+=item L<NIP-11|https://github.com/nostr-protocol/nips/blob/master/11.md> - Relay information document
+
 =item L<NIP-19|https://github.com/nostr-protocol/nips/blob/master/19.md> - bech32-encoded entities
 
 =item L<NIP-28|https://github.com/nostr-protocol/nips/blob/master/28.md> - Public chat
@@ -92,6 +94,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Bech32> - NIP-19 bech32-encoded entities
 
 =item L<Net::Nostr::Channel> - NIP-28 public chat channels
+
+=item L<Net::Nostr::RelayInfo> - NIP-11 relay information document
 
 =item L<Net::Nostr::Encryption> - NIP-44 versioned encrypted payloads
 

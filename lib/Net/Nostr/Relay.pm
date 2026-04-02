@@ -13,6 +13,9 @@ use Crypt::PK::ECC::Schnorr;
 use Crypt::PRNG qw(random_bytes);
 use Digest::SHA qw(sha256_hex);
 use JSON;
+use Socket qw(MSG_PEEK);
+
+use Net::Nostr::RelayInfo;
 
 use Class::Tiny qw(
     _server
@@ -23,10 +26,12 @@ use Class::Tiny qw(
     verify_signatures
     max_connections_per_ip
     relay_url
+    relay_info
     _conn_count_by_ip
     _run_cv
     _challenges
     _authenticated
+    _nip11_watchers
 );
 
 sub new {
@@ -40,6 +45,7 @@ sub new {
 sub start {
     my ($self, $host, $port) = @_;
     $self->_conn_count_by_ip({});
+    $self->_nip11_watchers({});
     $self->_guard(tcp_server($host, $port, sub {
         my ($fh, $peer_host) = @_;
         if (defined $self->max_connections_per_ip) {
@@ -50,16 +56,61 @@ sub start {
             }
         }
         $self->_conn_count_by_ip->{$peer_host}++;
-        $self->_server->establish($fh)->cb(sub {
-            my $conn = eval { shift->recv };
-            if ($@) {
-                $self->_conn_count_by_ip->{$peer_host}--;
-                warn "WebSocket handshake failed: $@\n";
-                return;
-            }
-            $self->_on_connection($conn, $peer_host);
-        });
+
+        if ($self->relay_info) {
+            $self->_handle_nip11_or_ws($fh, $peer_host);
+        } else {
+            $self->_establish_ws($fh, $peer_host);
+        }
     }));
+}
+
+sub _establish_ws {
+    my ($self, $fh, $peer_host) = @_;
+    $self->_server->establish($fh)->cb(sub {
+        my $conn = eval { shift->recv };
+        if ($@) {
+            $self->_conn_count_by_ip->{$peer_host}--;
+            warn "WebSocket handshake failed: $@\n";
+            return;
+        }
+        $self->_on_connection($conn, $peer_host);
+    });
+}
+
+sub _handle_nip11_or_ws {
+    my ($self, $fh, $peer_host) = @_;
+    my $fileno = fileno($fh);
+    my $w; $w = AnyEvent->io(fh => $fh, poll => 'r', cb => sub {
+        undef $w;
+        delete $self->_nip11_watchers->{$fileno};
+
+        my $buf = '';
+        recv($fh, $buf, 8192, MSG_PEEK);
+
+        if ($buf =~ /\r\n\r\n/ && $buf =~ /^OPTIONS\s/i) {
+            # CORS preflight
+            sysread($fh, my $discard, 8192);
+            syswrite($fh, Net::Nostr::RelayInfo->cors_preflight_response);
+            close $fh;
+            $self->_conn_count_by_ip->{$peer_host}--;
+            return;
+        }
+
+        if ($buf =~ /\r\n\r\n/ && $buf =~ /Accept:\s*application\/nostr\+json/i
+            && $buf !~ /Upgrade:\s*websocket/i) {
+            # NIP-11 request
+            sysread($fh, my $discard, 8192);
+            syswrite($fh, $self->relay_info->to_http_response);
+            close $fh;
+            $self->_conn_count_by_ip->{$peer_host}--;
+            return;
+        }
+
+        # WebSocket upgrade
+        $self->_establish_ws($fh, $peer_host);
+    });
+    $self->_nip11_watchers->{$fileno} = $w;
 }
 
 sub run {
@@ -96,6 +147,7 @@ sub _stop_cleanup {
     $self->_conn_count_by_ip({});
     $self->_challenges({});
     $self->_authenticated({});
+    $self->_nip11_watchers({});
 }
 
 sub broadcast {
@@ -472,6 +524,8 @@ Implements:
 
 =item * L<NIP-09|https://github.com/nostr-protocol/nips/blob/master/09.md> - Event deletion requests
 
+=item * L<NIP-11|https://github.com/nostr-protocol/nips/blob/master/11.md> - Relay information document
+
 =item * L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md> - Authentication of clients to relays
 
 =back
@@ -498,6 +552,7 @@ Supports all NIP-01 event semantics:
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     my $relay = Net::Nostr::Relay->new(max_connections_per_ip => 10);
     my $relay = Net::Nostr::Relay->new(relay_url => 'wss://relay.example.com/');
+    my $relay = Net::Nostr::Relay->new(relay_info => $info);
 
 Creates a new relay instance. Options:
 
@@ -514,6 +569,21 @@ at the TCP level. Default: C<undef> (unlimited).
 When set, NIP-42 AUTH events are validated to ensure the C<relay> tag matches
 this URL (domain comparison, case-insensitive). Default: C<undef> (relay tag
 not validated).
+
+=item C<relay_info> - A L<Net::Nostr::RelayInfo> object (NIP-11). When set, the
+relay serves the information document in response to HTTP requests with
+C<Accept: application/nostr+json>, and handles CORS preflight OPTIONS requests.
+Default: C<undef> (NIP-11 disabled).
+
+    use Net::Nostr::RelayInfo;
+
+    my $relay = Net::Nostr::Relay->new(
+        relay_info => Net::Nostr::RelayInfo->new(
+            name           => 'My Relay',
+            supported_nips => [1, 9, 11, 42],
+            version        => '1.0.0',
+        ),
+    );
 
 =back
 
@@ -606,6 +676,19 @@ Used for NIP-42 relay tag validation.
     my $relay = Net::Nostr::Relay->new(relay_url => 'wss://relay.example.com/');
     $relay->start('0.0.0.0', 8080);
 
+=head2 relay_info
+
+    my $info = $relay->relay_info;
+
+Returns the L<Net::Nostr::RelayInfo> object (NIP-11), or C<undef> if not set.
+
+    my $relay = Net::Nostr::Relay->new(
+        relay_info => Net::Nostr::RelayInfo->new(name => 'My Relay'),
+    );
+    $relay->start('0.0.0.0', 8080);
+
+    # Clients can now fetch: curl -H 'Accept: application/nostr+json' http://localhost:8080/
+
 =head2 authenticated_pubkeys
 
     my $auth = $relay->authenticated_pubkeys;
@@ -622,6 +705,6 @@ Keys are connection IDs, values are hashrefs of pubkey hex strings.
 
 =head1 SEE ALSO
 
-L<Net::Nostr>, L<Net::Nostr::Client>, L<Net::Nostr::Event>
+L<Net::Nostr>, L<Net::Nostr::Client>, L<Net::Nostr::Event>, L<Net::Nostr::RelayInfo>
 
 =cut
