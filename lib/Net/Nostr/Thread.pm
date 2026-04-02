@@ -337,6 +337,7 @@ reply (the "middle" tags). Empty arrayref for marked tags.
 
 =head1 SEE ALSO
 
+L<NIP-10|https://github.com/nostr-protocol/nips/blob/master/10.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>
 
 =cut

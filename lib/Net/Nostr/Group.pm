@@ -779,6 +779,7 @@ takes priority. Returns C<undef> if neither is found.
 
 =head1 SEE ALSO
 
+L<NIP-29|https://github.com/nostr-protocol/nips/blob/master/29.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::List> (kind 10009 group storage)
 
 =cut

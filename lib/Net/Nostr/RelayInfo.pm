@@ -236,6 +236,7 @@ C<terms_of_service>, C<limitation>, C<payments_url>, C<fees>.
 
 =head1 SEE ALSO
 
+L<NIP-11|https://github.com/nostr-protocol/nips/blob/master/11.md>,
 L<Net::Nostr>, L<Net::Nostr::Relay>
 
 =cut

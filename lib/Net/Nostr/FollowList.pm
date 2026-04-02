@@ -228,6 +228,7 @@ C<kind>, C<content>, and C<tags> fields are set automatically.
 
 =head1 SEE ALSO
 
+L<NIP-02|https://github.com/nostr-protocol/nips/blob/master/02.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Key>
 
 =cut

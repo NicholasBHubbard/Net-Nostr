@@ -472,6 +472,7 @@ if the event is not kind 44.
 
 =head1 SEE ALSO
 
+L<NIP-28|https://github.com/nostr-protocol/nips/blob/master/28.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Thread>
 
 =cut

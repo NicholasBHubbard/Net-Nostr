@@ -227,6 +227,7 @@ addressable coordinate is referenced by an C<a> tag
 
 =head1 SEE ALSO
 
+L<NIP-09|https://github.com/nostr-protocol/nips/blob/master/09.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>
 
 =cut

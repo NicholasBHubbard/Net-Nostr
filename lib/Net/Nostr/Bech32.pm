@@ -512,6 +512,7 @@ For TLV types (C<nprofile>, C<nevent>, C<naddr>), C<data> is a hashref.
 
 =head1 SEE ALSO
 
+L<NIP-19|https://github.com/nostr-protocol/nips/blob/master/19.md>,
 L<Net::Nostr>, L<Net::Nostr::Key>, L<Bitcoin::Crypto::Bech32>
 
 =cut

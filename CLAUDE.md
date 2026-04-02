@@ -60,6 +60,8 @@ All public functions (those not prefixed with `_`) must have POD documentation. 
 
 POD should be rich in code examples. Every code example in POD must have a corresponding test, since users are very likely to copy and run examples directly.
 
+Every module's `SEE ALSO` section must link to the NIP spec it implements (e.g. `L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>`).
+
 ## Dependencies
 
 Dependencies are managed in `cpanfile`. Dependencies also appear in `Makefile.PL`.

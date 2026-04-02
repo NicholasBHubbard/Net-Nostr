@@ -336,6 +336,7 @@ Extra arguments are passed through to the Event constructor.
 
 =head1 SEE ALSO
 
+L<NIP-51|https://github.com/nostr-protocol/nips/blob/master/51.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Encryption>
 
 =cut

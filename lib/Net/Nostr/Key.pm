@@ -358,6 +358,7 @@ by L<Net::Nostr> to extract key-related arguments.
 
 =head1 SEE ALSO
 
+L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>
 
 =cut

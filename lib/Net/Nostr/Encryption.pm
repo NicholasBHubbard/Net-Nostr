@@ -286,6 +286,7 @@ Croaks on invalid version, bad MAC, invalid padding, or malformed payload.
 
 =head1 SEE ALSO
 
+L<NIP-44|https://github.com/nostr-protocol/nips/blob/master/44.md>,
 L<Net::Nostr>, L<Net::Nostr::Key>
 
 =cut

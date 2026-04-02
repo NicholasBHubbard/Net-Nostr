@@ -392,6 +392,7 @@ L<Net::Nostr::Key> object. Returns true if the signature is valid.
 
 =head1 SEE ALSO
 
+L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
 L<Net::Nostr>, L<Net::Nostr::Key>
 
 =cut
