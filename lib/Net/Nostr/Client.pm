@@ -78,6 +78,17 @@ sub subscribe {
     $self->_conn->send($msg->serialize);
 }
 
+sub count {
+    my ($self, $sub_id, @filters) = @_;
+    croak "not connected" unless $self->is_connected;
+    my $msg = Net::Nostr::Message->new(
+        type            => 'COUNT',
+        subscription_id => $sub_id,
+        filters         => \@filters,
+    );
+    $self->_conn->send($msg->serialize);
+}
+
 sub close {
     my ($self, $sub_id) = @_;
     croak "not connected" unless $self->is_connected;
@@ -130,6 +141,8 @@ sub _setup_handlers {
             $self->_emit('eose', $msg->subscription_id);
         } elsif ($msg->type eq 'NOTICE') {
             $self->_emit('notice', $msg->message);
+        } elsif ($msg->type eq 'COUNT') {
+            $self->_emit('count', $msg->subscription_id, $msg->count, $msg->approximate);
         } elsif ($msg->type eq 'CLOSED') {
             $self->_emit('closed', $msg->subscription_id, $msg->message);
         } elsif ($msg->type eq 'AUTH') {
@@ -196,8 +209,8 @@ Net::Nostr::Client - WebSocket client for Nostr relays
 =head1 DESCRIPTION
 
 A WebSocket client for connecting to Nostr relays. Provides a callback-based
-interface for publishing events, managing subscriptions, and receiving relay
-messages. Supports NIP-42 authentication.
+interface for publishing events, managing subscriptions, receiving relay
+messages, and counting events (NIP-45). Supports NIP-42 authentication.
 
 =head1 CONSTRUCTOR
 
@@ -258,6 +271,23 @@ filters. The relay will send matching stored events (via C<event>
 callback), then an EOSE message (via C<eose> callback), then live
 events as they arrive. Croaks if not connected.
 
+=head2 count
+
+    $client->count('query-id', $filter1, $filter2);
+
+Sends a COUNT message (NIP-45) to the relay with the given query ID and
+filters. The relay will respond with a count (received via the C<count>
+callback). Unlike C<subscribe>, COUNT is one-shot and does not create a
+live subscription. Croaks if not connected.
+
+    $client->on(count => sub {
+        my ($query_id, $count, $approximate) = @_;
+        say "Got $count events" . ($approximate ? ' (approximate)' : '');
+    });
+    $client->count('followers', Net::Nostr::Filter->new(
+        kinds => [3], '#p' => [$pubkey],
+    ));
+
 =head2 close
 
     $client->close('sub-id');
@@ -313,6 +343,12 @@ Called when the relay finishes sending stored events for a subscription.
 
 Called when the relay sends a human-readable NOTICE.
 
+=item C<count> - C<sub { my ($query_id, $count, $approximate) = @_; }>
+
+Called when the relay responds to a COUNT request (NIP-45). C<$count> is
+the number of matching events, C<$approximate> is true if the count is
+probabilistic. HyperLogLog (C<hll>) values are not currently parsed.
+
 =item C<closed> - C<sub { my ($subscription_id, $message) = @_; }>
 
 Called when the relay closes a subscription.
@@ -327,6 +363,7 @@ should respond by calling C<authenticate>.
 =head1 SEE ALSO
 
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
+L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Filter>, L<Net::Nostr::Relay>
 
 =cut

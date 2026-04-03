@@ -392,6 +392,51 @@ subtest 'authenticate sends AUTH event and receives OK' => sub {
     $relay->stop;
 };
 
+###############################################################################
+# POD example: count method
+###############################################################################
+
+subtest 'POD: count method with callback' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $pubkey = 'a' x 64;
+
+    my $client = Net::Nostr::Client->new;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    my ($got_query_id, $got_count, $got_approximate);
+    $client->on(count => sub {
+        my ($query_id, $count, $approximate) = @_;
+        $got_query_id = $query_id;
+        $got_count = $count;
+        $got_approximate = $approximate;
+        $cv->send;
+    });
+
+    $client->connect("ws://127.0.0.1:$port");
+    $client->count('followers', Net::Nostr::Filter->new(
+        kinds => [3], '#p' => [$pubkey],
+    ));
+
+    $cv->recv;
+
+    is $got_query_id, 'followers', 'query_id passed to callback';
+    is $got_count, 0, 'count passed to callback';
+    ok !$got_approximate, 'approximate passed to callback';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'count before connect croaks' => sub {
+    my $client = Net::Nostr::Client->new;
+    my $filter = Net::Nostr::Filter->new(kinds => [1]);
+    ok dies { $client->count('q1', $filter) }, 'count before connect dies';
+};
+
 subtest 'authenticate before connect croaks' => sub {
     my $client = Net::Nostr::Client->new;
     my $key = Net::Nostr::Key->new;

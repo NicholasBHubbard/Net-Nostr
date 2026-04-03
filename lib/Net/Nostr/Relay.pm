@@ -208,6 +208,20 @@ sub _on_connection {
             return;
         }
 
+        if ($type eq 'COUNT') {
+            my $sub_id = $arr->[1] // '';
+            my $msg = eval { Net::Nostr::Message->parse($message->body) };
+            if ($@) {
+                $conn->send(Net::Nostr::Message->new(
+                    type => 'CLOSED', subscription_id => $sub_id,
+                    message => "error: $@"
+                )->serialize);
+                return;
+            }
+            $self->_handle_count($conn_id, $msg->subscription_id, @{$msg->filters});
+            return;
+        }
+
         my $msg = eval { Net::Nostr::Message->parse($message->body) };
         return warn "bad message: $@\n" if $@;
 
@@ -500,6 +514,21 @@ sub _handle_req {
     $conn->send(Net::Nostr::Message->new(type => 'EOSE', subscription_id => $sub_id)->serialize);
 }
 
+sub _handle_count {
+    my ($self, $conn_id, $sub_id, @filters) = @_;
+    my $conn = $self->connections->{$conn_id};
+
+    my $count = 0;
+    for my $event (@{$self->events}) {
+        next if $event->is_expired;
+        $count++ if Net::Nostr::Filter->matches_any($event, @filters);
+    }
+
+    $conn->send(Net::Nostr::Message->new(
+        type => 'COUNT', subscription_id => $sub_id, count => $count,
+    )->serialize);
+}
+
 sub _handle_close {
     my ($self, $conn_id, $sub_id) = @_;
     delete $self->subscriptions->{$conn_id}{$sub_id} if $self->subscriptions->{$conn_id};
@@ -556,6 +585,8 @@ Implements:
 =item * L<NIP-40|https://github.com/nostr-protocol/nips/blob/master/40.md> - Expiration timestamp
 
 =item * L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md> - Authentication of clients to relays
+
+=item * L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md> - Event counts (HyperLogLog not supported)
 
 =back
 

@@ -6,7 +6,7 @@ use Carp qw(croak);
 use JSON ();
 use Net::Nostr::Event;
 use Net::Nostr::Filter;
-use Class::Tiny qw(type subscription_id event event_id accepted message prefix filters challenge);
+use Class::Tiny qw(type subscription_id event event_id accepted message prefix filters challenge count approximate);
 
 my $JSON = JSON->new->utf8;
 
@@ -60,6 +60,18 @@ sub new {
         $self->subscription_id($args{subscription_id});
         $self->message($args{message});
         $self->prefix(_extract_prefix($self->message));
+    } elsif ($type eq 'COUNT') {
+        # Bidirectional: client sends filters, relay sends count
+        _validate_subscription_id($args{subscription_id});
+        $self->subscription_id($args{subscription_id});
+        if (defined $args{count}) {
+            $self->count(0 + $args{count});
+            $self->approximate($args{approximate} ? 1 : 0) if $args{approximate};
+        } else {
+            croak "COUNT requires at least one filter"
+                unless $args{filters} && @{$args{filters}};
+            $self->filters($args{filters});
+        }
     } elsif ($type eq 'AUTH') {
         # Bidirectional: relay sends challenge string, client sends signed event
         if (defined $args{event}) {
@@ -97,6 +109,13 @@ sub serialize {
         return $JSON->encode(['NOTICE', $self->message]);
     } elsif ($type eq 'CLOSED') {
         return $JSON->encode(['CLOSED', $self->subscription_id, $self->message]);
+    } elsif ($type eq 'COUNT') {
+        if (defined $self->count) {
+            my %result = (count => $self->count);
+            $result{approximate} = JSON::true if $self->approximate;
+            return $JSON->encode(['COUNT', $self->subscription_id, \%result]);
+        }
+        return $JSON->encode(['COUNT', $self->subscription_id, map { $_->to_hash } @{$self->filters}]);
     } elsif ($type eq 'AUTH') {
         if ($self->event) {
             return $JSON->encode(['AUTH', $self->event->to_hash]);
@@ -172,6 +191,27 @@ my %PARSERS = (
         croak "CLOSE message requires 2 elements\n" unless @$arr == 2;
         return (
             subscription_id => $arr->[1],
+        );
+    },
+    COUNT => sub {
+        my ($arr) = @_;
+        croak "COUNT message requires at least 3 elements\n" unless @$arr >= 3;
+        # Relay-to-client: ["COUNT", sub_id, {"count": N}]
+        if (ref($arr->[2]) eq 'HASH' && exists $arr->[2]{count}) {
+            return (
+                subscription_id => $arr->[1],
+                count           => $arr->[2]{count},
+                ($arr->[2]{approximate} ? (approximate => 1) : ()),
+            );
+        }
+        # Client-to-relay: ["COUNT", sub_id, {filter}...]
+        my @filters;
+        for my $i (2 .. $#$arr) {
+            push @filters, Net::Nostr::Filter->new(%{$arr->[$i]});
+        }
+        return (
+            subscription_id => $arr->[1],
+            filters         => \@filters,
         );
     },
     AUTH => sub {
@@ -260,7 +300,7 @@ C<serialize>, and parsed from JSON with C<parse>.
     my $msg = Net::Nostr::Message->new(type => $type, ...);
 
 Creates a new message. C<type> is required and must be one of: C<EVENT>,
-C<REQ>, C<CLOSE>, C<OK>, C<EOSE>, C<NOTICE>, C<CLOSED>, C<AUTH>.
+C<REQ>, C<CLOSE>, C<OK>, C<EOSE>, C<NOTICE>, C<CLOSED>, C<COUNT>, C<AUTH>.
 
 Required fields by type:
 
@@ -271,6 +311,7 @@ Required fields by type:
     EOSE   - subscription_id
     NOTICE - message
     CLOSED - subscription_id, message
+    COUNT  - subscription_id, filters (client-to-relay) or count (relay-to-client)
     AUTH   - challenge (relay-to-client) or event (client-to-relay)
 
 C<subscription_id> must be a non-empty string of at most 64 characters
@@ -350,11 +391,27 @@ C<invalid>, C<restricted>, C<auth-required>, C<mute>, C<error>.
     );
     say $msg->prefix;  # 'blocked'
 
+=head2 count
+
+    my $count = $msg->count;  # integer
+
+The event count. Present on COUNT response messages (NIP-45).
+
+    my $msg = Net::Nostr::Message->parse('["COUNT","q1",{"count":42}]');
+    say $msg->count;  # 42
+
+=head2 approximate
+
+    my $approx = $msg->approximate;  # 1 or undef
+
+Whether the count is probabilistic. Present on COUNT response messages
+when the relay uses approximate counting.
+
 =head2 filters
 
     my $filters = $msg->filters;  # arrayref of Net::Nostr::Filter
 
-The filter objects. Present on REQ messages.
+The filter objects. Present on REQ and COUNT (client-to-relay) messages.
 
 =head2 challenge
 
@@ -369,6 +426,7 @@ The challenge string. Present on AUTH messages from relays.
 
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
 L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md>,
+L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Filter>
 
 =cut

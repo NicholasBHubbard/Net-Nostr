@@ -74,6 +74,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md> - Authentication of clients to relays
 
+=item L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md> - Event counts
+
 =item L<NIP-44|https://github.com/nostr-protocol/nips/blob/master/44.md> - Encrypted payloads (versioned)
 
 =item L<NIP-51|https://github.com/nostr-protocol/nips/blob/master/51.md> - Lists

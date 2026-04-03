@@ -407,4 +407,13 @@ subtest 'POD: AUTH challenge parse' => sub {
     is $msg->challenge, 'challenge123', 'challenge parsed from POD example';
 };
 
+###############################################################################
+# COUNT message (NIP-45)
+###############################################################################
+
+subtest 'POD: COUNT response parse' => sub {
+    my $msg = Net::Nostr::Message->parse('["COUNT","q1",{"count":42}]');
+    is $msg->count, 42, 'count parsed from POD example';
+};
+
 done_testing;
