@@ -153,6 +153,50 @@ subtest 'POD: d_tag returns empty string for d tag with no value' => sub {
     is($event->d_tag, '', 'd_tag returns empty string for valueless d tag');
 };
 
+subtest 'POD: expiration returns timestamp' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'temp',
+        tags => [['expiration', '1600000000']],
+    );
+    is $event->expiration, 1600000000, 'expiration returns numeric timestamp';
+};
+
+subtest 'POD: expiration returns undef without tag' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'no expiry',
+    );
+    ok !defined($event->expiration), 'expiration is undef without tag';
+};
+
+subtest 'POD: is_expired' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'temp',
+        tags => [['expiration', '1600000000']],
+    );
+    ok $event->is_expired, 'event with past expiration is expired';
+
+    my $far_future = time() + 86400 * 365 * 10;
+    my $fresh = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'fresh',
+        tags => [['expiration', "$far_future"]],
+    );
+    ok !$fresh->is_expired, 'event with future expiration is not expired';
+
+    my $permanent = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'permanent',
+    );
+    ok !$permanent->is_expired, 'event without expiration is not expired';
+};
+
+subtest 'POD: is_expired with custom time' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'temp',
+        tags => [['expiration', '1600000000']],
+    );
+    ok $event->is_expired(1600000001), 'expired when now > expiration';
+    ok !$event->is_expired(1500000000), 'not expired when now < expiration';
+};
+
 subtest 'verify_sig()' => sub {
     my $key = Net::Nostr::Key->new;
     my $event = Net::Nostr::Event->new(

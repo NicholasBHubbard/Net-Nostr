@@ -147,6 +147,22 @@ sub d_tag {
     return '';
 }
 
+sub expiration {
+    my ($self) = @_;
+    for my $tag (@{$self->tags}) {
+        return $tag->[1] + 0 if $tag->[0] eq 'expiration';
+    }
+    return undef;
+}
+
+sub is_expired {
+    my ($self, $now) = @_;
+    my $exp = $self->expiration;
+    return 0 unless defined $exp;
+    $now //= time();
+    return $now > $exp;
+}
+
 sub verify_sig {
     my ($self, $key) = @_;
     my $sig_raw = pack 'H*', $self->sig;
@@ -352,6 +368,33 @@ Used for addressable event deduplication (kinds 30000-39999).
     );
     say $event->d_tag;  # 'my-article'
 
+=head2 expiration
+
+    my $ts = $event->expiration;  # Unix timestamp, or undef
+
+Returns the value of the C<expiration> tag (NIP-40) as a number, or C<undef>
+if the event has no expiration tag.
+
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'temp',
+        tags => [['expiration', '1600000000']],
+    );
+    say $event->expiration;  # 1600000000
+
+=head2 is_expired
+
+    my $bool = $event->is_expired;
+    my $bool = $event->is_expired($now);
+
+Returns true if the event has an C<expiration> tag (NIP-40) and the
+expiration time has passed. Accepts an optional Unix timestamp to compare
+against (defaults to C<time()>). Returns false if there is no expiration
+tag.
+
+    if ($event->is_expired) {
+        # ignore or discard the event
+    }
+
 =head2 is_regular
 
     $event->is_regular;  # true for kinds 1, 2, 4-44, 1000-9999
@@ -393,6 +436,7 @@ L<Net::Nostr::Key> object. Returns true if the signature is valid.
 =head1 SEE ALSO
 
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
+L<NIP-40|https://github.com/nostr-protocol/nips/blob/master/40.md>,
 L<Net::Nostr>, L<Net::Nostr::Key>
 
 =cut

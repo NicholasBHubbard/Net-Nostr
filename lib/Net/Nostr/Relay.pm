@@ -153,6 +153,8 @@ sub _stop_cleanup {
 
 sub broadcast {
     my ($self, $event) = @_;
+    # NIP-40: Do not broadcast expired events
+    return if $event->is_expired;
     my $subs = $self->subscriptions || {};
     for my $conn_id (keys %$subs) {
         my $conn = $self->connections->{$conn_id} or next;
@@ -293,6 +295,13 @@ sub _handle_event {
             $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => "pow: insufficient proof of work (need $min bits)")->serialize);
             return;
         }
+    }
+
+    # NIP-40: Relays SHOULD drop expired events on publish
+    # (expiration does not affect ephemeral events)
+    if ($event->is_expired && !$event->is_ephemeral) {
+        $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: event has expired')->serialize);
+        return;
     }
 
     # Relays MUST exclude kind 22242 events from being broadcasted (NIP-42)
@@ -463,9 +472,10 @@ sub _handle_req {
     $self->subscriptions->{$conn_id} //= {};
     $self->subscriptions->{$conn_id}{$sub_id} = \@filters;
 
-    # collect matching events
+    # collect matching events (NIP-40: skip expired)
     my @matching;
     for my $event (@{$self->events}) {
+        next if $event->is_expired;
         push @matching, $event if Net::Nostr::Filter->matches_any($event, @filters);
     }
 
@@ -542,6 +552,8 @@ Implements:
 =item * L<NIP-11|https://github.com/nostr-protocol/nips/blob/master/11.md> - Relay information document
 
 =item * L<NIP-13|https://github.com/nostr-protocol/nips/blob/master/13.md> - Proof of Work
+
+=item * L<NIP-40|https://github.com/nostr-protocol/nips/blob/master/40.md> - Expiration timestamp
 
 =item * L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md> - Authentication of clients to relays
 
