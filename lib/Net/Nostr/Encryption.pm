@@ -9,7 +9,7 @@ use Crypt::Stream::ChaCha;
 use Crypt::Mac::HMAC qw(hmac);
 use Crypt::PRNG qw(random_bytes);
 use Encode qw(encode decode);
-use MIME::Base64;
+use MIME::Base64 ();
 use POSIX qw(floor);
 
 use constant {
@@ -93,7 +93,7 @@ sub encrypt {
     my $mac = hmac('SHA256', $hmac_key, $nonce . $ciphertext);
 
     # Base64 encode: version(1) + nonce(32) + ciphertext + mac(32)
-    return encode_base64(chr(VERSION_2) . $nonce . $ciphertext . $mac, '');
+    return MIME::Base64::encode_base64(chr(VERSION_2) . $nonce . $ciphertext . $mac, '');
 }
 
 sub decrypt {
@@ -123,7 +123,7 @@ sub _decode_payload {
     croak "unknown version" if $plen == 0 || substr($payload, 0, 1) eq '#';
     croak "invalid payload size" if $plen < MIN_PAYLOAD_LEN || $plen > MAX_PAYLOAD_LEN;
 
-    my $data = decode_base64($payload);
+    my $data = MIME::Base64::decode_base64($payload);
     my $dlen = length($data);
     croak "invalid data size" if $dlen < MIN_RAW_LEN || $dlen > MAX_RAW_LEN;
 
