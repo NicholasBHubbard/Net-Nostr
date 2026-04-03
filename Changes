@@ -12,6 +12,7 @@
   - Add NIP-57 support (Lightning Zaps)
   - Add NIP-22 support (Comment)
   - Add NIP-34 support (git stuff)
+  - Add NIP-03 support (OpenTimestamps attestations)
 
 0.002000   2026-04-01
 
