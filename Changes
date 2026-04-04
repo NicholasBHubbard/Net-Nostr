@@ -15,6 +15,7 @@
   - Add NIP-03 support (OpenTimestamps attestations)
   - Add NIP-40 support (Expiration timestamp)
   - Add NIP-45 support (Event counts)
+  - Add NIP-25 support (Reactions)
   - Add NIP-18 support (Reposts)
 
 0.002000   2026-04-01

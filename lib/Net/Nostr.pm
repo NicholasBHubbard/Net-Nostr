@@ -64,6 +64,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-17|https://github.com/nostr-protocol/nips/blob/master/17.md> - Private direct messages
 
+=item L<NIP-25|https://github.com/nostr-protocol/nips/blob/master/25.md> - Reactions
+
 =item L<NIP-22|https://github.com/nostr-protocol/nips/blob/master/22.md> - Comment
 
 =item L<NIP-28|https://github.com/nostr-protocol/nips/blob/master/28.md> - Public chat
