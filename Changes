@@ -17,6 +17,7 @@
   - Add NIP-45 support (Event counts)
   - Add NIP-25 support (Reactions)
   - Add NIP-18 support (Reposts)
+  - Add NIP-06 support (Basic key derivation from mnemonic seed phrase)
 
 0.002000   2026-04-01
 

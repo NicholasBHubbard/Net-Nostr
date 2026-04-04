@@ -50,6 +50,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-05|https://github.com/nostr-protocol/nips/blob/master/05.md> - Mapping Nostr keys to DNS-based internet identifiers
 
+=item L<NIP-06|https://github.com/nostr-protocol/nips/blob/master/06.md> - Basic key derivation from mnemonic seed phrase
+
 =item L<NIP-09|https://github.com/nostr-protocol/nips/blob/master/09.md> - Event deletion request
 
 =item L<NIP-10|https://github.com/nostr-protocol/nips/blob/master/10.md> - Text notes and threads

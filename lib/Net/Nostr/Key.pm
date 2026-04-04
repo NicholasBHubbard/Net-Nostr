@@ -22,6 +22,38 @@ sub new {
 
 sub constructor_keys { qw(privkey pubkey) }
 
+sub from_mnemonic {
+    my ($class, $mnemonic, %args) = @_;
+    croak "from_mnemonic requires a mnemonic" unless defined $mnemonic;
+
+    require Bitcoin::Crypto::Key::ExtPrivate;
+    require Bitcoin::BIP39;
+
+    Bitcoin::BIP39::bip39_mnemonic_to_entropy(mnemonic => $mnemonic);
+
+    my $account = $args{account} // 0;
+    my $path = "m/44'/1237'/${account}'/0/0";
+
+    my $seed = Bitcoin::Crypto::Key::ExtPrivate->from_mnemonic($mnemonic);
+    my $derived = $seed->derive_key($path);
+    my $privkey_bytes = $derived->raw_key("private");
+
+    my $pk = Crypt::PK::ECC->new;
+    $pk->import_key_raw($privkey_bytes, 'secp256k1');
+
+    my $self = bless {}, $class;
+    $self->_cryptpkecc($pk);
+    return $self;
+}
+
+sub generate_mnemonic {
+    my ($class, %args) = @_;
+    require Bitcoin::BIP39;
+    my $bits = $args{bits} // 128;
+    my $result = Bitcoin::BIP39::gen_bip39_mnemonic(bits => $bits);
+    return ref $result eq 'HASH' ? $result->{mnemonic} : $result;
+}
+
 sub schnorr_sign {
     my ($self, $msg) = @_;
     my $sig = Crypt::PK::ECC::Schnorr->new(\$self->privkey_der)->sign_message($msg);
@@ -166,11 +198,56 @@ Net::Nostr::Key - Secp256k1 keypair management for Nostr
     my $key = Net::Nostr::Key->new(privkey => \$der_bytes);
     my $key = Net::Nostr::Key->new(pubkey  => \$der_bytes);
 
+    # Derive from mnemonic seed phrase (NIP-06)
+    my $mnemonic = Net::Nostr::Key->generate_mnemonic;
+    my $key = Net::Nostr::Key->from_mnemonic($mnemonic);
+    my $key = Net::Nostr::Key->from_mnemonic($mnemonic, account => 1);
+
 =head1 DESCRIPTION
 
 Manages secp256k1 keypairs for the Nostr protocol. Supports key generation,
 import/export in multiple formats (hex, raw, DER, PEM, NIP-19 bech32),
-file-based key storage, and BIP-340 Schnorr signatures.
+file-based key storage, BIP-340 Schnorr signatures, and
+L<NIP-06|https://github.com/nostr-protocol/nips/blob/master/06.md> key
+derivation from BIP-39 mnemonic seed phrases.
+
+=head1 CLASS METHODS
+
+=head2 from_mnemonic
+
+    my $key = Net::Nostr::Key->from_mnemonic($mnemonic);
+    my $key = Net::Nostr::Key->from_mnemonic($mnemonic, account => 1);
+
+Derives a secp256k1 keypair from a BIP-39 mnemonic seed phrase using the
+NIP-06 derivation path C<m/44'/1237'/E<lt>accountE<gt>'/0/0>. The C<account>
+defaults to C<0>.
+
+    my $mnemonic = 'leader monkey parrot ring guide accident before fence cannon height naive bean';
+    my $key = Net::Nostr::Key->from_mnemonic($mnemonic);
+    say $key->privkey_hex;   # 7f7ff03d...
+    say $key->pubkey_npub;   # npub1zut...
+
+A basic client can use the default account C<0> to derive a single key.
+For more advanced use-cases, increment C<account> to generate practically
+infinite keys from the same mnemonic:
+
+    my $key0 = Net::Nostr::Key->from_mnemonic($mnemonic);
+    my $key1 = Net::Nostr::Key->from_mnemonic($mnemonic, account => 1);
+
+Croaks if the mnemonic is invalid.
+
+=head2 generate_mnemonic
+
+    my $mnemonic = Net::Nostr::Key->generate_mnemonic;
+    my $mnemonic = Net::Nostr::Key->generate_mnemonic(bits => 256);
+
+Generates a new BIP-39 mnemonic seed phrase. The C<bits> parameter controls
+the entropy size: C<128> (default) produces 12 words, C<256> produces
+24 words.
+
+    my $mnemonic = Net::Nostr::Key->generate_mnemonic;
+    my $key = Net::Nostr::Key->from_mnemonic($mnemonic);
+    say $key->pubkey_npub;
 
 =head1 CONSTRUCTOR
 
@@ -359,6 +436,7 @@ by L<Net::Nostr> to extract key-related arguments.
 =head1 SEE ALSO
 
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
+L<NIP-06|https://github.com/nostr-protocol/nips/blob/master/06.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>
 
 =cut

@@ -14,6 +14,8 @@ requires 'Digest::SHA';
 requires 'JSON';
 requires 'Class::Tiny';
 requires 'Bitcoin::Crypto::Bech32';
+requires 'Bitcoin::Crypto::Key::ExtPrivate';
+requires 'Bitcoin::BIP39';
 
 on 'test' => sub {
     requires 'Test2::V0';

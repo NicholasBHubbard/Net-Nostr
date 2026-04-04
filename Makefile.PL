@@ -28,6 +28,8 @@ WriteMakefile(
         'JSON'                          => 0,
         'Class::Tiny'                   => 0,
         'Bitcoin::Crypto::Bech32'       => 0,
+        'Bitcoin::Crypto::Key::ExtPrivate' => 0,
+        'Bitcoin::BIP39'                => 0,
     },
     TEST_REQUIRES => {
         'Test2::V0'  => 0,
