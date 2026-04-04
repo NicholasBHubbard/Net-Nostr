@@ -58,6 +58,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-13|https://github.com/nostr-protocol/nips/blob/master/13.md> - Proof of Work
 
+=item L<NIP-18|https://github.com/nostr-protocol/nips/blob/master/18.md> - Reposts
+
 =item L<NIP-19|https://github.com/nostr-protocol/nips/blob/master/19.md> - bech32-encoded entities
 
 =item L<NIP-17|https://github.com/nostr-protocol/nips/blob/master/17.md> - Private direct messages
