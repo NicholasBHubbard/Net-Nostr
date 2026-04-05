@@ -18,6 +18,7 @@
   - Add NIP-25 support (Reactions)
   - Add NIP-18 support (Reposts)
   - Add NIP-06 support (Basic key derivation from mnemonic seed phrase)
+  - Add NIP-47 support (Nostr Wallet Connect)
 
 0.002000   2026-04-01
 
