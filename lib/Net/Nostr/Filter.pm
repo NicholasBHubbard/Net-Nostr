@@ -4,7 +4,7 @@ use strictures 2;
 
 use Carp qw(croak);
 
-my @SCALAR_FIELDS  = qw(since until limit);
+my @SCALAR_FIELDS  = qw(since until limit search);
 my @LIST_FIELDS    = qw(ids authors kinds);
 my %HEX64_REQUIRED = map { $_ => 1 } qw(ids authors e p);
 
@@ -16,7 +16,7 @@ sub _validate_hex64 {
     }
 }
 
-use Class::Tiny qw(ids authors kinds since until limit _tag_filters);
+use Class::Tiny qw(ids authors kinds since until limit search _tag_filters);
 
 sub new {
     my $class = shift;
@@ -78,6 +78,17 @@ sub matches {
         return 0 unless $event->created_at <= $self->until;
     }
 
+    if (defined $self->search && length $self->search) {
+        my $parsed = $self->parse_search_extensions($self->search);
+        my @terms = @{$parsed->{terms}};
+        if (@terms) {
+            my $content = lc($event->content // '');
+            for my $term (@terms) {
+                return 0 unless index($content, lc($term)) >= 0;
+            }
+        }
+    }
+
     if ($self->_tag_filters) {
         for my $letter (keys %{ $self->_tag_filters }) {
             my $filter_values = $self->_tag_filters->{$letter};
@@ -105,6 +116,23 @@ sub matches_any {
         return 1 if $f->matches($event);
     }
     return 0;
+}
+
+sub parse_search_extensions {
+    my ($class, $search_str) = @_;
+    my (@terms, %extensions);
+    return { terms => \@terms, extensions => \%extensions }
+        unless defined $search_str && length $search_str;
+
+    for my $word (split /\s+/, $search_str) {
+        next unless length $word;
+        if ($word =~ /^([a-zA-Z_]+):(.+)$/) {
+            $extensions{$1} = $2;
+        } else {
+            push @terms, $word;
+        }
+    }
+    return { terms => \@terms, extensions => \%extensions };
 }
 
 sub to_hash {
@@ -162,9 +190,9 @@ Net::Nostr::Filter - Nostr event filter for subscriptions and queries
 
 =head1 DESCRIPTION
 
-Implements Nostr event filtering as defined by NIP-01. All conditions within
-a single filter are AND-ed together. Multiple filters in a subscription are
-OR-ed (use C<matches_any>).
+Implements Nostr event filtering as defined by NIP-01, with NIP-50 search
+support. All conditions within a single filter are AND-ed together. Multiple
+filters in a subscription are OR-ed (use C<matches_any>).
 
 =head1 CONSTRUCTOR
 
@@ -177,6 +205,7 @@ OR-ed (use C<matches_any>).
         since   => 1673361254,
         until   => 1673361999,
         limit   => 100,
+        search  => 'best nostr apps',
         '#e'    => ['c' x 64],
         '#p'    => ['d' x 64],
         '#t'    => ['nostr'],
@@ -185,6 +214,10 @@ OR-ed (use C<matches_any>).
 All fields are optional. C<ids>, C<authors>, C<#e>, and C<#p> values must
 be 64-character lowercase hex strings. Croaks on invalid values.
 
+The C<search> field (NIP-50) is a human-readable query string. It may
+contain C<key:value> extension pairs (e.g. C<language:en>). See
+L</parse_search_extensions>.
+
 =head1 METHODS
 
 =head2 matches
@@ -192,6 +225,9 @@ be 64-character lowercase hex strings. Croaks on invalid values.
     my $bool = $filter->matches($event);
 
 Returns true if the event matches all conditions in this filter.
+When C<search> is set, performs case-insensitive matching of all search terms
+against the event's C<content> field. Extension pairs (C<key:value>) in the
+search string are ignored for client-side matching.
 
     my $filter = Net::Nostr::Filter->new(kinds => [1], since => 1000);
     my $event = Net::Nostr::Event->new(
@@ -199,6 +235,14 @@ Returns true if the event matches all conditions in this filter.
         created_at => 2000, tags => [],
     );
     say $filter->matches($event);  # 1
+
+    # NIP-50: search matching
+    my $search_filter = Net::Nostr::Filter->new(search => 'nostr apps');
+    my $note = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'best nostr apps for daily use',
+        created_at => 1000, tags => [],
+    );
+    say $search_filter->matches($note);  # 1
 
 =head2 matches_any
 
@@ -246,9 +290,32 @@ includes fields that were set.
 
     my $limit = $filter->limit;  # integer or undef
 
+=head2 search
+
+    my $search = $filter->search;  # string or undef
+
+NIP-50 search query string. See L</parse_search_extensions> for parsing
+extension pairs from the search string.
+
+=head2 parse_search_extensions
+
+    my $result = Net::Nostr::Filter->parse_search_extensions(
+        'best nostr apps language:en nsfw:false'
+    );
+    # $result->{terms}      = ['best', 'nostr', 'apps']
+    # $result->{extensions} = { language => 'en', nsfw => 'false' }
+
+Class method. Parses a NIP-50 search string and separates plain search terms
+from C<key:value> extension pairs. Returns a hashref with C<terms> (arrayref)
+and C<extensions> (hashref).
+
+Supported extensions defined by NIP-50: C<include:spam>, C<domain:E<lt>domainE<gt>>,
+C<language:E<lt>codeE<gt>>, C<sentiment:E<lt>valueE<gt>>, C<nsfw:E<lt>boolE<gt>>.
+
 =head1 SEE ALSO
 
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
+L<NIP-50|https://github.com/nostr-protocol/nips/blob/master/50.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>
 
 =cut

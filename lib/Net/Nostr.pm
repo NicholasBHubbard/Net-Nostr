@@ -86,6 +86,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-47|https://github.com/nostr-protocol/nips/blob/master/47.md> - Nostr Wallet Connect
 
+=item L<NIP-50|https://github.com/nostr-protocol/nips/blob/master/50.md> - Search capability
+
 =item L<NIP-44|https://github.com/nostr-protocol/nips/blob/master/44.md> - Encrypted payloads (versioned)
 
 =item L<NIP-51|https://github.com/nostr-protocol/nips/blob/master/51.md> - Lists

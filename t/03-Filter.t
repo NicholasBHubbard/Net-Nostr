@@ -360,6 +360,32 @@ subtest 'matches_any with single filter' => sub {
 };
 
 ###############################################################################
+# POD: search matching
+###############################################################################
+
+subtest 'POD: search filter matches content' => sub {
+    my $search_filter = Net::Nostr::Filter->new(search => 'nostr apps');
+    my $note = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'best nostr apps for daily use',
+        created_at => 1000, tags => [],
+    );
+    ok($search_filter->matches($note), 'search matches content');
+};
+
+###############################################################################
+# POD: parse_search_extensions
+###############################################################################
+
+subtest 'POD: parse_search_extensions' => sub {
+    my $result = Net::Nostr::Filter->parse_search_extensions(
+        'best nostr apps language:en nsfw:false'
+    );
+    is($result->{terms}, ['best', 'nostr', 'apps'], 'terms');
+    is($result->{extensions}{language}, 'en', 'language extension');
+    is($result->{extensions}{nsfw}, 'false', 'nsfw extension');
+};
+
+###############################################################################
 # croak on bad input
 ###############################################################################
 
