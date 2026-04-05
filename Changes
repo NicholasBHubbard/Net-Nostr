@@ -21,6 +21,7 @@
   - Add NIP-47 support (Nostr Wallet Connect)
   - Add NIP-46 support (Nostr Remote Signing)
   - Add NIP-50 support (Search capability)
+  - Add NIP-21 support (nostr: URI scheme)
 
 0.002000   2026-04-01
 
