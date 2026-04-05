@@ -80,6 +80,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md> - Authentication of clients to relays
 
+=item L<NIP-46|https://github.com/nostr-protocol/nips/blob/master/46.md> - Nostr Remote Signing
+
 =item L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md> - Event counts
 
 =item L<NIP-47|https://github.com/nostr-protocol/nips/blob/master/47.md> - Nostr Wallet Connect
@@ -138,6 +140,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Message> - Protocol message serialization and parsing
 
 =item L<Net::Nostr::Relay> - WebSocket relay server implementing NIP-01
+
+=item L<Net::Nostr::RemoteSigning> - NIP-46 Nostr Remote Signing
 
 =item L<Net::Nostr::RelayInfo> - NIP-11 relay information document
 
