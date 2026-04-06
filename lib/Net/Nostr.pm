@@ -100,6 +100,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-51|https://github.com/nostr-protocol/nips/blob/master/51.md> - Lists
 
+=item L<NIP-56|https://github.com/nostr-protocol/nips/blob/master/56.md> - Reporting
+
 =item L<NIP-57|https://github.com/nostr-protocol/nips/blob/master/57.md> - Lightning Zaps
 
 =item L<NIP-59|https://github.com/nostr-protocol/nips/blob/master/59.md> - Gift wrap
