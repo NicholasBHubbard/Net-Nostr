@@ -163,6 +163,26 @@ sub is_expired {
     return $now > $exp;
 }
 
+sub content_warning {
+    my ($self) = @_;
+    for my $tag (@{$self->tags}) {
+        return ($tag->[1] // '') if $tag->[0] eq 'content-warning';
+    }
+    return undef;
+}
+
+sub has_content_warning {
+    my ($self) = @_;
+    return defined $self->content_warning;
+}
+
+sub content_warning_tag {
+    my ($class, $reason) = @_;
+    return defined $reason && $reason ne ''
+        ? ['content-warning', $reason]
+        : ['content-warning'];
+}
+
 sub verify_sig {
     my ($self, $key) = @_;
     my $sig_raw = pack 'H*', $self->sig;
@@ -395,6 +415,46 @@ tag.
         # ignore or discard the event
     }
 
+=head2 content_warning
+
+    my $reason = $event->content_warning;  # string, '' or undef
+
+Returns the value of the C<content-warning> tag (NIP-36), or C<undef> if
+the event has no content warning tag. Returns an empty string if the tag
+is present but has no reason.
+
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'sensitive',
+        tags => [['content-warning', 'spoiler']],
+    );
+    say $event->content_warning;  # 'spoiler'
+
+=head2 has_content_warning
+
+    my $bool = $event->has_content_warning;
+
+Returns true if the event has a C<content-warning> tag (NIP-36). Clients
+can use this to hide content until the user opts in.
+
+    if ($event->has_content_warning) {
+        # hide content behind a warning
+    }
+
+=head2 content_warning_tag
+
+    my $tag = Net::Nostr::Event->content_warning_tag('spoiler');
+    my $tag = Net::Nostr::Event->content_warning_tag();
+
+Class method that creates a C<content-warning> tag arrayref, suitable for
+inclusion in an event's tags. The reason is optional.
+
+    my $event = Net::Nostr::Event->new(
+        pubkey  => 'a' x 64,
+        kind    => 1,
+        content => 'spoiler content',
+        tags    => [Net::Nostr::Event->content_warning_tag('spoiler')],
+    );
+
 =head2 is_regular
 
     $event->is_regular;  # true for kinds 1, 2, 4-44, 1000-9999
@@ -436,6 +496,7 @@ L<Net::Nostr::Key> object. Returns true if the signature is valid.
 =head1 SEE ALSO
 
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
+L<NIP-36|https://github.com/nostr-protocol/nips/blob/master/36.md>,
 L<NIP-40|https://github.com/nostr-protocol/nips/blob/master/40.md>,
 L<Net::Nostr>, L<Net::Nostr::Key>
 
