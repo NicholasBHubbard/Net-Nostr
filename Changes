@@ -3,6 +3,7 @@
   - Add NIP-11 support (Relay information document)
   - Add NIP-28 support (Public chat)
   - Add NIP-51 support (Lists)
+  - Add NIP-51 git authors (10017) and git repositories (10018) lists
   - Add NIP-29 support (Relay-based groups)
   - Add NIP-59 support (Gift wrap)
   - Add NIP-17 support (Private direct messages)

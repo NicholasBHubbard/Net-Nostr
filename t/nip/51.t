@@ -700,6 +700,81 @@ subtest 'bookmark set (kind 30003)' => sub {
 };
 
 ###############################################################################
+# NIP-34 related follow lists (kinds 10017, 10018)
+###############################################################################
+
+subtest 'git authors list (kind 10017) with p tags' => sub {
+    my $list = Net::Nostr::List->new(kind => 10017);
+    $list->add('p', $alice_pk);
+    $list->add('p', $bob_pk, 'wss://relay.com', 'bob');
+
+    my $event = $list->to_event(pubkey => $carol_pk);
+    is($event->kind, 10017, 'kind is 10017');
+
+    my $parsed = Net::Nostr::List->from_event($event);
+    is(scalar @{$parsed->items}, 2, 'two p tags');
+    is($parsed->items->[0], ['p', $alice_pk], 'first author pubkey');
+    is($parsed->items->[1], ['p', $bob_pk, 'wss://relay.com', 'bob'],
+        'second author with relay hint and petname');
+};
+
+subtest 'git repositories list (kind 10018) with a tags' => sub {
+    my $repo_coord = "30617:${alice_pk}:my-repo";
+    my $repo_coord2 = "30617:${bob_pk}:other-repo";
+
+    my $list = Net::Nostr::List->new(kind => 10018);
+    $list->add('a', $repo_coord);
+    $list->add('a', $repo_coord2);
+
+    my $event = $list->to_event(pubkey => $carol_pk);
+    is($event->kind, 10018, 'kind is 10018');
+
+    my $parsed = Net::Nostr::List->from_event($event);
+    is(scalar @{$parsed->items}, 2, 'two a tags');
+    is($parsed->items->[0], ['a', $repo_coord], 'first repo coordinate');
+    is($parsed->items->[1], ['a', $repo_coord2], 'second repo coordinate');
+};
+
+subtest 'round-trip: git authors (kind 10017)' => sub {
+    my $list = Net::Nostr::List->new(kind => 10017);
+    $list->add('p', $alice_pk, 'wss://relay.com', 'alice');
+    $list->add('p', $bob_pk);
+
+    my $event = $list->to_event(pubkey => $carol_pk);
+    my $parsed = Net::Nostr::List->from_event($event);
+
+    is($parsed->kind, 10017, 'kind round-trips');
+    is($parsed->items, $list->items, 'git authors round-trip');
+};
+
+subtest 'round-trip: git repositories (kind 10018)' => sub {
+    my $list = Net::Nostr::List->new(kind => 10018);
+    $list->add('a', "30617:${alice_pk}:repo-1");
+    $list->add('a', "30617:${bob_pk}:repo-2");
+
+    my $event = $list->to_event(pubkey => $carol_pk);
+    my $parsed = Net::Nostr::List->from_event($event);
+
+    is($parsed->kind, 10018, 'kind round-trips');
+    is($parsed->items, $list->items, 'git repositories round-trip');
+};
+
+subtest 'git authors list with private items' => sub {
+    my $key = Net::Nostr::Key->new;
+
+    my $list = Net::Nostr::List->new(kind => 10017);
+    $list->add('p', $alice_pk);
+    $list->add_private('p', $bob_pk, 'wss://relay.com', 'secret-dev');
+
+    my $event = $list->to_event(pubkey => $key->pubkey_hex, key => $key);
+    my $parsed = Net::Nostr::List->from_event($event, key => $key);
+
+    is($parsed->items, [['p', $alice_pk]], 'public git author');
+    is($parsed->private_items, [['p', $bob_pk, 'wss://relay.com', 'secret-dev']],
+        'private git author with relay hint and petname');
+};
+
+###############################################################################
 # Edge cases
 ###############################################################################
 
