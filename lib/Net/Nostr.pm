@@ -116,6 +116,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-89|https://github.com/nostr-protocol/nips/blob/master/89.md> - Recommended Application Handlers
 
+=item L<NIP-92|https://github.com/nostr-protocol/nips/blob/master/92.md> - Media Attachments
+
 =item L<NIP-72|https://github.com/nostr-protocol/nips/blob/master/72.md> - Moderated Communities
 
 =item L<NIP-99|https://github.com/nostr-protocol/nips/blob/master/99.md> - Classified Listings
