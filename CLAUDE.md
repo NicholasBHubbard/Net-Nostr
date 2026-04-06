@@ -54,6 +54,76 @@ The library uses OO design. Always use `Class::Tiny` for accessor generation, wi
 
 Use `croak` (from `Carp`) for public API validation errors. Use `warn` in async callbacks where exceptions cannot propagate (e.g. AnyEvent handlers).
 
+## Validation
+
+Be strict and be consistent. Callers should not have to guess where bad input gets rejected.
+
+Rules:
+
+- Public APIs must have one job:
+  - strict builder/constructor
+  - parser
+  - raw/unvalidated constructor
+  - semantic `validate()`
+- Do not mix those roles in one method.
+
+- Builders/constructors must reject obviously bad caller input up front.
+  - missing required fields
+  - bad hex
+  - malformed bech32/URI/URL
+  - bad ranges
+  - invalid enums
+  - broken structural field combinations
+
+- Parsers must fully validate untrusted input.
+  - events
+  - tags
+  - URIs
+  - JSON
+  - relay messages
+  - remote responses
+
+- `validate()` is only for higher-level spec rules that are reasonable to defer.
+  - Use it for semantic constraints.
+  - Do not use it as an excuse to skip basic format checks earlier.
+
+- If we need a lax constructor for internal or partial objects, make that explicit.
+  - Name it something like `new_raw` or `from_unvalidated`.
+  - Document it clearly.
+  - Do not hide a raw constructor behind a normal `new()` unless that is the project-wide rule.
+
+- Do not do partial validation in constructors.
+  - Either the constructor is strict, or it is raw.
+  - “Validate one field and ignore the rest” is not acceptable.
+
+- Docs must match reality.
+  - Do not say fields are required unless the code actually enforces that at that layer.
+  - Every public entry point should say whether it validates, and what it guarantees.
+
+- Tests must cover rejection paths, not just happy paths.
+  - malformed input
+  - missing fields
+  - boundary values
+  - encoding edge cases
+  - round-trip failures
+  - every validation bug fix needs a regression test
+
+- Never silently accept malformed protocol-critical data.
+  - pubkeys
+  - event ids
+  - signatures
+  - relay URLs
+  - wallet connect secrets
+  - tag shapes
+  - protocol identifiers
+
+- Validate as early as possible.
+  - caller input: constructor/builder
+  - wire input: parser
+  - protocol semantics: `validate()`
+
+If a caller cannot tell whether an API returns a valid object or just a bag of fields, the API is wrong.
+
 ## Documentation
 
 All public functions (those not prefixed with `_`) must have POD documentation. When modifying a public function, check its POD and update it to reflect the changes.
