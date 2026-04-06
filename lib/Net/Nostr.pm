@@ -100,6 +100,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-59|https://github.com/nostr-protocol/nips/blob/master/59.md> - Gift wrap
 
+=item L<NIP-15|https://github.com/nostr-protocol/nips/blob/master/15.md> - Nostr Marketplace
+
 =item L<NIP-60|https://github.com/nostr-protocol/nips/blob/master/60.md> - Cashu wallets
 
 =item L<NIP-61|https://github.com/nostr-protocol/nips/blob/master/61.md> - Nutzaps
@@ -148,6 +150,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Key> - Secp256k1 keypair management and BIP-340 Schnorr signatures
 
 =item L<Net::Nostr::List> - NIP-51 lists and sets
+
+=item L<Net::Nostr::Marketplace> - NIP-15 Nostr Marketplace
 
 =item L<Net::Nostr::Message> - Protocol message serialization and parsing
 
