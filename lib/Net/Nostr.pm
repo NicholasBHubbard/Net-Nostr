@@ -108,6 +108,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-65|https://github.com/nostr-protocol/nips/blob/master/65.md> - Relay list metadata
 
+=item L<NIP-89|https://github.com/nostr-protocol/nips/blob/master/89.md> - Recommended Application Handlers
+
 =item L<NIP-99|https://github.com/nostr-protocol/nips/blob/master/99.md> - Classified Listings
 
 =back
@@ -118,6 +120,8 @@ Use NIP-44 for encryption instead.
 =head1 MODULES
 
 =over 4
+
+=item L<Net::Nostr::AppHandler> - NIP-89 recommended application handlers
 
 =item L<Net::Nostr::Article> - NIP-23 long-form content
 
