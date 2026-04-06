@@ -51,8 +51,8 @@ sub verify_response {
     return 0 unless ref($response->{names}) eq 'HASH';
     my $found = $response->{names}{$local_part};
     return 0 unless defined $found;
-    # Keys must be hex, lowercase — reject if not
-    return 0 unless $found =~ /\A[a-f0-9]+\z/;
+    # Keys must be 64-char lowercase hex (32-byte pubkey)
+    return 0 unless $found =~ /\A[a-f0-9]{64}\z/;
     return $found eq $pubkey ? 1 : 0;
 }
 
@@ -155,7 +155,7 @@ sub lookup {
         }
 
         my $pubkey = $response->{names}{$local};
-        unless ($pubkey =~ /\A[a-f0-9]+\z/) {
+        unless ($pubkey =~ /\A[a-f0-9]{64}\z/) {
             $on_failure->("invalid pubkey format");
             return;
         }
@@ -257,7 +257,7 @@ are displayed as just the domain. All other identifiers are returned as-is.
     my $ok = Net::Nostr::Identifier->verify_response($hashref, $local_part, $pubkey);
 
 Returns true if the response hashref maps the given local-part to the given
-pubkey. Keys must be in lowercase hex format.
+pubkey. Keys must be 64-character lowercase hex (32-byte public keys).
 
 =head2 extract_relays
 

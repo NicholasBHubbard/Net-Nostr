@@ -177,6 +177,20 @@ subtest 'verify_response rejects non-object response' => sub {
         'undef rejected';
 };
 
+subtest 'verify_response rejects short hex pubkey' => sub {
+    my $short = 'abcd';
+    my $response = { names => { bob => $short } };
+    ok !Net::Nostr::Identifier->verify_response($response, 'bob', $short),
+        'short hex pubkey rejected';
+};
+
+subtest 'verify_response rejects long hex pubkey' => sub {
+    my $long = 'a' x 128;
+    my $response = { names => { bob => $long } };
+    ok !Net::Nostr::Identifier->verify_response($response, 'bob', $long),
+        'long hex pubkey rejected';
+};
+
 subtest 'public keys must be in hex format, lowercase' => sub {
     # "Keys must be returned in hex format, in lowercase.
     #  Keys in NIP-19 `npub` format are only meant to be used for display
@@ -545,6 +559,30 @@ subtest 'lookup ignores redirects' => sub {
     $cv->recv;
 
     ok !$ok, 'lookup fails on redirect';
+};
+
+subtest 'lookup rejects short hex pubkey from server' => sub {
+    my $port = $find_port->();
+    my $body = JSON::encode_json({
+        names => { bob => 'abcd' },
+    });
+    my $guard = $start_http_server->(port => $port, body => $body);
+
+    my $ident = Net::Nostr::Identifier->new(base_url => "http://127.0.0.1:$port");
+    my $cv = AnyEvent->condvar;
+    my ($ok, $err);
+
+    $ident->lookup(
+        identifier => 'bob@example.com',
+        on_success => sub { $ok = 1; $cv->send },
+        on_failure => sub { ($err) = @_; $ok = 0; $cv->send },
+    );
+
+    my $timer = AnyEvent->timer(after => 3, cb => sub { $err = 'timeout'; $cv->send });
+    $cv->recv;
+
+    ok !$ok, 'lookup rejects short hex pubkey';
+    like $err, qr/invalid pubkey/i, 'error mentions invalid format';
 };
 
 subtest 'lookup rejects non-hex pubkey from server' => sub {
