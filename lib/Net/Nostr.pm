@@ -78,6 +78,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-29|https://github.com/nostr-protocol/nips/blob/master/29.md> - Relay-based groups
 
+=item L<NIP-32|https://github.com/nostr-protocol/nips/blob/master/32.md> - Labeling
+
 =item L<NIP-34|https://github.com/nostr-protocol/nips/blob/master/34.md> - git stuff
 
 =item L<NIP-36|https://github.com/nostr-protocol/nips/blob/master/36.md> - Sensitive Content / Content Warning
