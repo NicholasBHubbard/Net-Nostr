@@ -100,6 +100,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-59|https://github.com/nostr-protocol/nips/blob/master/59.md> - Gift wrap
 
+=item L<NIP-60|https://github.com/nostr-protocol/nips/blob/master/60.md> - Cashu wallets
+
 =item L<NIP-61|https://github.com/nostr-protocol/nips/blob/master/61.md> - Nutzaps
 
 =item L<NIP-65|https://github.com/nostr-protocol/nips/blob/master/65.md> - Relay list metadata
@@ -162,6 +164,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Thread> - NIP-10 text note threading
 
 =item L<Net::Nostr::Timestamp> - NIP-03 OpenTimestamps attestations
+
+=item L<Net::Nostr::Wallet> - NIP-60 Cashu wallet state management
 
 =item L<Net::Nostr::Zap> - NIP-57 Lightning Zaps
 
