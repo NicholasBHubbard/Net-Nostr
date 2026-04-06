@@ -108,6 +108,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-65|https://github.com/nostr-protocol/nips/blob/master/65.md> - Relay list metadata
 
+=item L<NIP-99|https://github.com/nostr-protocol/nips/blob/master/99.md> - Classified Listings
+
 =back
 
 NIP-04 (encrypted direct messages) is deprecated and not supported.
@@ -120,6 +122,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Article> - NIP-23 long-form content
 
 =item L<Net::Nostr::Bech32> - NIP-19 bech32-encoded entities
+
+=item L<Net::Nostr::ClassifiedListing> - NIP-99 classified listings
 
 =item L<Net::Nostr::Channel> - NIP-28 public chat channels
 
