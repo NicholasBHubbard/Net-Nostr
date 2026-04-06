@@ -110,6 +110,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-89|https://github.com/nostr-protocol/nips/blob/master/89.md> - Recommended Application Handlers
 
+=item L<NIP-72|https://github.com/nostr-protocol/nips/blob/master/72.md> - Moderated Communities
+
 =item L<NIP-99|https://github.com/nostr-protocol/nips/blob/master/99.md> - Classified Listings
 
 =item L<NIP-B7|https://github.com/nostr-protocol/nips/blob/master/B7.md> - Blossom media
@@ -132,6 +134,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Bech32> - NIP-19 bech32-encoded entities
 
 =item L<Net::Nostr::ClassifiedListing> - NIP-99 classified listings
+
+=item L<Net::Nostr::Community> - NIP-72 moderated communities
 
 =item L<Net::Nostr::Channel> - NIP-28 public chat channels
 
