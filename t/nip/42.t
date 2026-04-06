@@ -727,4 +727,128 @@ subtest 'client stores challenge for relay' => sub {
     $relay->stop;
 };
 
+###############################################################################
+# AUTH relay URL matching: scheme, host, port, and path
+###############################################################################
+
+subtest 'relay rejects AUTH when port differs' => sub {
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_url         => "ws://127.0.0.1:$port",
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $client = Net::Nostr::Client->new;
+    my ($got_challenge, $auth_accepted);
+
+    $client->on(auth => sub { $got_challenge = $_[0] });
+    $client->on(ok => sub { $auth_accepted = $_[1] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    my $auth_event = $key->create_event(
+        kind    => 22242,
+        content => '',
+        tags    => [
+            ['relay', "ws://127.0.0.1:9999"],
+            ['challenge', $got_challenge],
+        ],
+    );
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', event => $auth_event);
+    $client->_conn->send($msg->serialize);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    is $auth_accepted, 0, 'port mismatch rejected';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'relay rejects AUTH when scheme differs' => sub {
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_url         => "ws://127.0.0.1:$port",
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $client = Net::Nostr::Client->new;
+    my ($got_challenge, $auth_accepted);
+
+    $client->on(auth => sub { $got_challenge = $_[0] });
+    $client->on(ok => sub { $auth_accepted = $_[1] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    my $auth_event = $key->create_event(
+        kind    => 22242,
+        content => '',
+        tags    => [
+            ['relay', "wss://127.0.0.1:$port"],
+            ['challenge', $got_challenge],
+        ],
+    );
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', event => $auth_event);
+    $client->_conn->send($msg->serialize);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    is $auth_accepted, 0, 'scheme mismatch rejected';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'relay rejects AUTH when path differs' => sub {
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_url         => "ws://127.0.0.1:$port",
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $client = Net::Nostr::Client->new;
+    my ($got_challenge, $auth_accepted);
+
+    $client->on(auth => sub { $got_challenge = $_[0] });
+    $client->on(ok => sub { $auth_accepted = $_[1] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    my $auth_event = $key->create_event(
+        kind    => 22242,
+        content => '',
+        tags    => [
+            ['relay', "ws://127.0.0.1:$port/custom"],
+            ['challenge', $got_challenge],
+        ],
+    );
+    my $msg = Net::Nostr::Message->new(type => 'AUTH', event => $auth_event);
+    $client->_conn->send($msg->serialize);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    is $auth_accepted, 0, 'path mismatch rejected';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
 done_testing;

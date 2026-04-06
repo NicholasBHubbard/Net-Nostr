@@ -194,4 +194,30 @@ subtest 'POD is_expired' => sub {
     ok $exp, 'expired';
 };
 
+# --- Validation: secret and wallet_pubkey must be 64-char hex ---
+
+subtest 'parse_uri rejects non-hex secret' => sub {
+    my $uri = "nostr+walletconnect://${wallet_pubkey}?relay=wss%3A%2F%2Frelay.damus.io&secret=not-valid-hex";
+    ok !eval { Net::Nostr::WalletConnect->parse_uri($uri) }, 'croaks on bad secret';
+    like $@, qr/secret/, 'error mentions secret';
+};
+
+subtest 'create_uri rejects non-hex wallet_pubkey' => sub {
+    ok !eval { Net::Nostr::WalletConnect->create_uri(
+        wallet_pubkey => 'not-hex',
+        relay         => 'wss://r.com',
+        secret        => $client_secret,
+    ) }, 'croaks on bad wallet_pubkey';
+    like $@, qr/wallet_pubkey/, 'error mentions wallet_pubkey';
+};
+
+subtest 'create_uri rejects non-hex secret' => sub {
+    ok !eval { Net::Nostr::WalletConnect->create_uri(
+        wallet_pubkey => $wallet_pubkey,
+        relay         => 'wss://r.com',
+        secret        => 'bad-secret',
+    ) }, 'croaks on bad secret';
+    like $@, qr/secret/, 'error mentions secret';
+};
+
 done_testing;

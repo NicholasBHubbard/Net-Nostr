@@ -157,8 +157,12 @@ sub _decode_tlv {
     my @tlvs;
     my $pos = 0;
     while ($pos < length($payload)) {
+        croak "truncated TLV: missing length byte at offset $pos"
+            unless $pos + 1 < length($payload);
         my $type = unpack('C', substr($payload, $pos, 1));
         my $len  = unpack('C', substr($payload, $pos + 1, 1));
+        croak "truncated TLV: value extends beyond payload at offset $pos"
+            unless $pos + 2 + $len <= length($payload);
         my $val  = substr($payload, $pos + 2, $len);
         push @tlvs, [$type, $val];
         $pos += 2 + $len;

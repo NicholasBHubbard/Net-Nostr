@@ -173,27 +173,39 @@ Use NIP-44 for encryption instead.
 
 =item L<Net::Nostr::Key> - Secp256k1 keypair management and BIP-340 Schnorr signatures
 
+=item L<Net::Nostr::Label> - NIP-32 labeling
+
 =item L<Net::Nostr::List> - NIP-51 lists and sets
 
 =item L<Net::Nostr::Marketplace> - NIP-15 Nostr Marketplace
+
+=item L<Net::Nostr::MediaAttachment> - NIP-92 media attachments
 
 =item L<Net::Nostr::Message> - Protocol message serialization and parsing
 
 =item L<Net::Nostr::Nutzap> - NIP-61 nutzaps (Cashu ecash payments)
 
-=item L<Net::Nostr::Relay> - WebSocket relay server implementing NIP-01
+=item L<Net::Nostr::Reaction> - NIP-25 reactions
 
-=item L<Net::Nostr::RemoteSigning> - NIP-46 Nostr Remote Signing
+=item L<Net::Nostr::Relay> - WebSocket relay server implementing NIP-01
 
 =item L<Net::Nostr::RelayInfo> - NIP-11 relay information document
 
 =item L<Net::Nostr::RelayList> - NIP-65 relay list metadata
+
+=item L<Net::Nostr::RemoteSigning> - NIP-46 Nostr Remote Signing
+
+=item L<Net::Nostr::Report> - NIP-56 reporting
+
+=item L<Net::Nostr::Repost> - NIP-18 reposts
 
 =item L<Net::Nostr::Thread> - NIP-10 text note threading
 
 =item L<Net::Nostr::Timestamp> - NIP-03 OpenTimestamps attestations
 
 =item L<Net::Nostr::Wallet> - NIP-60 Cashu wallet state management
+
+=item L<Net::Nostr::WalletConnect> - NIP-47 Nostr Wallet Connect
 
 =item L<Net::Nostr::Zap> - NIP-57 Lightning Zaps
 

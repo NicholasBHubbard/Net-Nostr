@@ -39,7 +39,7 @@ sub connect {
     });
 
     if ($cb) {
-        $cv->cb(sub { eval { shift->recv }; $cb->() });
+        $cv->cb(sub { eval { shift->recv }; $cb->($@ || undef) });
         return;
     }
 
@@ -234,8 +234,18 @@ Connects to the relay at the given WebSocket URL. Blocks until the
 connection is established and returns C<$self> for chaining. Croaks
 if the connection fails or C<$url> is not provided.
 
-If a callback is provided, connects asynchronously and calls the
-callback once connected. Returns immediately without blocking.
+If a callback is provided, connects asynchronously and returns
+immediately without blocking. The callback receives a single argument:
+C<undef> on success, or an error string on failure.
+
+    $client->connect($url, sub {
+        my ($err) = @_;
+        if ($err) {
+            warn "Connection failed: $err";
+            return;
+        }
+        # connected successfully
+    });
 
 =head2 is_connected
 

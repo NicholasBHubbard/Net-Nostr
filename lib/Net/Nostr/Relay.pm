@@ -245,10 +245,18 @@ sub _on_connection {
 
 sub _relay_host_matches {
     my ($expected, $got) = @_;
-    my ($eh) = $expected =~ m{^wss?://([^:/]+)}i;
-    my ($gh) = $got      =~ m{^wss?://([^:/]+)}i;
-    return 0 unless defined $eh && defined $gh;
-    return lc($eh) eq lc($gh);
+    my ($es, $eh, $ep, $epath) = $expected =~ m{^(wss?)://([^:/]+)(?::(\d+))?(/.*)?\z}i;
+    my ($gs, $gh, $gp, $gpath) = $got      =~ m{^(wss?)://([^:/]+)(?::(\d+))?(/.*)?\z}i;
+    return 0 unless defined $es && defined $gs;
+    return 0 unless lc($es) eq lc($gs);
+    return 0 unless lc($eh) eq lc($gh);
+    my %defaults = (wss => 443, ws => 80);
+    $ep //= $defaults{lc $es};
+    $gp //= $defaults{lc $gs};
+    return 0 unless $ep == $gp;
+    $epath = '/' unless defined $epath && length $epath;
+    $gpath = '/' unless defined $gpath && length $gpath;
+    return $epath eq $gpath;
 }
 
 my $HEX64  = qr/\A[0-9a-f]{64}\z/;
@@ -628,8 +636,8 @@ at the TCP level. Default: C<undef> (unlimited).
 
 =item C<relay_url> - The relay's own WebSocket URL (e.g. C<wss://relay.example.com/>).
 When set, NIP-42 AUTH events are validated to ensure the C<relay> tag matches
-this URL (domain comparison, case-insensitive). Default: C<undef> (relay tag
-not validated).
+this URL (scheme, host, port, and path comparison; case-insensitive host).
+Default: C<undef> (relay tag not validated).
 
 =item C<min_pow_difficulty> - Minimum Proof of Work difficulty required for
 events (NIP-13). Events must have a C<nonce> tag committing to at least this

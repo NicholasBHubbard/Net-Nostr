@@ -6,6 +6,8 @@ use Carp qw(croak);
 use JSON ();
 use Net::Nostr::Event;
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/i;
+
 ###############################################################################
 # URI parsing/generation
 ###############################################################################
@@ -28,6 +30,7 @@ sub parse_uri {
 
     croak "URI must contain at least one relay parameter" unless @relays;
     croak "URI must contain a secret parameter" unless defined $secret;
+    croak "secret must be 64-char hex" unless $secret =~ $HEX64;
 
     return Net::Nostr::WalletConnect::Connection->new(
         wallet_pubkey => $wallet_pubkey,
@@ -42,6 +45,8 @@ sub create_uri {
     croak "wallet_pubkey is required" unless defined $args{wallet_pubkey};
     croak "relay is required"         unless defined $args{relay};
     croak "secret is required"        unless defined $args{secret};
+    croak "wallet_pubkey must be 64-char hex" unless $args{wallet_pubkey} =~ $HEX64;
+    croak "secret must be 64-char hex"        unless $args{secret} =~ $HEX64;
 
     my @relays = ref $args{relay} eq 'ARRAY' ? @{$args{relay}} : ($args{relay});
 
@@ -50,7 +55,7 @@ sub create_uri {
     for my $r (@relays) {
         push @params, "relay=" . _uri_encode($r);
     }
-    push @params, "secret=$args{secret}";
+    push @params, "secret=" . _uri_encode($args{secret});
     push @params, "lud16=" . _uri_encode($args{lud16}) if defined $args{lud16};
 
     return $uri . join('&', @params);

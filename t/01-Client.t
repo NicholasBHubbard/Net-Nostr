@@ -83,6 +83,34 @@ subtest 'connect with callback (async)' => sub {
     $relay->stop;
 };
 
+subtest 'POD: async connect with error callback' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $url = "ws://127.0.0.1:$port";
+    my $client = Net::Nostr::Client->new;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    $client->connect($url, sub {
+        my ($err) = @_;
+        if ($err) {
+            warn "Connection failed: $err";
+            $cv->send;
+            return;
+        }
+        # connected successfully
+        ok(!$err, 'no error on success');
+        $cv->send;
+    });
+
+    $cv->recv;
+
+    $client->disconnect;
+    $relay->stop;
+};
+
 ###############################################################################
 # Publish (EVENT) and receive OK
 ###############################################################################
@@ -462,6 +490,50 @@ subtest 'authenticate without challenge croaks' => sub {
 
     $client->disconnect;
     $relay->stop;
+};
+
+###############################################################################
+# Async connect: callback error semantics
+###############################################################################
+
+subtest 'async connect callback receives undef on success' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $client = Net::Nostr::Client->new;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $got_err = 'SENTINEL';
+
+    $client->connect("ws://127.0.0.1:$port", sub {
+        ($got_err) = @_;
+        $cv->send;
+    });
+
+    $cv->recv;
+    is($got_err, undef, 'callback receives undef on success');
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'async connect callback receives error on failure' => sub {
+    my $port = free_port();
+    # Don't start anything on this port
+    my $client = Net::Nostr::Client->new;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $got_err;
+
+    $client->connect("ws://127.0.0.1:$port", sub {
+        ($got_err) = @_;
+        $cv->send;
+    });
+
+    $cv->recv;
+    ok(defined $got_err, 'callback receives error on failure');
+    like($got_err, qr/connect failed/, 'error message describes failure');
 };
 
 done_testing;

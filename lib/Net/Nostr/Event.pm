@@ -17,7 +17,7 @@ use Class::Tiny qw(
     sig
 );
 
-sub new { # pubkey, kind, content, and sig are required
+sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
     croak "kind must be an integer between 0 and 65535"

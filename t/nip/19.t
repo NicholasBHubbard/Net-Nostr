@@ -17,6 +17,7 @@ use Net::Nostr::Bech32 qw(
     decode_bech32_entity
 );
 use Net::Nostr::Key;
+use Bitcoin::Crypto::Bech32 qw(encode_bech32 translate_8to5);
 
 ###############################################################################
 # npub - public keys
@@ -337,6 +338,28 @@ subtest 'unknown TLV types are ignored' => sub {
     my $encoded = encode_nprofile(pubkey => 'a' x 64);
     my $decoded = decode_nprofile($encoded);
     is($decoded->{pubkey}, 'a' x 64, 'known fields decoded correctly');
+};
+
+###############################################################################
+# Malformed TLV: bounds checking
+###############################################################################
+
+subtest 'truncated TLV: missing length byte' => sub {
+    # Craft a payload with only a type byte (no length byte)
+    my $payload = pack('C', 0);  # type=0, no length
+    my $data5 = translate_8to5($payload);
+    my $bech32 = encode_bech32('nprofile', $data5, 'bech32');
+    like(dies { decode_nprofile($bech32) }, qr/truncated/i,
+        'croaks on missing length byte');
+};
+
+subtest 'truncated TLV: declared length exceeds payload' => sub {
+    # type=0, length=32, but only 2 bytes of value
+    my $payload = pack('CC', 0, 32) . ('x' x 2);
+    my $data5 = translate_8to5($payload);
+    my $bech32 = encode_bech32('nprofile', $data5, 'bech32');
+    like(dies { decode_nprofile($bech32) }, qr/truncated/i,
+        'croaks when value extends beyond payload');
 };
 
 done_testing;
