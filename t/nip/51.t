@@ -803,6 +803,17 @@ subtest 'items returns a copy not a reference' => sub {
     is(scalar @{$list->items}, 1, 'original not modified');
 };
 
+subtest 'accepts arbitrary kind and tag types (generic design)' => sub {
+    my $list = Net::Nostr::List->new(kind => 10999);
+    $list->add('x', 'foo');
+    $list->add('zzz', 'bar', 'baz');
+    my $event = $list->to_event(pubkey => $alice_pk);
+    my $parsed = Net::Nostr::List->from_event($event);
+    is $parsed->kind, 10999, 'arbitrary kind preserved';
+    is $parsed->items, [['x', 'foo'], ['zzz', 'bar', 'baz']],
+        'arbitrary tag types preserved';
+};
+
 subtest 'private_items returns a copy not a reference' => sub {
     my $list = Net::Nostr::List->new(kind => 10000);
     $list->add_private('p', $alice_pk);

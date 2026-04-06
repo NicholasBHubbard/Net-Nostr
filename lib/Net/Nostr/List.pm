@@ -208,6 +208,12 @@ tags. Examples: relay sets (30002), curation sets (30004).
 
 =back
 
+This module is deliberately generic: it accepts any kind and any tag types
+without enforcing kind-specific rules. NIP-51 defines the list structure,
+but individual NIPs (e.g. NIP-34 for git-related lists) assign meaning to
+specific kind numbers and tag types. Validation of which tags are
+appropriate for a given kind is left to the caller.
+
 =head1 CONSTRUCTOR
 
 =head2 new
