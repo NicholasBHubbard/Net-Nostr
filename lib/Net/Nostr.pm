@@ -66,6 +66,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-21|https://github.com/nostr-protocol/nips/blob/master/21.md> - C<nostr:> URI scheme
 
+=item L<NIP-23|https://github.com/nostr-protocol/nips/blob/master/23.md> - Long-form content
+
 =item L<NIP-17|https://github.com/nostr-protocol/nips/blob/master/17.md> - Private direct messages
 
 =item L<NIP-25|https://github.com/nostr-protocol/nips/blob/master/25.md> - Reactions
@@ -108,6 +110,8 @@ Use NIP-44 for encryption instead.
 =head1 MODULES
 
 =over 4
+
+=item L<Net::Nostr::Article> - NIP-23 long-form content
 
 =item L<Net::Nostr::Bech32> - NIP-19 bech32-encoded entities
 

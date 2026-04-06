@@ -22,6 +22,7 @@
   - Add NIP-46 support (Nostr Remote Signing)
   - Add NIP-50 support (Search capability)
   - Add NIP-21 support (nostr: URI scheme)
+  - Add NIP-23 support (Long-form content)
 
 0.002000   2026-04-01
 
