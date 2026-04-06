@@ -112,6 +112,8 @@ management and L<Net::Nostr::Event> for creating events.
 
 =item L<NIP-99|https://github.com/nostr-protocol/nips/blob/master/99.md> - Classified Listings
 
+=item L<NIP-B7|https://github.com/nostr-protocol/nips/blob/master/B7.md> - Blossom media
+
 =back
 
 NIP-04 (encrypted direct messages) is deprecated and not supported.
@@ -124,6 +126,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::AppHandler> - NIP-89 recommended application handlers
 
 =item L<Net::Nostr::Article> - NIP-23 long-form content
+
+=item L<Net::Nostr::Blossom> - NIP-B7 Blossom media server lists
 
 =item L<Net::Nostr::Bech32> - NIP-19 bech32-encoded entities
 
