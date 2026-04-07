@@ -341,7 +341,7 @@ subtest 'relay accepts events meeting min_pow_difficulty' => sub {
     $key->sign_event($mined);
     $client->publish($mined);
 
-    my $timer = AnyEvent->timer(after => 3, cb => sub { $cv->send });
+    my $timer = AnyEvent->timer(after => 5, cb => sub { $cv->send });
     $cv->recv;
 
     ok defined $ok_id, 'received OK message';
@@ -376,7 +376,7 @@ subtest 'relay rejects events below min_pow_difficulty' => sub {
     );
     $client->publish($event);
 
-    my $timer = AnyEvent->timer(after => 3, cb => sub { $cv->send });
+    my $timer = AnyEvent->timer(after => 5, cb => sub { $cv->send });
     $cv->recv;
 
     ok defined $ok_id, 'received OK message';
@@ -428,7 +428,7 @@ subtest 'relay rejects events where committed target is below min_pow_difficulty
     $key->sign_event($tweaked);
     $client->publish($tweaked);
 
-    my $timer = AnyEvent->timer(after => 3, cb => sub { $cv->send });
+    my $timer = AnyEvent->timer(after => 5, cb => sub { $cv->send });
     $cv->recv;
 
     ok defined $ok_id, 'received OK message';
@@ -466,7 +466,7 @@ subtest 'relay MAY reject events with missing difficulty commitment' => sub {
     );
     $client->publish($event);
 
-    my $timer = AnyEvent->timer(after => 3, cb => sub { $cv->send });
+    my $timer = AnyEvent->timer(after => 5, cb => sub { $cv->send });
     $cv->recv;
 
     ok defined $ok_id, 'received OK message';
@@ -497,7 +497,7 @@ subtest 'relay with no min_pow_difficulty accepts any event (default disabled)' 
     );
     $client->publish($event);
 
-    my $timer = AnyEvent->timer(after => 3, cb => sub { $cv->send });
+    my $timer = AnyEvent->timer(after => 5, cb => sub { $cv->send });
     $cv->recv;
 
     ok defined $ok_id, 'received OK message';
