@@ -391,7 +391,8 @@ via the C<store> constructor option.
     my $store = Net::Nostr::Relay::Store->new;
     my $store = Net::Nostr::Relay::Store->new(max_events => 5000);
 
-Creates a new store. All arguments are optional. Croaks on unknown arguments.
+Strict constructor. Creates a new empty store. All arguments are optional.
+Croaks on unknown arguments or invalid C<max_events> values.
 
 =over
 
@@ -412,12 +413,8 @@ Stores an event. Returns 1 on success, 0 if the event is a duplicate (same
 id already stored). Updates all indexes. If C<max_events> is set and the
 store exceeds capacity after insertion, the oldest event is evicted.
 
-    my $e = Net::Nostr::Event->new(
-        pubkey => 'a' x 64, kind => 1, content => 'hello',
-        created_at => 1000, tags => [],
-    );
-    $store->store($e);  # 1
-    $store->store($e);  # 0 (duplicate)
+    $store->store($event);  # 1
+    $store->store($event);  # 0 (duplicate)
 
 =head2 get_by_id
 
@@ -450,10 +447,11 @@ event, or C<undef> if not found.
 
     my $count = $store->delete_matching($pubkey, \@ids, \@addresses, $before_ts);
 
-NIP-09 bulk deletion. Deletes events matching the given pubkey by event id
-or by addressable coordinate (C<"kind:pubkey:d_tag">). Address-based deletion
-only removes events with C<created_at E<lt>= $before_ts>. Kind 5 (deletion)
-events are never deleted. Events belonging to a different pubkey are skipped.
+NIP-09 bulk deletion. Deletes events owned by C<$pubkey> by event id or by
+addressable coordinate (C<"kind:pubkey:d_tag">). Both id-based and
+address-based deletions skip events belonging to a different pubkey.
+Address-based deletion additionally only removes events with
+C<created_at E<lt>= $before_ts>. Kind 5 (deletion) events are never deleted.
 Returns the number of events deleted.
 
     $store->delete_matching($pk, [$event_id], [], 9999);
@@ -467,7 +465,7 @@ Returns an arrayref of events matching any of the given filters (OR across
 filters, AND within each filter). Results are sorted by C<created_at> DESC
 then C<id> ASC. Expired events (NIP-40) are excluded. Events matching
 multiple filters are deduplicated. Each filter's C<limit> is respected
-independently.
+independently. A C<limit> of 0 returns no events for that filter.
 
     my $results = $store->query([
         Net::Nostr::Filter->new(kinds => [1], limit => 10),
@@ -487,7 +485,7 @@ and skips expired events.
 
 Returns a snapshot (array copy) of all stored events, sorted by
 C<created_at> DESC then C<id> ASC. Mutating the returned arrayref does
-not affect the store.
+not affect the store. Unlike L</query>, this includes expired events.
 
 =head2 event_count
 

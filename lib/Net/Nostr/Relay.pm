@@ -735,8 +735,11 @@ a custom C<store> is provided.
 
 =item C<event_rate_limit> - Per-connection event submission rate limit in
 the format C<"count/seconds"> (e.g. C<"10/60"> for 10 events per 60 seconds).
-When exceeded, events are rejected with an C<OK false> response and a
-C<rate-limited:> prefix. Default: C<undef> (unlimited).
+Uses a token bucket: each connection starts with C<count> tokens, one token
+is consumed per event, and all tokens are refilled when C<seconds> have
+elapsed since the last refill. When no tokens remain, events are rejected
+with an C<OK false> response and a C<rate-limited:> prefix. Default:
+C<undef> (unlimited). Croaks if the format is invalid.
 
     my $relay = Net::Nostr::Relay->new(event_rate_limit => '10/60');
 
@@ -782,8 +785,9 @@ Safe to call on an unstarted relay.
     $relay->broadcast($event);
 
 Sends the event to all connected clients whose subscriptions match.
-Normally called internally when a new event is accepted, but can be
-called directly for testing or custom event injection.
+Normally called internally when a new event is accepted. Does not store
+the event -- use L</inject_event> for storing without broadcasting, or
+publish via the normal EVENT protocol flow for both.
 
 =head2 connections
 
@@ -814,21 +818,24 @@ store. Reflects replaceable/addressable semantics (only the latest version
 of each replaceable or addressable event is retained). Ephemeral events
 are never stored.
 
-Can also be used as a setter for backward compatibility:
+Can also be used as a setter for backward compatibility. The setter clears
+the store and re-stores each event individually (duplicates are silently
+skipped, and C<max_events> eviction applies):
 
     $relay->events([]);                   # clear all events
     $relay->events([$event1, $event2]);   # replace with given events
 
 =head2 inject_event
 
-    $relay->inject_event($event);
+    my $ok = $relay->inject_event($event);
 
 Stores an event directly into the store without validation or broadcasting.
-Useful for tests and programmatic seeding of relay state.
+Returns 1 on success, 0 if the event is a duplicate. Useful for tests and
+programmatic seeding of relay state.
 
-    use TestFixtures qw(make_event);
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
-    $relay->inject_event(make_event(kind => 1, content => 'hello'));
+    $relay->inject_event($event);  # 1
+    $relay->inject_event($event);  # 0 (duplicate)
 
 =head2 max_events
 
@@ -842,7 +849,7 @@ Returns the configured maximum event capacity, or C<undef> if unlimited
     my $limit = $relay->event_rate_limit;  # e.g. '10/60' or undef
 
 Returns the per-connection event rate limit string, or C<undef> if
-unlimited (the default).
+unlimited (the default). See L</new> for token bucket semantics.
 
     my $relay = Net::Nostr::Relay->new(event_rate_limit => '10/60');
 
