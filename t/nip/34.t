@@ -1629,6 +1629,96 @@ subtest 'spec example: status events' => sub {
     is $mc[0][1], $commit_id2, 'merge-commit';
 };
 
+###############################################################################
+# hex64 validation for pubkeys and event IDs in tags
+###############################################################################
+
+subtest 'hex64 validation rejects invalid pubkeys and event IDs in tags' => sub {
+    my $bad_short    = 'abcd';
+    my $bad_upper    = 'A' x 64;
+    my $bad_chars    = 'z' x 64;
+
+    # repository: maintainers
+    ok dies { Net::Nostr::Git->repository(pubkey => $alice_pk, id => 'r', maintainers => [$bad_short]) },
+        'repository rejects short maintainer';
+    ok dies { Net::Nostr::Git->repository(pubkey => $alice_pk, id => 'r', maintainers => [$bad_upper]) },
+        'repository rejects uppercase maintainer';
+
+    # patch: repo_owner
+    ok dies { Net::Nostr::Git->patch(pubkey => $alice_pk, content => 'x', repository => $repo_coord, repo_owner => $bad_short) },
+        'patch rejects short repo_owner';
+
+    # patch: notify
+    ok dies { Net::Nostr::Git->patch(pubkey => $alice_pk, content => 'x', repository => $repo_coord, notify => [$bad_chars]) },
+        'patch rejects invalid notify';
+
+    # patch: previous_patch
+    ok dies { Net::Nostr::Git->patch(pubkey => $alice_pk, content => 'x', repository => $repo_coord, previous_patch => $bad_upper) },
+        'patch rejects uppercase previous_patch';
+
+    # pull_request: repo_owner
+    ok dies { Net::Nostr::Git->pull_request(pubkey => $alice_pk, content => 'x', repository => $repo_coord, commit => $commit_id, clone => ['url'], repo_owner => $bad_short) },
+        'pull_request rejects short repo_owner';
+
+    # pull_request: notify
+    ok dies { Net::Nostr::Git->pull_request(pubkey => $alice_pk, content => 'x', repository => $repo_coord, commit => $commit_id, clone => ['url'], notify => [$bad_upper]) },
+        'pull_request rejects uppercase notify';
+
+    # pull_request: revises
+    ok dies { Net::Nostr::Git->pull_request(pubkey => $alice_pk, content => 'x', repository => $repo_coord, commit => $commit_id, clone => ['url'], revises => $bad_chars) },
+        'pull_request rejects invalid revises';
+
+    # pull_request_update: pr_event
+    ok dies { Net::Nostr::Git->pull_request_update(pubkey => $alice_pk, repository => $repo_coord, pr_event => $bad_short, pr_author => $bob_pk, commit => $commit_id, clone => ['url']) },
+        'pull_request_update rejects short pr_event';
+
+    # pull_request_update: pr_author
+    ok dies { Net::Nostr::Git->pull_request_update(pubkey => $alice_pk, repository => $repo_coord, pr_event => $event_id, pr_author => $bad_upper, commit => $commit_id, clone => ['url']) },
+        'pull_request_update rejects uppercase pr_author';
+
+    # pull_request_update: repo_owner
+    ok dies { Net::Nostr::Git->pull_request_update(pubkey => $alice_pk, repository => $repo_coord, pr_event => $event_id, pr_author => $bob_pk, commit => $commit_id, clone => ['url'], repo_owner => $bad_chars) },
+        'pull_request_update rejects invalid repo_owner';
+
+    # issue: repo_owner
+    ok dies { Net::Nostr::Git->issue(pubkey => $alice_pk, content => 'x', repository => $repo_coord, repo_owner => $bad_short) },
+        'issue rejects short repo_owner';
+
+    # status: target
+    ok dies { Net::Nostr::Git->status(pubkey => $alice_pk, status => 'open', target => $bad_short, repo_owner => $alice_pk, target_author => $bob_pk) },
+        'status rejects short target';
+
+    # status: repo_owner
+    ok dies { Net::Nostr::Git->status(pubkey => $alice_pk, status => 'open', target => $event_id, repo_owner => $bad_upper, target_author => $bob_pk) },
+        'status rejects uppercase repo_owner';
+
+    # status: target_author
+    ok dies { Net::Nostr::Git->status(pubkey => $alice_pk, status => 'open', target => $event_id, repo_owner => $alice_pk, target_author => $bad_chars) },
+        'status rejects invalid target_author';
+
+    # status: accepted_revision
+    ok dies { Net::Nostr::Git->status(pubkey => $alice_pk, status => 'open', target => $event_id, repo_owner => $alice_pk, target_author => $bob_pk, accepted_revision => $bad_short) },
+        'status rejects short accepted_revision';
+
+    # status: revision_author
+    ok dies { Net::Nostr::Git->status(pubkey => $alice_pk, status => 'open', target => $event_id, repo_owner => $alice_pk, target_author => $bob_pk, revision_author => $bad_upper) },
+        'status rejects uppercase revision_author';
+
+    # status: applied_patches id
+    ok dies { Net::Nostr::Git->status(pubkey => $alice_pk, status => 'applied', target => $event_id, repo_owner => $alice_pk, target_author => $bob_pk, applied_patches => [{id => $bad_short}]) },
+        'status rejects short applied_patches id';
+
+    # status: applied_patches pubkey
+    ok dies { Net::Nostr::Git->status(pubkey => $alice_pk, status => 'applied', target => $event_id, repo_owner => $alice_pk, target_author => $bob_pk, applied_patches => [{id => $event_id, pubkey => $bad_upper}]) },
+        'status rejects uppercase applied_patches pubkey';
+
+    # valid hex64 still works
+    ok lives { Net::Nostr::Git->repository(pubkey => $alice_pk, id => 'r', maintainers => [$bob_pk]) },
+        'valid hex64 maintainer accepted';
+    ok lives { Net::Nostr::Git->status(pubkey => $alice_pk, status => 'open', target => $event_id, repo_owner => $alice_pk, target_author => $bob_pk) },
+        'valid hex64 status params accepted';
+};
+
 subtest 'spec example: grasp list' => sub {
     my $list = Net::Nostr::Git->grasp_list(
         pubkey  => $alice_pk,

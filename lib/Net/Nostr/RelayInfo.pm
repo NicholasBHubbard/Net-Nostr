@@ -226,13 +226,63 @@ C<Content-Type: application/nostr+json>, and the required CORS headers
 (C<Access-Control-Allow-Origin>, C<Access-Control-Allow-Headers>,
 C<Access-Control-Allow-Methods>).
 
-=head2 Accessors
+=head1 ACCESSORS
 
-All NIP-11 fields are available as read/write accessors:
+=head2 name
 
-C<name>, C<description>, C<banner>, C<icon>, C<pubkey>, C<self>,
-C<contact>, C<supported_nips>, C<software>, C<version>,
-C<terms_of_service>, C<limitation>, C<payments_url>, C<fees>.
+Relay name (SHOULD be less than 30 characters).
+
+=head2 description
+
+Relay description.
+
+=head2 banner
+
+Banner image URL.
+
+=head2 icon
+
+Icon image URL.
+
+=head2 pubkey
+
+Admin contact pubkey (64-char lowercase hex).
+
+=head2 self
+
+Relay's own pubkey (64-char lowercase hex).
+
+=head2 contact
+
+Admin contact URI (e.g. C<mailto:admin@example.com>).
+
+=head2 supported_nips
+
+Arrayref of supported NIP numbers.
+
+=head2 software
+
+URL of the relay software project.
+
+=head2 version
+
+Relay software version string.
+
+=head2 terms_of_service
+
+URL of terms of service.
+
+=head2 limitation
+
+Hashref of relay limitations (see L</new> for supported keys).
+
+=head2 payments_url
+
+URL for relay payment information.
+
+=head2 fees
+
+Hashref of fee schedules (see L</new> for structure).
 
 =head1 SEE ALSO
 

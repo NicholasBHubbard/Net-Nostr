@@ -5,6 +5,8 @@ use strictures 2;
 use Carp qw(croak);
 use Net::Nostr::Event;
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+
 use Class::Tiny qw(
     root_tag_name
     root_value
@@ -30,6 +32,8 @@ sub comment {
     my $content = $args{content} // croak "comment requires 'content'";
     my $event   = $args{event};
     my $ident   = $args{identifier};
+
+    croak "pubkey must be 64-char lowercase hex" unless $pubkey =~ $HEX64;
 
     croak "comment requires 'event' or 'identifier'" unless $event || defined $ident;
 
@@ -83,6 +87,9 @@ sub comment {
     # MAY: q tags for quoting
     if ($args{quotes}) {
         for my $q (@{$args{quotes}}) {
+            croak "quote id must be 64-char lowercase hex" unless defined $q->{id} && $q->{id} =~ $HEX64;
+            croak "quote pubkey must be 64-char lowercase hex"
+                if defined $q->{pubkey} && length($q->{pubkey}) && $q->{pubkey} !~ $HEX64;
             push @tags, ['q', $q->{id}, $q->{relay_url} // '', $q->{pubkey} // ''];
         }
     }
@@ -90,6 +97,7 @@ sub comment {
     # SHOULD: p tags for mentions
     if ($args{mentions}) {
         for my $pk (@{$args{mentions}}) {
+            croak "mention pubkey must be 64-char lowercase hex" unless $pk =~ $HEX64;
             push @tags, ['p', $pk];
         }
     }
@@ -105,6 +113,8 @@ sub reply {
     my $pubkey  = $args{pubkey}  // croak "reply requires 'pubkey'";
     my $content = $args{content} // croak "reply requires 'content'";
     my $relay   = $args{relay_url} // '';
+
+    croak "pubkey must be 64-char lowercase hex" unless $pubkey =~ $HEX64;
 
     # Extract root scope from parent's uppercase tags
     my @tags;
@@ -123,6 +133,9 @@ sub reply {
     # MAY: q tags
     if ($args{quotes}) {
         for my $q (@{$args{quotes}}) {
+            croak "quote id must be 64-char lowercase hex" unless defined $q->{id} && $q->{id} =~ $HEX64;
+            croak "quote pubkey must be 64-char lowercase hex"
+                if defined $q->{pubkey} && length($q->{pubkey}) && $q->{pubkey} !~ $HEX64;
             push @tags, ['q', $q->{id}, $q->{relay_url} // '', $q->{pubkey} // ''];
         }
     }
@@ -130,6 +143,7 @@ sub reply {
     # SHOULD: mentions
     if ($args{mentions}) {
         for my $pk (@{$args{mentions}}) {
+            croak "mention pubkey must be 64-char lowercase hex" unless $pk =~ $HEX64;
             push @tags, ['p', $pk];
         }
     }
@@ -257,6 +271,27 @@ item. For top-level comments, root and parent point to the same target.
 
 Comments MUST NOT be used to reply to kind 1 notes; use
 L<Net::Nostr::Thread> (NIP-10) instead.
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $info = Net::Nostr::Comment->new(%fields);
+
+Creates a new C<Net::Nostr::Comment> object. Typically returned by
+L</from_event>; calling C<new> directly is useful for testing or
+manual construction.
+
+    my $info = Net::Nostr::Comment->new(
+        root_tag_name => 'E',
+        root_kind     => '30023',
+        root_value    => 'abc123',
+        root_pubkey   => $hex_pubkey,
+    );
+
+Accepted fields: C<root_tag_name>, C<root_value>, C<root_relay>,
+C<root_kind>, C<root_pubkey>, C<parent_tag_name>, C<parent_value>,
+C<parent_relay>, C<parent_kind>, C<parent_pubkey>.
 
 =head1 CLASS METHODS
 

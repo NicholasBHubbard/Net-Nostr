@@ -448,4 +448,29 @@ subtest 'note report: type goes on e tag, p tag has no type' => sub {
     is(scalar @{$p[0]}, 2, 'p tag has only 2 elements (no type)');
 };
 
+###############################################################################
+# Negative validation: invalid hex identifiers
+###############################################################################
+
+subtest 'report rejects invalid reported_pk' => sub {
+    like(
+        dies { Net::Nostr::Report->report(
+            pubkey => 'a' x 64, reported_pk => 'bad', report_type => 'spam',
+        ) },
+        qr/reported_pk must be 64-char lowercase hex/,
+        'invalid reported_pk rejected'
+    );
+};
+
+subtest 'report rejects invalid event_id' => sub {
+    like(
+        dies { Net::Nostr::Report->report(
+            pubkey => 'a' x 64, reported_pk => 'b' x 64,
+            report_type => 'spam', event_id => 'bad',
+        ) },
+        qr/event_id must be 64-char lowercase hex/,
+        'invalid event_id rejected'
+    );
+};
+
 done_testing;

@@ -5,6 +5,8 @@ use strictures 2;
 use Carp qw(croak);
 use Net::Nostr::Event;
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+
 use Class::Tiny qw(
     relays
     mints
@@ -60,6 +62,8 @@ sub nutzap {
     my $unit      = $args{unit}      // 'sat';
     my $content   = $args{content}   // '';
 
+    croak "recipient must be 64-char lowercase hex" unless $recipient =~ $HEX64;
+
     my @tags;
     for my $proof (@$proofs) {
         push @tags, ['proof', $proof];
@@ -68,6 +72,7 @@ sub nutzap {
     push @tags, ['u', $mint_url];
 
     if (defined $args{event_id}) {
+        croak "event_id must be 64-char lowercase hex" unless $args{event_id} =~ $HEX64;
         my @e = ('e', $args{event_id});
         push @e, $args{relay_hint} if defined $args{relay_hint};
         push @tags, \@e;
@@ -90,6 +95,11 @@ sub redemption {
     my $sender_pubkey = $args{sender_pubkey} // croak "redemption requires 'sender_pubkey'";
     my $relay_hint    = $args{relay_hint}    // '';
     my $content       = $args{content}       // '';
+
+    for my $id (@$nutzap_ids) {
+        croak "nutzap_id must be 64-char lowercase hex" unless $id =~ $HEX64;
+    }
+    croak "sender_pubkey must be 64-char lowercase hex" unless $sender_pubkey =~ $HEX64;
 
     my @tags;
     for my $id (@$nutzap_ids) {
@@ -302,6 +312,28 @@ the mint URL, unit, and optional event reference.
 tokens, tagging the original nutzap event(s) with a C<redeemed> marker.
 
 =back
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $info = Net::Nostr::Nutzap->new(%fields);
+
+Creates a new C<Net::Nostr::Nutzap> object. Typically returned by
+L</from_event>; calling C<new> directly is useful for testing or
+manual construction.
+
+    my $info = Net::Nostr::Nutzap->new(
+        mint_url  => 'https://mint1',
+        unit      => 'sat',
+        recipient => $hex_pubkey,
+        proofs    => [],
+    );
+
+Accepted fields: C<relays> (defaults to C<[]>), C<mints> (defaults to C<[]>),
+C<p2pk_pubkey>, C<proofs> (defaults to C<[]>), C<mint_url>, C<unit>,
+C<recipient>, C<event_id>, C<event_kind>, C<nutzap_ids> (defaults to C<[]>),
+C<sender_pubkey>.
 
 =head1 CLASS METHODS
 

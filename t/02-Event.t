@@ -27,9 +27,8 @@ subtest 'new()' => sub {
 
     $event = Net::Nostr::Event->new(
         content => '',
-        pubkey => 0,
+        pubkey => 'b' x 64,
         kind => 1,
-        sig => ''
     );
     is($event->created_at, time(), 'automatically determines created_at');
 
@@ -40,7 +39,6 @@ subtest 'json_serialize()' => sub {
         content => 'hello',
         pubkey => '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
         kind => 1,
-        sig => '',
         created_at => 1673361254,
         tags => [['p', 'abc123'], ['e', 'def456']]
     );
@@ -52,32 +50,30 @@ subtest 'json_serialize()' => sub {
 subtest 'add_pubkey_ref()' => sub {
     my $event = Net::Nostr::Event->new(
         content => 'hello',
-        pubkey => 'abc',
+        pubkey => 'b' x 64,
         kind => 1,
-        sig => '',
         created_at => 1673361254,
         tags => [['e', 'event1']]
     );
-    $event->add_pubkey_ref('pubkey1');
-    is($event->tags, [['e', 'event1'], ['p', 'pubkey1']], 'appends p tag without nesting');
+    $event->add_pubkey_ref('c' x 64);
+    is($event->tags, [['e', 'event1'], ['p', 'c' x 64]], 'appends p tag without nesting');
 };
 
 subtest 'add_event_ref()' => sub {
     my $event = Net::Nostr::Event->new(
         content => 'hello',
-        pubkey => 'abc',
+        pubkey => 'b' x 64,
         kind => 1,
-        sig => '',
         created_at => 1673361254,
         tags => [['p', 'pubkey1']]
     );
-    $event->add_event_ref('event1');
-    is($event->tags, [['p', 'pubkey1'], ['e', 'event1']], 'appends e tag without nesting');
+    $event->add_event_ref('d' x 64);
+    is($event->tags, [['p', 'pubkey1'], ['e', 'd' x 64]], 'appends e tag without nesting');
 };
 
 subtest 'created_at 0 is preserved' => sub {
     my $event = Net::Nostr::Event->new(
-        content => '', pubkey => 'abc', kind => 1, sig => '',
+        content => '', pubkey => 'b' x 64, kind => 1,
         created_at => 0, tags => []
     );
     is($event->created_at, 0, 'created_at of 0 is not overwritten');
@@ -99,7 +95,7 @@ subtest 'to_hash()' => sub {
 subtest 'kind classification' => sub {
     for my $k (1, 2, 4, 44, 1000, 9999) {
         my $e = Net::Nostr::Event->new(
-            pubkey => 'a', kind => $k, content => '', sig => '', created_at => 1, tags => []
+            pubkey => 'a' x 64, kind => $k, content => '', created_at => 1, tags => []
         );
         ok($e->is_regular, "kind $k is regular");
         ok(!$e->is_replaceable, "kind $k is not replaceable");
@@ -108,21 +104,21 @@ subtest 'kind classification' => sub {
     }
     for my $k (0, 3, 10000, 19999) {
         my $e = Net::Nostr::Event->new(
-            pubkey => 'a', kind => $k, content => '', sig => '', created_at => 1, tags => []
+            pubkey => 'a' x 64, kind => $k, content => '', created_at => 1, tags => []
         );
         ok($e->is_replaceable, "kind $k is replaceable");
         ok(!$e->is_regular, "kind $k is not regular");
     }
     for my $k (20000, 25000, 29999) {
         my $e = Net::Nostr::Event->new(
-            pubkey => 'a', kind => $k, content => '', sig => '', created_at => 1, tags => []
+            pubkey => 'a' x 64, kind => $k, content => '', created_at => 1, tags => []
         );
         ok($e->is_ephemeral, "kind $k is ephemeral");
         ok(!$e->is_regular, "kind $k is not regular");
     }
     for my $k (30000, 35000, 39999) {
         my $e = Net::Nostr::Event->new(
-            pubkey => 'a', kind => $k, content => '', sig => '', created_at => 1, tags => []
+            pubkey => 'a' x 64, kind => $k, content => '', created_at => 1, tags => []
         );
         ok($e->is_addressable, "kind $k is addressable");
         ok(!$e->is_regular, "kind $k is not regular");
@@ -201,7 +197,7 @@ subtest 'verify_sig()' => sub {
     my $key = Net::Nostr::Key->new;
     my $event = Net::Nostr::Event->new(
         pubkey => $key->pubkey_hex, kind => 1, content => 'test',
-        sig => '', created_at => 1000, tags => []
+        created_at => 1000, tags => []
     );
     my $sig_hex = unpack 'H*', $key->schnorr_sign($event->id);
     $event->sig($sig_hex);
@@ -209,6 +205,206 @@ subtest 'verify_sig()' => sub {
 
     my $other_key = Net::Nostr::Key->new;
     ok(!$event->verify_sig($other_key), 'wrong key fails');
+};
+
+subtest 'new() rejects missing pubkey' => sub {
+    like(
+        dies { Net::Nostr::Event->new(kind => 1, content => 'hello') },
+        qr/pubkey is required/,
+        'missing pubkey croaks'
+    );
+};
+
+subtest 'new() rejects invalid pubkey' => sub {
+    like(
+        dies { Net::Nostr::Event->new(pubkey => 'abc', kind => 1, content => 'hello') },
+        qr/pubkey must be 64-char lowercase hex/,
+        'short pubkey croaks'
+    );
+    like(
+        dies { Net::Nostr::Event->new(pubkey => 'G' x 64, kind => 1, content => 'hello') },
+        qr/pubkey must be 64-char lowercase hex/,
+        'non-hex pubkey croaks'
+    );
+    like(
+        dies { Net::Nostr::Event->new(pubkey => 'A' x 64, kind => 1, content => 'hello') },
+        qr/pubkey must be 64-char lowercase hex/,
+        'uppercase hex pubkey croaks'
+    );
+};
+
+subtest 'new() rejects missing kind' => sub {
+    like(
+        dies { Net::Nostr::Event->new(pubkey => 'a' x 64, content => 'hello') },
+        qr/kind is required/,
+        'missing kind croaks'
+    );
+};
+
+subtest 'new() rejects missing content' => sub {
+    like(
+        dies { Net::Nostr::Event->new(pubkey => 'a' x 64, kind => 1) },
+        qr/content is required/,
+        'missing content croaks'
+    );
+};
+
+subtest 'new() rejects invalid sig' => sub {
+    like(
+        dies { Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'hello',
+            sig => 'not-a-sig',
+        ) },
+        qr/sig must be 128-char lowercase hex/,
+        'invalid sig croaks'
+    );
+};
+
+subtest 'new() rejects invalid id' => sub {
+    like(
+        dies { Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'hello',
+            id => 'short',
+        ) },
+        qr/id must be 64-char lowercase hex/,
+        'invalid id croaks'
+    );
+};
+
+subtest 'new() allows empty sig (unsigned event)' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'hello',
+    );
+    ok !defined($event->sig) || $event->sig eq '', 'unsigned event OK';
+};
+
+subtest 'add_pubkey_ref rejects invalid pubkey' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'test',
+    );
+    like(
+        dies { $event->add_pubkey_ref('bad') },
+        qr/pubkey must be 64-char lowercase hex/,
+        'bad pubkey rejected'
+    );
+};
+
+subtest 'add_event_ref rejects invalid event_id' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'test',
+    );
+    like(
+        dies { $event->add_event_ref('bad') },
+        qr/event_id must be 64-char lowercase hex/,
+        'bad event_id rejected'
+    );
+};
+
+###############################################################################
+# created_at validation
+###############################################################################
+
+subtest 'new() rejects non-numeric created_at' => sub {
+    like(
+        dies { Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'test',
+            created_at => 'not-a-number',
+        ) },
+        qr/created_at must be a non-negative integer/,
+        'non-numeric created_at rejected'
+    );
+};
+
+subtest 'new() rejects negative created_at' => sub {
+    like(
+        dies { Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'test',
+            created_at => -1,
+        ) },
+        qr/created_at must be a non-negative integer/,
+        'negative created_at rejected'
+    );
+};
+
+subtest 'new() rejects float created_at' => sub {
+    like(
+        dies { Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'test',
+            created_at => 1000.5,
+        ) },
+        qr/created_at must be a non-negative integer/,
+        'float created_at rejected'
+    );
+};
+
+subtest 'new() accepts valid created_at values' => sub {
+    ok(lives { Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'test',
+        created_at => 0, tags => [],
+    ) }, 'created_at 0 accepted');
+    ok(lives { Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'test',
+        created_at => 1700000000, tags => [],
+    ) }, 'created_at epoch accepted');
+};
+
+###############################################################################
+# tags validation
+###############################################################################
+
+subtest 'new() rejects non-arrayref tags' => sub {
+    like(
+        dies { Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'test',
+            tags => 'not-an-array',
+        ) },
+        qr/tags must be an arrayref/,
+        'string tags rejected'
+    );
+};
+
+subtest 'new() rejects tag that is not an arrayref' => sub {
+    like(
+        dies { Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'test',
+            tags => ['not-an-arrayref'],
+        ) },
+        qr/each tag must be an arrayref/,
+        'non-arrayref tag rejected'
+    );
+};
+
+subtest 'new() rejects tag with undef element' => sub {
+    like(
+        dies { Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'test',
+            tags => [['e', undef]],
+        ) },
+        qr/tag elements must be defined strings/,
+        'undef tag element rejected'
+    );
+};
+
+subtest 'new() rejects tag with ref element' => sub {
+    like(
+        dies { Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'test',
+            tags => [['e', { nested => 1 }]],
+        ) },
+        qr/tag elements must be defined strings/,
+        'hashref tag element rejected'
+    );
+};
+
+subtest 'new() accepts valid tags' => sub {
+    ok(lives { Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'test',
+        tags => [['p', 'b' x 64], ['e', 'c' x 64, 'wss://relay.com']],
+    ) }, 'valid tags accepted');
+    ok(lives { Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'test',
+        tags => [],
+    ) }, 'empty tags array accepted');
 };
 
 done_testing;

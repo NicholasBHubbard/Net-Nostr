@@ -414,4 +414,22 @@ subtest 'extra_tags are appended' => sub {
     is(scalar @p_tags, 1, 'p tag from extra_tags');
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $info = Net::Nostr::Article->new(
+        identifier => 'my-article',
+        title      => 'My Article',
+        summary    => 'A brief overview.',
+        image      => 'https://example.com/cover.jpg',
+    );
+    is $info->identifier, 'my-article';
+    is $info->title, 'My Article';
+    is $info->summary, 'A brief overview.';
+    is $info->image, 'https://example.com/cover.jpg';
+    is $info->hashtags, [];
+};
+
 done_testing;

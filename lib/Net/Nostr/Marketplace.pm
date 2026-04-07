@@ -42,6 +42,7 @@ use Class::Tiny qw(
 );
 
 my $json = JSON->new->utf8->canonical;
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
 
 sub new {
     my $class = shift;
@@ -197,6 +198,7 @@ sub bid_event {
     my $pubkey           = $args{pubkey}           // croak "bid_event requires 'pubkey'";
     croak "bid_event requires 'amount'"            unless exists $args{amount};
     my $auction_event_id = $args{auction_event_id} // croak "bid_event requires 'auction_event_id'";
+    croak "auction_event_id must be 64-char lowercase hex" unless $auction_event_id =~ $HEX64;
 
     return Net::Nostr::Event->new(
         pubkey  => $pubkey,
@@ -212,6 +214,8 @@ sub bid_confirmation_event {
     my $pubkey           = $args{pubkey}           // croak "bid_confirmation_event requires 'pubkey'";
     my $bid_event_id     = $args{bid_event_id}     // croak "bid_confirmation_event requires 'bid_event_id'";
     my $auction_event_id = $args{auction_event_id} // croak "bid_confirmation_event requires 'auction_event_id'";
+    croak "bid_event_id must be 64-char lowercase hex" unless $bid_event_id =~ $HEX64;
+    croak "auction_event_id must be 64-char lowercase hex" unless $auction_event_id =~ $HEX64;
     my $status           = $args{status}           // croak "bid_confirmation_event requires 'status'";
 
     my %content = (status => $status);
@@ -624,6 +628,21 @@ ln, lnurl).
 =item B<type 2> - Merchant order status update with paid/shipped booleans.
 
 =back
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $info = Net::Nostr::Marketplace->new(%fields);
+
+Creates a new C<Net::Nostr::Marketplace> object.  Typically returned by
+L</from_event>; calling C<new> directly is useful for testing or
+manual construction.
+
+    my $info = Net::Nostr::Marketplace->new(
+        name  => 'Widget',
+        price => 10.50,
+    );
 
 =head1 CLASS METHODS
 

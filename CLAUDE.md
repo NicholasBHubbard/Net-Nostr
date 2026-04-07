@@ -4,6 +4,18 @@ Perl Nostr protocol library providing both client and relay functionality. Must 
 
 Absolute compliance with supported NIPs is the highest priority for this library.
 
+## Priorities
+
+When rules conflict, follow this order:
+
+1. NIP/spec correctness
+2. Preserving documented public API behavior unless we are intentionally changing it
+3. Existing tests, unless they conflict with the spec or documented intended behavior
+4. Validation/documentation completeness
+5. Local style rules
+
+If a change tightens validation or otherwise changes public behavior, update tests, POD, and `Changes`.
+
 ## Spec
 
 The complete Nostr spec can be cloned into the project for direct reference:
@@ -24,6 +36,8 @@ Follow TDD strictly: write tests first, run them to confirm they fail, then impl
 
 Shared test helpers live in `t/lib/TestFixtures.pm`. Use it whenever implementing something that could be re-used across multiple test files.
 
+Add round-trip tests for protocol-facing types where applicable. Parsing then serializing should not introduce unintended changes, and serializing then parsing should produce an equivalent valid object.
+
 Run tests with `prove`. To run the full test suite use `prove -r t/`.
 
 After making changes, always run the relevant tests and fix failures before considering the work done. If a fix introduces new failures, keep iterating until all tests pass. Similarly, re-read any POD you've added or modified to verify it is accurate and complete.
@@ -43,16 +57,6 @@ NIPs often depend on each other. When implementing a NIP, check whether it intro
 After completing the implementation, read the NIP spec and the `t/nip/` test file side by side, line by line. Every requirement in the spec must have a corresponding test. If there's a gap, add the missing test before considering the work done.
 
 Re-read all generated POD to verify accuracy, completeness, and that every code example is correct and tested.
-
-## Code Style
-
-All modules must `use strictures 2;`.
-
-Always `use JSON ()` (empty import list) in library modules. The default JSON exports have prototypes that conflict with `Class::Tiny` accessor generation.
-
-The library uses OO design. Always use `Class::Tiny` for accessor generation, with a custom `new()` constructor (do not use `BUILD`).
-
-Use `croak` (from `Carp`) for public API validation errors. Use `warn` in async callbacks where exceptions cannot propagate (e.g. AnyEvent handlers).
 
 ## Validation
 
@@ -124,6 +128,39 @@ Rules:
 
 If a caller cannot tell whether an API returns a valid object or just a bag of fields, the API is wrong.
 
+## API Contracts
+
+Public entry points must make their validation behavior obvious from both name and documentation.
+
+Rules:
+
+- `new()` must be strict unless a module explicitly documents otherwise.
+- Parsers such as `from_json`, `from_uri`, `parse_*`, or `decode_*` must fully validate untrusted input.
+- Raw constructors must be explicitly named, such as `new_raw` or `from_unvalidated`.
+- Raw constructors are only for internal use, partial objects, or carefully documented advanced cases.
+- `validate()` is only for semantic/spec checks that are reasonable to defer after basic parsing/structural checks.
+- No public method may return an object whose validity is ambiguous.
+
+Required documentation for every public constructor/parser:
+- whether it validates
+- what level of validation it performs
+- whether returned objects are fully valid or require a later `validate()`
+
+If a caller cannot tell whether an entry point is strict, raw, or semantic-only, the API is wrong.
+
+## Behavior Changes
+
+If a change affects public API behavior, say so explicitly.
+
+If a change tightens validation or rejection behavior:
+- add tests for the new rejection behavior
+- update POD to match the new rules
+- update `Changes`
+- do not leave old tests or docs implying the old behavior is still accepted
+
+Do not describe behavior as NIP-compliant unless it actually is.
+Do not leave partial implementations undocumented.
+
 ## Documentation
 
 All public functions (those not prefixed with `_`) must have POD documentation. When modifying a public function, check its POD and update it to reflect the changes.
@@ -132,6 +169,16 @@ POD should be rich in code examples. Every code example in POD must have a corre
 
 Every module's `SEE ALSO` section must link to the NIP spec it implements (e.g. `L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>`).
 
+## Code Style
+
+All modules must `use strictures 2;`.
+
+Always `use JSON ()` (empty import list) in library modules. The default JSON exports have prototypes that conflict with `Class::Tiny` accessor generation.
+
+The library uses OO design. Always use `Class::Tiny` for accessor generation, with a custom `new()` constructor (do not use `BUILD`).
+
+Use `croak` (from `Carp`) for public API validation errors. Use `warn` in async callbacks where exceptions cannot propagate (e.g. AnyEvent handlers).
+
 ## Dependencies
 
 Dependencies are managed in `cpanfile`. Dependencies also appear in `Makefile.PL`.
@@ -139,3 +186,21 @@ Dependencies are managed in `cpanfile`. Dependencies also appear in `Makefile.PL
 ## Releases
 
 The `Changes` file tracks user-facing changes. Add an entry when implementing a new NIP or making notable changes.
+
+## Output Requirements
+
+At the end of every task, report:
+
+- files changed
+- public API changes, if any
+- validation behavior changes, if any
+- tests run
+- spec/NIP sections consulted
+- POD updated or not
+- `Changes` updated or not
+- anything not verified
+- any follow-up risks or edge cases still worth checking
+
+Do not claim completion if required tests were not run or if relevant docs were not checked.
+
+Be explicit about uncertainty.

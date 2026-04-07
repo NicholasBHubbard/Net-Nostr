@@ -183,6 +183,15 @@ subtest 'add_event croaks without kind' => sub {
     ok(dies { $del->add_event($event1_id) }, 'croaks without kind');
 };
 
+subtest 'add_event rejects invalid event_id' => sub {
+    my $del = Net::Nostr::Deletion->new;
+    ok(dies { $del->add_event('not-hex', kind => 1) }, 'rejects non-hex');
+    ok(dies { $del->add_event('abcd1234', kind => 1) }, 'rejects too short');
+    ok(dies { $del->add_event('A' x 64, kind => 1) }, 'rejects uppercase');
+    ok(dies { $del->add_event('g' x 64, kind => 1) }, 'rejects non-hex chars');
+    like(dies { $del->add_event('xyz', kind => 1) }, qr/64-char lowercase hex/, 'error message');
+};
+
 subtest 'add_address croaks without kind' => sub {
     my $del = Net::Nostr::Deletion->new;
     ok(dies { $del->add_address("30023:${alice_pk}:test") }, 'croaks without kind');

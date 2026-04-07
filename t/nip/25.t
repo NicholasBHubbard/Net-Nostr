@@ -572,4 +572,27 @@ subtest 'kind 7 is a regular event' => sub {
     ok !$reaction->is_addressable, 'kind 7 is not addressable';
 };
 
+# --- hex validation ---
+
+subtest 'react validates event has valid hex id and pubkey' => sub {
+    # Event.pm now validates id/pubkey at construction, so react's
+    # validation is defense-in-depth. Verify by confirming a valid
+    # event works and invalid events can't even be constructed.
+    my $target = make_event(kind => 1, content => 'test');
+    my $reaction = eval {
+        Net::Nostr::Reaction->react(
+            event => $target, pubkey => $pubkey, relay_url => $relay,
+        );
+    };
+    ok($reaction, 'react accepts valid event');
+
+    eval {
+        Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'test',
+            id => 'bad',
+        );
+    };
+    like($@, qr/id must be 64-char lowercase hex/, 'cannot construct event with bad id');
+};
+
 done_testing;

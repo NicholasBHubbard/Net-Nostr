@@ -233,4 +233,22 @@ subtest 'approval: multi-community POD example' => sub {
     is(scalar @a, 2, 'two community a tags');
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $info = Net::Nostr::Community->new(
+        identifier  => 'my-community',
+        name        => 'My Community',
+        description => 'A place for discussion.',
+    );
+    is $info->identifier, 'my-community';
+    is $info->name, 'My Community';
+    is $info->description, 'A place for discussion.';
+    is $info->moderators, [];
+    is $info->relays, [];
+    is $info->communities, [];
+};
+
 done_testing;

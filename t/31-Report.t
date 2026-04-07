@@ -144,4 +144,21 @@ subtest 'report_filter: all params' => sub {
     is($filter->{authors}, [$reporter_pk], 'authors');
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $pubkey_hex = 'dd' x 32;
+    my $event_id_hex = 'ee' x 32;
+    my $report = Net::Nostr::Report->new(
+        reported_pubkey => $pubkey_hex,
+        report_type     => 'spam',
+        event_id        => $event_id_hex,
+    );
+    is $report->reported_pubkey, $pubkey_hex;
+    is $report->report_type, 'spam';
+    is $report->event_id, $event_id_hex;
+};
+
 done_testing;

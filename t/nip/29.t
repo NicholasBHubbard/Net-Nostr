@@ -1328,4 +1328,44 @@ subtest 'relay self pubkey available for signing group metadata' => sub {
     is($meta->pubkey, $relay_pk, 'group metadata uses relay self pubkey');
 };
 
+###############################################################################
+# Hex validation for pubkey/event_id parameters used in tags
+###############################################################################
+
+subtest 'hex64 validation rejects invalid pubkeys and event ids' => sub {
+    my %base = (pubkey => $alice_pk, group_id => 'pizza');
+
+    # put_user target
+    eval { Net::Nostr::Group->put_user(%base, target => 'INVALID') };
+    like($@, qr/target must be 64-char lowercase hex/, 'put_user rejects bad target');
+
+    eval { Net::Nostr::Group->put_user(%base, target => 'ab' x 31) };
+    like($@, qr/target must be 64-char lowercase hex/, 'put_user rejects short target');
+
+    eval { Net::Nostr::Group->put_user(%base, target => 'AB' x 32) };
+    like($@, qr/target must be 64-char lowercase hex/, 'put_user rejects uppercase target');
+
+    # remove_user target
+    eval { Net::Nostr::Group->remove_user(%base, target => 'xyz') };
+    like($@, qr/target must be 64-char lowercase hex/, 'remove_user rejects bad target');
+
+    # delete_event event_id
+    eval { Net::Nostr::Group->delete_event(%base, event_id => 'not-hex') };
+    like($@, qr/event_id must be 64-char lowercase hex/, 'delete_event rejects bad event_id');
+
+    # admins member pubkey
+    eval {
+        Net::Nostr::Group->admins(%base, members => [
+            { pubkey => 'BADHEX', roles => ['admin'] },
+        ]);
+    };
+    like($@, qr/member pubkey must be 64-char lowercase hex/, 'admins rejects bad member pubkey');
+
+    # members list
+    eval {
+        Net::Nostr::Group->members(%base, members => [$alice_pk, 'short']);
+    };
+    like($@, qr/member pubkey must be 64-char lowercase hex/, 'members rejects bad member pubkey');
+};
+
 done_testing;

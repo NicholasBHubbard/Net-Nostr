@@ -213,6 +213,27 @@ C<pubkey> field identifies the party creating the listing.
 Draft or inactive listings use kind 30403, which has the same structure
 as kind 30402.
 
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $info = Net::Nostr::ClassifiedListing->new(%fields);
+
+Creates a new C<Net::Nostr::ClassifiedListing> object. Typically returned by
+L</from_event>; calling C<new> directly is useful for testing or
+manual construction.
+
+    my $info = Net::Nostr::ClassifiedListing->new(
+        identifier => 'my-listing',
+        title      => 'Guitar',
+        price      => '500 USD',
+        location   => 'NYC',
+    );
+
+Accepted fields: C<identifier>, C<title>, C<summary>, C<published_at>,
+C<location>, C<price>, C<status>, C<images> (defaults to C<[]>),
+C<hashtags> (defaults to C<[]>).
+
 =head1 CLASS METHODS
 
 =head2 listing

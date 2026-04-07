@@ -1,5 +1,22 @@
 0.003000   TBD
 
+  - Harden validation across all modules: pubkeys, event IDs, signatures,
+    relay URLs, and tag shapes are now strictly validated as 64-char
+    lowercase hex where applicable
+  - Event constructor now validates all fields (kind range, hex formats,
+    tags structure, created_at)
+  - Filter constructor now rejects empty arrays for list fields, validates
+    kind ranges and numeric fields
+  - Message constructor now validates subscription_id format, requires
+    message for NOTICE, validates event_id for OK
+  - Relay now applies filter limits per-filter (not globally), improved
+    error handling for malformed messages
+  - Bech32 decoder now validates exact byte lengths for TLV payloads
+  - WalletConnect now requires lowercase hex for secret and wallet_pubkey
+  - DirectMessage now validates recipient pubkeys, reply_to, and quote IDs
+  - Comment now validates pubkeys, quote IDs, and mention pubkeys
+  - Channel now validates channel_id and message_id hex format
+  - Improved POD documentation across all modules with code examples
   - Add NIP-11 support (Relay information document)
   - Add NIP-28 support (Public chat)
   - Add NIP-51 support (Lists)

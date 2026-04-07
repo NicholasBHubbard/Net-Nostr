@@ -268,6 +268,8 @@ if none are found.
 
 =head1 CONSTRUCTOR
 
+=head2 new
+
     my $ident = Net::Nostr::Identifier->new(%args);
 
 =over 4

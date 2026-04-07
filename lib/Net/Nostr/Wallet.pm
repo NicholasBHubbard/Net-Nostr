@@ -22,6 +22,7 @@ use Class::Tiny qw(
 );
 
 my $json = JSON->new->utf8->canonical;
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
 
 sub new {
     my $class = shift;
@@ -65,6 +66,7 @@ sub history_event {
 
     my @tags;
     for my $entry (@$redeemed_ids) {
+        croak "redeemed event_id must be 64-char lowercase hex" unless $entry->[0] =~ $HEX64;
         push @tags, ['e', $entry->[0], $entry->[1] // '', 'redeemed'];
     }
 
@@ -97,6 +99,7 @@ sub delete_token {
 
     my @tags;
     for my $id (@$event_ids) {
+        croak "event_id must be 64-char lowercase hex" unless $id =~ $HEX64;
         push @tags, ['e', $id];
     }
     push @tags, ['k', '7375'];

@@ -181,6 +181,26 @@ References to other Nostr entities in the content should use C<nostr:> URIs
 Replies to articles MUST use NIP-22 kind 1111 comments (see
 L<Net::Nostr::Comment>).
 
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $info = Net::Nostr::Article->new(%fields);
+
+Creates a new C<Net::Nostr::Article> object. Typically returned by
+L</from_event>; calling C<new> directly is useful for testing or
+manual construction.
+
+    my $info = Net::Nostr::Article->new(
+        identifier => 'my-article',
+        title      => 'My Article',
+        summary    => 'A brief overview.',
+        image      => 'https://example.com/cover.jpg',
+    );
+
+Accepted fields: C<identifier>, C<title>, C<image>, C<summary>,
+C<published_at>, C<hashtags> (defaults to C<[]>).
+
 =head1 CLASS METHODS
 
 =head2 article

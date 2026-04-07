@@ -21,6 +21,7 @@ use Class::Tiny qw(
 );
 
 my $JSON = JSON->new->utf8->canonical;
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
 
 sub new {
     my $class = shift;
@@ -49,6 +50,7 @@ sub community {
     }
 
     for my $mod (@{$args{moderators} // []}) {
+        croak "moderator pubkey must be 64-char lowercase hex" unless $mod->{pubkey} =~ $HEX64;
         push @tags, ['p', $mod->{pubkey}, $mod->{relay} // '', 'moderator'];
     }
 
@@ -78,6 +80,8 @@ sub post {
     my $content = $args{content} // croak "post requires 'content'";
     my $cpk     = $args{community_pubkey} // croak "post requires 'community_pubkey'";
     my $cd      = $args{community_d}      // croak "post requires 'community_d'";
+
+    croak "community_pubkey must be 64-char lowercase hex" unless $cpk =~ $HEX64;
 
     my $coord = "34550:$cpk:$cd";
     my $relay = $args{relay};
@@ -117,6 +121,9 @@ sub reply {
     my $pid     = $args{parent_id}        // croak "reply requires 'parent_id'";
     my $ppk     = $args{parent_pubkey}    // croak "reply requires 'parent_pubkey'";
     my $pkind   = $args{parent_kind}      // croak "reply requires 'parent_kind'";
+
+    croak "community_pubkey must be 64-char lowercase hex" unless $cpk =~ $HEX64;
+    croak "parent_pubkey must be 64-char lowercase hex" unless $ppk =~ $HEX64;
 
     my $coord = "34550:$cpk:$cd";
     my $relay = $args{relay};
@@ -162,6 +169,7 @@ sub approval {
     # Community a tags
     if ($args{communities}) {
         for my $c (@{$args{communities}}) {
+            croak "community pubkey must be 64-char lowercase hex" unless $c->{pubkey} =~ $HEX64;
             my $coord = "34550:$c->{pubkey}:$c->{d}";
             my @tag = ('a', $coord);
             push @tag, $c->{relay} if defined $c->{relay};
@@ -170,6 +178,7 @@ sub approval {
     } else {
         my $cpk = $args{community_pubkey} // croak "approval requires 'community_pubkey'";
         my $cd  = $args{community_d}      // croak "approval requires 'community_d'";
+        croak "community_pubkey must be 64-char lowercase hex" unless $cpk =~ $HEX64;
         my $coord = "34550:$cpk:$cd";
         my @tag = ('a', $coord);
         push @tag, $args{relay} if defined $args{relay};
@@ -412,6 +421,27 @@ C<name> tag is provided, clients SHOULD display it instead.
 Posts use uppercase tags (C<A>, C<P>, C<K>) for root scope (the community)
 and lowercase tags (C<a>/C<e>, C<p>, C<k>) for the parent. For top-level
 posts, both sets point to the community itself.
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $info = Net::Nostr::Community->new(%fields);
+
+Creates a new C<Net::Nostr::Community> object. Typically returned by
+L</from_event>; calling C<new> directly is useful for testing or
+manual construction.
+
+    my $info = Net::Nostr::Community->new(
+        identifier  => 'my-community',
+        name        => 'My Community',
+        description => 'A place for discussion.',
+    );
+
+Accepted fields: C<identifier>, C<name>, C<description>, C<image>,
+C<moderators> (defaults to C<[]>), C<relays> (defaults to C<[]>),
+C<communities> (defaults to C<[]>), C<post_id>, C<post_coordinate>,
+C<post_author>, C<post_kind>.
 
 =head1 CLASS METHODS
 

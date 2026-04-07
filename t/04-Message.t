@@ -416,4 +416,67 @@ subtest 'POD: COUNT response parse' => sub {
     is $msg->count, 42, 'count parsed from POD example';
 };
 
+subtest 'NOTICE constructor requires message' => sub {
+    like(
+        dies { Net::Nostr::Message->new(type => 'NOTICE') },
+        qr/message is required for NOTICE/,
+        'NOTICE without message croaks'
+    );
+};
+
+###############################################################################
+# EOSE subscription_id - relay-to-client, must accept any subscription_id
+###############################################################################
+
+subtest 'EOSE accepts any subscription_id' => sub {
+    ok(lives { Net::Nostr::Message->new(type => 'EOSE', subscription_id => '', ) },
+        'EOSE accepts empty subscription_id');
+    ok(lives { Net::Nostr::Message->new(type => 'EOSE', subscription_id => 'x' x 65) },
+        'EOSE accepts subscription_id > 64 chars');
+    ok(lives { Net::Nostr::Message->new(type => 'EOSE', subscription_id => 'sub1') },
+        'EOSE accepts valid subscription_id');
+};
+
+###############################################################################
+# CLOSED subscription_id - relay-to-client, must accept any subscription_id
+# (echoes back whatever the client sent, even if invalid)
+###############################################################################
+
+subtest 'CLOSED accepts any subscription_id' => sub {
+    ok(lives { Net::Nostr::Message->new(type => 'CLOSED', subscription_id => '', message => 'bye') },
+        'CLOSED accepts empty subscription_id');
+    ok(lives { Net::Nostr::Message->new(type => 'CLOSED', subscription_id => 'x' x 65, message => 'bye') },
+        'CLOSED accepts subscription_id > 64 chars');
+    ok(lives { Net::Nostr::Message->new(type => 'CLOSED', subscription_id => 'sub1', message => 'bye') },
+        'CLOSED accepts valid subscription_id');
+};
+
+###############################################################################
+# OK event_id validation
+###############################################################################
+
+subtest 'OK requires event_id' => sub {
+    like(
+        dies { Net::Nostr::Message->new(type => 'OK', accepted => 1, message => '') },
+        qr/event_id is required/,
+        'OK without event_id croaks'
+    );
+};
+
+subtest 'parse() OK rejects malformed event_id from wire' => sub {
+    my $raw = JSON->new->utf8->encode(['OK', 'not-hex', JSON::true, '']);
+    like(
+        dies { Net::Nostr::Message->parse($raw) },
+        qr/event_id must be 64-char lowercase hex/,
+        'OK with bad event_id rejected on parse'
+    );
+};
+
+subtest 'parse() OK accepts valid event_id from wire' => sub {
+    my $raw = JSON->new->utf8->encode(['OK', 'aa' x 32, JSON::true, '']);
+    my $msg;
+    ok(lives { $msg = Net::Nostr::Message->parse($raw) }, 'OK with valid event_id accepted');
+    is($msg->event_id, 'aa' x 32, 'event_id parsed correctly');
+};
+
 done_testing;

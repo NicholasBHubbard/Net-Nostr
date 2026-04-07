@@ -425,7 +425,7 @@ subtest 'approval: content has full event JSON for e tag approval' => sub {
     my $post = Net::Nostr::Event->new(
         id => 'cd' x 32, pubkey => $user_pk, kind => 30023,
         content => 'article body', created_at => 1000,
-        tags => [['d', 'my-article']], sig => 'ab' x 32,
+        tags => [['d', 'my-article']], sig => 'ab' x 64,
     );
 
     my $approval = Net::Nostr::Community->approval(
@@ -796,6 +796,32 @@ subtest 'validate: approval with a tag for post (no e tag) is valid' => sub {
         sig => '',
     );
     ok(Net::Nostr::Community->validate($event), 'valid with a tag for post');
+};
+
+###############################################################################
+# Negative validation: invalid pubkeys
+###############################################################################
+
+subtest 'post rejects invalid community_pubkey' => sub {
+    like(
+        dies { Net::Nostr::Community->post(
+            pubkey => 'a' x 64, community_pubkey => 'bad',
+            community_d => 'test', content => 'hello',
+        ) },
+        qr/community_pubkey must be 64-char lowercase hex/,
+        'invalid community_pubkey rejected'
+    );
+};
+
+subtest 'community rejects invalid moderator pubkey' => sub {
+    like(
+        dies { Net::Nostr::Community->community(
+            pubkey => 'a' x 64, identifier => 'test',
+            moderators => [{ pubkey => 'bad' }],
+        ) },
+        qr/moderator pubkey must be 64-char lowercase hex/,
+        'invalid moderator pubkey rejected'
+    );
 };
 
 done_testing;

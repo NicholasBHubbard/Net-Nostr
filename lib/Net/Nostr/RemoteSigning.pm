@@ -6,6 +6,8 @@ use Carp qw(croak);
 use JSON ();
 use Net::Nostr::Event;
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+
 ###############################################################################
 # Bunker URI (remote-signer initiated)
 ###############################################################################
@@ -37,6 +39,7 @@ sub parse_bunker_uri {
 sub create_bunker_uri {
     my ($class, %args) = @_;
     croak "remote_signer_pubkey is required" unless defined $args{remote_signer_pubkey};
+    croak "remote_signer_pubkey must be 64-char lowercase hex" unless $args{remote_signer_pubkey} =~ $HEX64;
     croak "relay is required" unless defined $args{relay};
 
     my @relays = ref $args{relay} eq 'ARRAY' ? @{$args{relay}} : ($args{relay});
@@ -91,6 +94,7 @@ sub parse_nostrconnect_uri {
 sub create_nostrconnect_uri {
     my ($class, %args) = @_;
     croak "client_pubkey is required" unless defined $args{client_pubkey};
+    croak "client_pubkey must be 64-char lowercase hex" unless $args{client_pubkey} =~ $HEX64;
     croak "relay is required" unless defined $args{relay};
     croak "secret is required" unless defined $args{secret};
 
@@ -137,6 +141,7 @@ sub request_event {
     croak "request_event requires 'method'" unless defined $args{method};
     croak "request_event requires 'params'" unless defined $args{params};
     croak "request_event requires 'remote_signer_pubkey'" unless defined $args{remote_signer_pubkey};
+    croak "remote_signer_pubkey must be 64-char lowercase hex" unless $args{remote_signer_pubkey} =~ $HEX64;
 
     my $content = $class->request(
         id     => $args{id},
@@ -181,7 +186,10 @@ sub response_event {
     );
 
     my @tags;
-    push @tags, ['p', $args{client_pubkey}] if defined $args{client_pubkey};
+    if (defined $args{client_pubkey}) {
+        croak "client_pubkey must be 64-char lowercase hex" unless $args{client_pubkey} =~ $HEX64;
+        push @tags, ['p', $args{client_pubkey}];
+    }
 
     return Net::Nostr::Event->new(
         kind    => 24133,

@@ -83,7 +83,7 @@ subtest 'SYNOPSIS: history_event with redeemed_ids' => sub {
     my $history_ev = Net::Nostr::Wallet->history_event(
         pubkey       => $pubkey,
         content      => 'encrypted-history-content',
-        redeemed_ids => [['nutzap-id', 'wss://relay']],
+        redeemed_ids => [['ab' x 32, 'wss://relay']],
     );
     is $history_ev->kind, 7376, 'history event is kind 7376';
     my @tags = @{$history_ev->tags};
@@ -108,7 +108,7 @@ subtest 'SYNOPSIS: delete_token' => sub {
 
     my $delete_ev = Net::Nostr::Wallet->delete_token(
         pubkey    => $pubkey,
-        event_ids => ['spent-token-event-id'],
+        event_ids => ['cd' x 32],
     );
     is $delete_ev->kind, 5, 'delete event is kind 5';
     my ($k) = grep { $_->[0] eq 'k' } @{$delete_ev->tags};

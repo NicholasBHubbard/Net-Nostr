@@ -561,6 +561,43 @@ subtest 'validate rejects e tag without relay URL' => sub {
 };
 
 ###############################################################################
+# Hex validation on tag fields
+###############################################################################
+
+subtest 'repost rejects bad event_id in tags' => sub {
+    my $note = make_event(
+        pubkey => $alice_pk, kind => 1,
+        content => 'hello', sig => 'a' x 128, created_at => 1000,
+        tags => [],
+    );
+
+    # Mutate the id to invalid hex after Event construction
+    $note->{id} = 'ZZZZ' . ('0' x 60);
+
+    like dies { Net::Nostr::Repost->repost(
+        event     => $note,
+        pubkey    => $bob_pk,
+        relay_url => 'wss://relay.example.com',
+    ) }, qr/event_id must be 64-char lowercase hex/, 'rejects bad event_id';
+};
+
+subtest 'repost rejects bad author_pubkey in tags' => sub {
+    my $note = make_event(
+        pubkey => $alice_pk, kind => 1,
+        content => 'hello', sig => 'a' x 128, created_at => 1000,
+        tags => [],
+    );
+
+    $note->{pubkey} = 'ZZZZ' . ('0' x 60);
+
+    like dies { Net::Nostr::Repost->repost(
+        event     => $note,
+        pubkey    => $bob_pk,
+        relay_url => 'wss://relay.example.com',
+    ) }, qr/author_pubkey must be 64-char lowercase hex/, 'rejects bad author_pubkey';
+};
+
+###############################################################################
 # Edge cases
 ###############################################################################
 

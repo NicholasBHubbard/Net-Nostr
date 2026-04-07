@@ -174,4 +174,21 @@ subtest 'label_filter: POD example' => sub {
     is($filter->{authors}, [$pubkey], 'authors');
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $event_id = 'cc' x 32;
+    my $relay = 'wss://relay.example.com';
+    my $label = Net::Nostr::Label->new(
+        namespaces => ['ISO-639-1'],
+        labels     => [['en', 'ISO-639-1']],
+        targets    => [['e', $event_id, $relay]],
+    );
+    is $label->namespaces, ['ISO-639-1'];
+    is $label->labels, [['en', 'ISO-639-1']];
+    is $label->targets, [['e', $event_id, $relay]];
+};
+
 done_testing;

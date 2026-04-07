@@ -396,4 +396,104 @@ subtest 'new() croaks from caller perspective on bad hex' => sub {
         qr/at \Q${\__FILE__}\E/, 'bad authors croaks from caller perspective');
 };
 
+subtest 'kinds rejects non-integer' => sub {
+    like(
+        dies { Net::Nostr::Filter->new(kinds => ['abc']) },
+        qr/kinds: 'abc' is not a valid kind/,
+        'non-integer kind rejected'
+    );
+};
+
+subtest 'kinds rejects out of range' => sub {
+    like(
+        dies { Net::Nostr::Filter->new(kinds => [65536]) },
+        qr/kinds: '65536' is not a valid kind/,
+        'kind > 65535 rejected'
+    );
+    like(
+        dies { Net::Nostr::Filter->new(kinds => [-1]) },
+        qr/kinds: '-1' is not a valid kind/,
+        'negative kind rejected'
+    );
+};
+
+subtest 'kinds accepts valid range' => sub {
+    ok(lives { Net::Nostr::Filter->new(kinds => [0, 1, 65535]) }, 'valid kinds accepted');
+};
+
+subtest 'since rejects non-integer' => sub {
+    like(
+        dies { Net::Nostr::Filter->new(since => 'abc') },
+        qr/since must be a non-negative integer/,
+        'non-integer since rejected'
+    );
+};
+
+subtest 'limit rejects negative' => sub {
+    like(
+        dies { Net::Nostr::Filter->new(limit => -1) },
+        qr/limit must be a non-negative integer/,
+        'negative limit rejected'
+    );
+};
+
+###############################################################################
+# Empty arrays rejected
+###############################################################################
+
+subtest 'empty ids array rejected' => sub {
+    like(
+        dies { Net::Nostr::Filter->new(ids => []) },
+        qr/ids must be a non-empty array/,
+        'empty ids rejected'
+    );
+};
+
+subtest 'empty authors array rejected' => sub {
+    like(
+        dies { Net::Nostr::Filter->new(authors => []) },
+        qr/authors must be a non-empty array/,
+        'empty authors rejected'
+    );
+};
+
+subtest 'empty kinds array rejected' => sub {
+    like(
+        dies { Net::Nostr::Filter->new(kinds => []) },
+        qr/kinds must be a non-empty array/,
+        'empty kinds rejected'
+    );
+};
+
+subtest 'empty #e tag filter rejected' => sub {
+    like(
+        dies { Net::Nostr::Filter->new('#e' => []) },
+        qr/must be a non-empty array/,
+        'empty #e rejected'
+    );
+};
+
+subtest 'empty #p tag filter rejected' => sub {
+    like(
+        dies { Net::Nostr::Filter->new('#p' => []) },
+        qr/must be a non-empty array/,
+        'empty #p rejected'
+    );
+};
+
+subtest 'empty #t tag filter rejected' => sub {
+    like(
+        dies { Net::Nostr::Filter->new('#t' => []) },
+        qr/must be a non-empty array/,
+        'empty #t rejected'
+    );
+};
+
+subtest 'non-empty arrays still accepted' => sub {
+    ok(lives { Net::Nostr::Filter->new(ids => ['aa' x 32]) }, 'non-empty ids ok');
+    ok(lives { Net::Nostr::Filter->new(authors => ['aa' x 32]) }, 'non-empty authors ok');
+    ok(lives { Net::Nostr::Filter->new(kinds => [1]) }, 'non-empty kinds ok');
+    ok(lives { Net::Nostr::Filter->new('#t' => ['nostr']) }, 'non-empty #t ok');
+};
+
 done_testing;

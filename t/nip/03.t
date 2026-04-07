@@ -297,4 +297,28 @@ subtest 'extra args pass through to Event constructor' => sub {
     is $event->created_at, 1700000000, 'created_at passed through';
 };
 
+###############################################################################
+# Hex64 validation for event_id
+###############################################################################
+
+subtest 'rejects invalid hex64 in event_id' => sub {
+    ok dies {
+        Net::Nostr::Timestamp->new(
+            pubkey => $alice_pk, event_id => 'not-valid-hex', kind => 1, ots_data => $ots_base64,
+        )->to_event;
+    }, 'croaks on non-hex event_id';
+
+    ok dies {
+        Net::Nostr::Timestamp->new(
+            pubkey => $alice_pk, event_id => 'AABB' x 16, kind => 1, ots_data => $ots_base64,
+        )->to_event;
+    }, 'croaks on uppercase event_id';
+
+    ok dies {
+        Net::Nostr::Timestamp->new(
+            pubkey => $alice_pk, event_id => 'aa' x 31, kind => 1, ots_data => $ots_base64,
+        )->to_event;
+    }, 'croaks on too-short event_id';
+};
+
 done_testing;

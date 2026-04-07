@@ -276,4 +276,17 @@ subtest 'POD from_event: non-quote has no quote_event_id' => sub {
     is $info->quote_event_id, undef, 'no quote_event_id for non-quote repost';
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $info = Net::Nostr::Repost->new(
+        event_id  => 'aa' x 32,
+        relay_url => 'wss://relay.example.com',
+    );
+    is $info->event_id, 'aa' x 32;
+    is $info->relay_url, 'wss://relay.example.com';
+};
+
 done_testing;

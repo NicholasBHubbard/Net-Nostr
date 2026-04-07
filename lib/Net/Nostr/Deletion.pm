@@ -5,6 +5,8 @@ use strictures 2;
 use Carp qw(croak);
 use Net::Nostr::Event;
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+
 use Class::Tiny qw(reason _events _addresses _kinds);
 
 sub new {
@@ -19,6 +21,7 @@ sub new {
 
 sub add_event {
     my ($self, $event_id, %opts) = @_;
+    croak "event_id must be 64-char lowercase hex" unless $event_id =~ $HEX64;
     my $kind = $opts{kind} // croak "add_event requires 'kind'";
     push @{$self->_events}, $event_id;
     $self->_kinds->{$kind} = 1;

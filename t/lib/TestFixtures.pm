@@ -18,7 +18,9 @@ our %FIATJAF_EVENT = (
 
 sub make_event {
     require Net::Nostr::Event;
-    return Net::Nostr::Event->new(@_);
+    my %defaults = %FIATJAF_EVENT;
+    delete @defaults{qw(id sig)};
+    return Net::Nostr::Event->new(%defaults, @_);
 }
 
 sub make_key_from_hex {

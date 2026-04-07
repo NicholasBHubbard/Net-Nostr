@@ -5,6 +5,8 @@ use strictures 2;
 use Carp qw(croak);
 use Net::Nostr::Event;
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+
 use Class::Tiny qw(
     event_id
     relay_url
@@ -26,6 +28,11 @@ sub react {
     my $pubkey    = $args{pubkey}    // croak "react requires 'pubkey'";
     my $relay_url = $args{relay_url} // croak "react requires 'relay_url'";
     my $content   = exists $args{content} ? $args{content} : '+';
+
+    my $eid = $event->id;
+    croak "event_id must be 64-char lowercase hex" unless $eid =~ $HEX64;
+    my $apk = $event->pubkey;
+    croak "author_pubkey must be 64-char lowercase hex" unless $apk =~ $HEX64;
 
     my @tags;
 
@@ -207,6 +214,24 @@ are present, the target event's ID and pubkey should be last.
 External content reactions (websites, podcasts, etc.) use kind 17 with
 L<NIP-73|https://github.com/nostr-protocol/nips/blob/master/73.md>
 C<k> and C<i> tags instead of C<e> tags.
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $info = Net::Nostr::Reaction->new(%fields);
+
+Creates a new C<Net::Nostr::Reaction> object.  Typically returned by
+L</from_event>; calling C<new> directly is useful for testing or
+manual construction.
+
+    my $info = Net::Nostr::Reaction->new(
+        event_id => 'aa' x 32,
+        content  => '+',
+    );
+
+Accepted fields: C<event_id>, C<relay_url>, C<author_pubkey>,
+C<content>, C<reacted_kind>, C<event_coordinate>.
 
 =head1 CLASS METHODS
 

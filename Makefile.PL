@@ -33,7 +33,8 @@ WriteMakefile(
     },
     TEST_REQUIRES => {
         'Test2::V0'  => 0,
-        'Test::Pod'  => 0,
+        'Test::Pod'           => 0,
+        'Test::Pod::Coverage' => 0,
         'Clone'      => 0,
     },
     META_MERGE => {

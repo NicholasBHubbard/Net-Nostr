@@ -160,4 +160,25 @@ subtest 'validate doc example' => sub {
     ok(Net::Nostr::Nutzap->validate($event)), 'validate kind 9321';
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $hex_pubkey = 'bb' x 32;
+    my $info = Net::Nostr::Nutzap->new(
+        mint_url  => 'https://mint1',
+        unit      => 'sat',
+        recipient => $hex_pubkey,
+        proofs    => [],
+    );
+    is $info->mint_url, 'https://mint1';
+    is $info->unit, 'sat';
+    is $info->recipient, $hex_pubkey;
+    is_deeply $info->proofs, [];
+    is_deeply $info->relays, [];
+    is_deeply $info->mints, [];
+    is_deeply $info->nutzap_ids, [];
+};
+
 done_testing;

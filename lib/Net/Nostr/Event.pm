@@ -17,12 +17,53 @@ use Class::Tiny qw(
     sig
 );
 
+my $HEX64  = qr/\A[0-9a-f]{64}\z/;
+my $HEX128 = qr/\A[0-9a-f]{128}\z/;
+
 sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
+
+    croak "pubkey is required"
+        unless defined $self->pubkey;
+    croak "pubkey must be 64-char lowercase hex"
+        unless $self->pubkey =~ $HEX64;
+
+    croak "kind is required"
+        unless defined $self->kind;
     croak "kind must be an integer between 0 and 65535"
-        if defined $self->kind && ($self->kind < 0 || $self->kind > 65535);
+        unless $self->kind =~ /\A\d+\z/ && $self->kind >= 0 && $self->kind <= 65535;
+
+    croak "content is required"
+        unless defined $self->content;
+
+    croak "sig must be 128-char lowercase hex"
+        if defined $self->sig && length($self->sig) && $self->sig !~ $HEX128;
+
+    croak "id must be 64-char lowercase hex"
+        if defined $self->id && $self->id !~ $HEX64;
+
+    # created_at must be a non-negative integer (unix timestamp)
+    if (defined $self->created_at) {
+        croak "created_at must be a non-negative integer"
+            unless $self->created_at =~ /\A\d+\z/;
+    }
+
     $self->created_at(time())  unless defined $self->created_at;
+
+    # tags must be an arrayref of arrayrefs of defined strings
+    if ($self->tags) {
+        croak "tags must be an arrayref"
+            unless ref($self->tags) eq 'ARRAY';
+        for my $tag (@{$self->tags}) {
+            croak "each tag must be an arrayref of strings"
+                unless ref($tag) eq 'ARRAY';
+            for my $elem (@$tag) {
+                croak "tag elements must be defined strings"
+                    unless defined $elem && !ref($elem);
+            }
+        }
+    }
     $self->tags([])            unless $self->tags;
     $self->id($self->_calc_id) unless $self->id;
     return $self;
@@ -43,11 +84,15 @@ sub json_serialize {
 
 sub add_pubkey_ref {
     my ($self, $pubkey) = @_;
+    croak "pubkey must be 64-char lowercase hex"
+        unless defined $pubkey && $pubkey =~ $HEX64;
     $self->tags([@{$self->tags}, ['p', $pubkey]]);
 }
 
 sub add_event_ref {
     my ($self, $event_id) = @_;
+    croak "event_id must be 64-char lowercase hex"
+        unless defined $event_id && $event_id =~ $HEX64;
     $self->tags([@{$self->tags}, ['e', $event_id]]);
 }
 
@@ -250,7 +295,22 @@ Creates a new event. C<pubkey>, C<kind>, and C<content> are required.
 C<tags> defaults to C<[]>, C<created_at> defaults to C<time()>, and C<id>
 is automatically computed from the canonical serialization. If C<id> is
 passed explicitly (e.g. when parsing from the wire), it is preserved as-is.
-Croaks if C<kind> is outside the valid range (0-65535).
+
+Croaks if any required field is missing or if values fail format validation:
+
+=over 4
+
+=item * C<pubkey> must be 64-character lowercase hex
+
+=item * C<kind> must be an integer between 0 and 65535
+
+=item * C<content> must be defined
+
+=item * C<sig>, if provided, must be 128-character lowercase hex
+
+=item * C<id>, if provided, must be 64-character lowercase hex
+
+=back
 
 =head1 METHODS
 

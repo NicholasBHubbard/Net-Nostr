@@ -843,4 +843,62 @@ subtest 'round-trip: mute_user -> mute_from_event' => sub {
     is($info->{reason}, 'annoying', 'reason round-trips');
 };
 
+###############################################################################
+# Negative validation: invalid channel_id
+###############################################################################
+
+subtest 'set_metadata rejects invalid channel_id' => sub {
+    like(
+        dies { Net::Nostr::Channel->set_metadata(
+            pubkey => 'a' x 64, channel_id => 'bad',
+            name => 'test',
+        ) },
+        qr/channel_id must be 64-char lowercase hex/,
+        'invalid channel_id rejected'
+    );
+};
+
+subtest 'message rejects invalid channel_id' => sub {
+    like(
+        dies { Net::Nostr::Channel->message(
+            pubkey => 'a' x 64, channel_id => 'bad',
+            content => 'test',
+        ) },
+        qr/channel_id must be 64-char lowercase hex/,
+        'invalid channel_id rejected'
+    );
+};
+
+subtest 'reply rejects invalid channel_id' => sub {
+    my $to = Net::Nostr::Event->new(pubkey => 'a' x 64, kind => 42, content => 'hi');
+    like(
+        dies { Net::Nostr::Channel->reply(
+            pubkey => 'a' x 64, channel_id => 'bad',
+            to => $to, content => 'test',
+        ) },
+        qr/channel_id must be 64-char lowercase hex/,
+        'invalid channel_id rejected'
+    );
+};
+
+subtest 'hide_message rejects invalid message_id' => sub {
+    like(
+        dies { Net::Nostr::Channel->hide_message(
+            pubkey => 'a' x 64, message_id => 'bad',
+        ) },
+        qr/message_id must be 64-char lowercase hex/,
+        'invalid message_id rejected'
+    );
+};
+
+subtest 'mute_user rejects invalid user_pubkey' => sub {
+    like(
+        dies { Net::Nostr::Channel->mute_user(
+            pubkey => 'a' x 64, user_pubkey => 'bad',
+        ) },
+        qr/user_pubkey must be 64-char lowercase hex/,
+        'invalid user_pubkey rejected'
+    );
+};
+
 done_testing;

@@ -264,6 +264,26 @@ with NIP-19-encoded entities.
 
 =back
 
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $info = Net::Nostr::AppHandler->new(%fields);
+
+Creates a new C<Net::Nostr::AppHandler> object. Typically returned by
+L</from_event>; calling C<new> directly is useful for testing or
+manual construction.
+
+    my $info = Net::Nostr::AppHandler->new(
+        event_kind => '31337',
+        apps       => [],
+        kinds      => [1, 30023],
+    );
+
+Accepted fields: C<event_kind>, C<identifier>, C<kinds> (defaults to C<[]>),
+C<content> (defaults to C<''>), C<apps> (defaults to C<[]>),
+C<platforms> (defaults to C<[]>).
+
 =head1 CLASS METHODS
 
 =head2 recommendation

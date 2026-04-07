@@ -13,6 +13,8 @@ use Class::Tiny qw(
     server
 );
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+
 my %REPORT_TYPES = map { $_ => 1 }
     qw(nudity malware profanity illegal spam impersonation other);
 
@@ -28,8 +30,14 @@ sub report {
     my $reported_pk = $args{reported_pk} // croak "report requires 'reported_pk'";
     my $report_type = $args{report_type} // croak "report requires 'report_type'";
 
+    croak "reported_pk must be 64-char lowercase hex"
+        unless $reported_pk =~ $HEX64;
+
     croak "invalid report type '$report_type'"
         unless $REPORT_TYPES{$report_type};
+
+    croak "event_id must be 64-char lowercase hex"
+        if defined $args{event_id} && $args{event_id} !~ $HEX64;
 
     if ($args{blob_hash} && !$args{event_id}) {
         croak "blob report (x tag) requires 'event_id' (e tag)";
@@ -189,6 +197,19 @@ Net::Nostr::Report - NIP-56 Reporting
         reported_pk => $target_pk,
     );
 
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $report = Net::Nostr::Report->new(
+        reported_pubkey => $pubkey_hex,
+        report_type     => 'spam',
+        event_id        => $event_id_hex,
+    );
+
+Creates a new report object. All fields are optional. This is the raw
+constructor; use L</report> to build a complete kind 1984 event.
+
 =head1 DESCRIPTION
 
 Implements NIP-56 (Reporting). Provides methods to create kind 1984 report
@@ -246,6 +267,30 @@ has no C<p> tag, or has an C<x> tag without a corresponding C<e> tag.
 
 Returns a subscription filter hashref for querying report events. All
 parameters are optional.
+
+=head1 ACCESSORS
+
+=head2 reported_pubkey
+
+Hex pubkey of the reported user.
+
+=head2 report_type
+
+Report type string: C<nudity>, C<malware>, C<profanity>, C<illegal>,
+C<spam>, C<impersonation>, or C<other>.
+
+=head2 event_id
+
+Reported event ID (64-char lowercase hex), or C<undef> for profile-only
+reports.
+
+=head2 blob_hash
+
+Blob SHA-256 hash, or C<undef>.
+
+=head2 server
+
+Server URL for blob reports, or C<undef>.
 
 =head1 SEE ALSO
 

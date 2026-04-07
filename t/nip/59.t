@@ -704,4 +704,18 @@ subtest 'author can unwrap a copy addressed to themselves' => sub {
     is($unwrapped->pubkey, $AUTHOR_PUBKEY, 'rumor pubkey matches author');
 };
 
+subtest 'seal rejects invalid recipient_pubkey' => sub {
+    my $rumor = Net::Nostr::GiftWrap->create_rumor(
+        pubkey => $author_key->pubkey_hex, kind => 1, content => 'test', tags => [],
+    );
+    like(
+        dies { Net::Nostr::GiftWrap->seal(
+            rumor => $rumor, sender_key => $author_key,
+            recipient_pubkey => 'bad',
+        ) },
+        qr/recipient_pubkey must be 64-char lowercase hex/,
+        'invalid recipient_pubkey rejected'
+    );
+};
+
 done_testing;

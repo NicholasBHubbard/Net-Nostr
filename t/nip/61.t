@@ -854,4 +854,15 @@ subtest 'nutzap u tag is filterable' => sub {
     ok($filter->matches($event), 'nutzap matches #u filter');
 };
 
+subtest 'nutzap rejects invalid recipient' => sub {
+    like(
+        dies { Net::Nostr::Nutzap->nutzap(
+            pubkey => 'a' x 64, recipient => 'bad',
+            proofs => ['[]'], mint_url => 'https://mint.example.com',
+        ) },
+        qr/recipient must be 64-char lowercase hex/,
+        'invalid recipient rejected'
+    );
+};
+
 done_testing;

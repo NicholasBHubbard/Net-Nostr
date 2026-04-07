@@ -213,4 +213,23 @@ subtest 'accessor: hashtags arrayref' => sub {
     is($info->hashtags, ['electronics', 'gadgets'], 'hashtags from t tags');
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $info = Net::Nostr::ClassifiedListing->new(
+        identifier => 'my-listing',
+        title      => 'Guitar',
+        price      => '500 USD',
+        location   => 'NYC',
+    );
+    is $info->identifier, 'my-listing';
+    is $info->title, 'Guitar';
+    is $info->price, '500 USD';
+    is $info->location, 'NYC';
+    is $info->hashtags, [];
+    is $info->images, [];
+};
+
 done_testing;

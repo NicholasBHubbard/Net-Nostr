@@ -208,4 +208,41 @@ subtest 'empty relay info' => sub {
     is($doc, {}, 'empty object');
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $info = Net::Nostr::RelayInfo->new(
+        name             => 'My Relay',
+        description      => 'A relay for everyone',
+        banner           => 'https://example.com/banner.jpg',
+        icon             => 'https://example.com/icon.png',
+        pubkey           => 'aa' x 32,
+        self             => 'bb' x 32,
+        contact          => 'mailto:admin@example.com',
+        supported_nips   => [1, 9, 11],
+        software         => 'https://example.com/relay',
+        version          => '1.0.0',
+        terms_of_service => 'https://example.com/tos',
+        limitation       => { max_subscriptions => 50 },
+        payments_url     => 'https://example.com/pay',
+        fees             => { admission => [{ amount => 1000, unit => 'msats' }] },
+    );
+    is $info->name, 'My Relay';
+    is $info->description, 'A relay for everyone';
+    is $info->banner, 'https://example.com/banner.jpg';
+    is $info->icon, 'https://example.com/icon.png';
+    is $info->pubkey, 'aa' x 32;
+    is $info->self, 'bb' x 32;
+    is $info->contact, 'mailto:admin@example.com';
+    is $info->supported_nips, [1, 9, 11];
+    is $info->software, 'https://example.com/relay';
+    is $info->version, '1.0.0';
+    is $info->terms_of_service, 'https://example.com/tos';
+    is $info->limitation, { max_subscriptions => 50 };
+    is $info->payments_url, 'https://example.com/pay';
+    is $info->fees, { admission => [{ amount => 1000, unit => 'msats' }] };
+};
+
 done_testing;

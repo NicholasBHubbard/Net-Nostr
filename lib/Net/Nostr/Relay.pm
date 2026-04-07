@@ -223,7 +223,18 @@ sub _on_connection {
         }
 
         my $msg = eval { Net::Nostr::Message->parse($message->body) };
-        return warn "bad message: $@\n" if $@;
+        if ($@) {
+            if ($type eq 'EVENT' || $type eq 'AUTH') {
+                my $event_id = (ref($arr->[1]) eq 'HASH' ? $arr->[1]{id} : '') // '';
+                my $reason = $@;
+                $reason =~ s/\n\z//;
+                $conn->send(Net::Nostr::Message->new(
+                    type => 'OK', event_id => $event_id,
+                    accepted => 0, message => "invalid: $reason"
+                )->serialize);
+            }
+            return;
+        }
 
         if ($msg->type eq 'EVENT') {
             $self->_handle_event($conn_id, $msg->event);
@@ -494,28 +505,38 @@ sub _handle_req {
     $self->subscriptions->{$conn_id} //= {};
     $self->subscriptions->{$conn_id}{$sub_id} = \@filters;
 
-    # collect matching events (NIP-40: skip expired)
-    my @matching;
-    for my $event (@{$self->events}) {
-        next if $event->is_expired;
-        push @matching, $event if Net::Nostr::Filter->matches_any($event, @filters);
-    }
+    # NIP-01: limit applies per filter, not globally.
+    # Evaluate each filter independently, apply its own limit,
+    # then union/dedupe across filters.
+    my %seen;
+    for my $filter (@filters) {
+        my @matched;
+        for my $event (@{$self->events}) {
+            next if $event->is_expired;
+            push @matched, $event if $filter->matches($event);
+        }
 
-    # sort by created_at DESC, then id ASC for ties
-    @matching = sort {
-        $b->created_at <=> $a->created_at || $a->id cmp $b->id
-    } @matching;
+        # sort by created_at DESC, then id ASC for ties
+        @matched = sort {
+            $b->created_at <=> $a->created_at || $a->id cmp $b->id
+        } @matched;
 
-    # apply limit (use minimum limit across filters that specify one)
-    my $limit;
-    for my $f (@filters) {
-        if (defined $f->limit) {
-            $limit = $f->limit if !defined $limit || $f->limit < $limit;
+        # apply this filter's limit
+        if (defined $filter->limit) {
+            splice @matched, $filter->limit if $filter->limit < @matched;
+        }
+
+        for my $event (@matched) {
+            $seen{$event->id} //= $event;
         }
     }
-    splice @matching, $limit if defined $limit && $limit < @matching;
 
-    for my $event (@matching) {
+    # deterministic emission order: created_at DESC, id ASC for ties
+    my @results = sort {
+        $b->created_at <=> $a->created_at || $a->id cmp $b->id
+    } values %seen;
+
+    for my $event (@results) {
         $conn->send(Net::Nostr::Message->new(type => 'EVENT', subscription_id => $sub_id, event => $event)->serialize);
     }
 

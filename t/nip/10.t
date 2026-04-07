@@ -424,4 +424,37 @@ subtest 'e tags sorted by reply stack: root then parent' => sub {
     is($e_tags[1][3], 'reply', 'reply comes second');
 };
 
+###############################################################################
+# Hex64 validation for root_id and reply_id
+###############################################################################
+
+subtest 'rejects invalid hex64 in root_id and reply_id' => sub {
+    ok(dies { Net::Nostr::Thread->new(root_id => 'not-valid-hex') },
+        'croaks on non-hex root_id');
+    ok(dies { Net::Nostr::Thread->new(root_id => 'AABB' x 16) },
+        'croaks on uppercase root_id');
+    ok(dies { Net::Nostr::Thread->new(root_id => 'aa' x 31) },
+        'croaks on too-short root_id');
+    ok(dies { Net::Nostr::Thread->new(reply_id => 'xyz') },
+        'croaks on non-hex reply_id');
+    ok(lives { Net::Nostr::Thread->new(root_id => 'aa' x 32) },
+        'accepts valid hex64 root_id');
+    ok(lives { Net::Nostr::Thread->new(root_id => 'aa' x 32, reply_id => 'bb' x 32) },
+        'accepts valid hex64 root_id and reply_id');
+};
+
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $thread = Net::Nostr::Thread->new(
+        root_id    => 'aa' x 32,
+        root_relay => 'wss://relay.example.com',
+    );
+    is $thread->root_id, 'aa' x 32;
+    is $thread->root_relay, 'wss://relay.example.com';
+    is $thread->mentions, [];
+};
+
 done_testing;

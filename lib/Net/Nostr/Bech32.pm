@@ -128,6 +128,8 @@ sub _decode_bare {
     my ($hrp, $data5) = _nostr_decode_bech32($bech32);
     croak "expected $expected_hrp prefix, got $hrp" unless $hrp eq $expected_hrp;
     my $bytes = translate_5to8($data5);
+    croak "$expected_hrp payload must be exactly 32 bytes, got " . length($bytes)
+        unless length($bytes) == 32;
     return unpack 'H*', $bytes;
 }
 
@@ -193,12 +195,15 @@ sub decode_nprofile {
     for my $tlv (@tlvs) {
         my ($type, $val) = @$tlv;
         if ($type == $TLV_SPECIAL) {
+            croak "nprofile: pubkey (type 0) must be exactly 32 bytes, got " . length($val)
+                unless length($val) == 32;
             $result{pubkey} = unpack 'H*', $val;
         } elsif ($type == $TLV_RELAY) {
             push @{$result{relays}}, $val;
         }
         # ignore unknown types per spec
     }
+    croak "nprofile: missing required pubkey (type 0)" unless defined $result{pubkey};
     return \%result;
 }
 
@@ -232,15 +237,22 @@ sub decode_nevent {
     for my $tlv (@tlvs) {
         my ($type, $val) = @$tlv;
         if ($type == $TLV_SPECIAL) {
+            croak "nevent: event id (type 0) must be exactly 32 bytes, got " . length($val)
+                unless length($val) == 32;
             $result{id} = unpack 'H*', $val;
         } elsif ($type == $TLV_RELAY) {
             push @{$result{relays}}, $val;
         } elsif ($type == $TLV_AUTHOR) {
+            croak "nevent: author (type 2) must be exactly 32 bytes, got " . length($val)
+                unless length($val) == 32;
             $result{author} = unpack 'H*', $val;
         } elsif ($type == $TLV_KIND) {
+            croak "nevent: kind (type 3) must be exactly 4 bytes, got " . length($val)
+                unless length($val) == 4;
             $result{kind} = unpack 'N', $val;
         }
     }
+    croak "nevent: missing required event id (type 0)" unless defined $result{id};
     return \%result;
 }
 
@@ -276,11 +288,18 @@ sub decode_naddr {
         } elsif ($type == $TLV_RELAY) {
             push @{$result{relays}}, $val;
         } elsif ($type == $TLV_AUTHOR) {
+            croak "naddr: pubkey (type 2) must be exactly 32 bytes, got " . length($val)
+                unless length($val) == 32;
             $result{pubkey} = unpack 'H*', $val;
         } elsif ($type == $TLV_KIND) {
+            croak "naddr: kind (type 3) must be exactly 4 bytes, got " . length($val)
+                unless length($val) == 4;
             $result{kind} = unpack 'N', $val;
         }
     }
+    croak "naddr: missing required identifier (type 0)" unless defined $result{identifier};
+    croak "naddr: missing required pubkey (type 2)" unless defined $result{pubkey};
+    croak "naddr: missing required kind (type 3)" unless defined $result{kind};
     return \%result;
 }
 

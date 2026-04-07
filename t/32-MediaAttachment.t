@@ -141,4 +141,22 @@ subtest 'for_url: POD example' => sub {
     is($info->url, $url, 'correct url');
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $att = Net::Nostr::MediaAttachment->new(
+        url      => 'https://example.com/photo.jpg',
+        m        => 'image/jpeg',
+        dim      => '1920x1080',
+        fallback => ['https://alt.example.com/photo.jpg'],
+    );
+    is $att->url, 'https://example.com/photo.jpg';
+    is $att->m, 'image/jpeg';
+    is $att->dim, '1920x1080';
+    is $att->fallback, ['https://alt.example.com/photo.jpg'];
+    is $att->fields, {};
+};
+
 done_testing;

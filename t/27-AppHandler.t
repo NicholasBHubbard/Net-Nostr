@@ -167,4 +167,19 @@ subtest 'accessor: platforms' => sub {
     is($info->platforms->[0]{entity}, 'nevent', 'entity');
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $info = Net::Nostr::AppHandler->new(
+        event_kind => '31337',
+        apps       => [],
+        kinds      => [1, 30023],
+    );
+    is $info->event_kind, '31337';
+    is $info->apps, [];
+    is $info->kinds, [1, 30023];
+};
+
 done_testing;

@@ -6,6 +6,7 @@ use Carp qw(croak);
 use Net::Nostr::Event;
 
 my $VALID_GROUP_ID = qr/\A[a-z0-9\-_]+\z/;
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
 
 sub parse_id {
     my ($class, $str) = @_;
@@ -54,6 +55,7 @@ sub put_user {
     my ($class, %args) = @_;
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('put_user', %args);
     my $target = $args{target} // croak "put_user requires 'target'";
+    croak "target must be 64-char lowercase hex" unless $target =~ $HEX64;
     my $roles  = $args{roles};
     my $reason = $args{reason} // '';
 
@@ -73,6 +75,7 @@ sub remove_user {
     my ($class, %args) = @_;
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('remove_user', %args);
     my $target = $args{target} // croak "remove_user requires 'target'";
+    croak "target must be 64-char lowercase hex" unless $target =~ $HEX64;
     my $reason = $args{reason} // '';
 
     my @tags = $class->_build_tags_with_h($group_id, $args{previous});
@@ -110,6 +113,7 @@ sub delete_event {
     my ($class, %args) = @_;
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('delete_event', %args);
     my $event_id = $args{event_id} // croak "delete_event requires 'event_id'";
+    croak "event_id must be 64-char lowercase hex" unless $event_id =~ $HEX64;
     my $reason   = $args{reason} // '';
 
     my @tags = $class->_build_tags_with_h($group_id, $args{previous});
@@ -212,6 +216,7 @@ sub admins {
 
     my @tags = (['d', $group_id]);
     for my $member (@$members) {
+        croak "member pubkey must be 64-char lowercase hex" unless $member->{pubkey} =~ $HEX64;
         push @tags, ['p', $member->{pubkey}, @{$member->{roles}}];
     }
 
@@ -228,7 +233,10 @@ sub members {
     my $content  = $args{content}  // '';
 
     my @tags = (['d', $group_id]);
-    push @tags, ['p', $_] for @$members;
+    for (@$members) {
+        croak "member pubkey must be 64-char lowercase hex" unless $_ =~ $HEX64;
+        push @tags, ['p', $_];
+    }
 
     delete @args{qw(group_id members content)};
     return Net::Nostr::Event->new(%args, kind => 39002, content => $content, tags => \@tags);

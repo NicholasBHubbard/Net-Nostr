@@ -5,6 +5,8 @@ use strictures 2;
 use Carp qw(croak);
 use Net::Nostr::Event;
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+
 use Class::Tiny qw(
     event_type
     repo_id
@@ -59,7 +61,12 @@ sub repository {
     push @tags, ['clone', @{$args{clone}}] if $args{clone};
     push @tags, ['relays', @{$args{relays}}] if $args{relays};
     push @tags, ['r', $args{earliest_unique_commit}, 'euc'] if defined $args{earliest_unique_commit};
-    push @tags, ['maintainers', @{$args{maintainers}}] if $args{maintainers};
+    if ($args{maintainers}) {
+        for my $m (@{$args{maintainers}}) {
+            croak "maintainers must be 64-char lowercase hex" unless $m =~ $HEX64;
+        }
+        push @tags, ['maintainers', @{$args{maintainers}}];
+    }
     push @tags, ['t', 'personal-fork'] if $args{personal_fork};
 
     if ($args{hashtags}) {
@@ -106,9 +113,13 @@ sub patch {
     push @tags, ['r', $args{earliest_unique_commit}] if defined $args{earliest_unique_commit};
 
     if (defined $args{repo_owner}) {
+        croak "repo_owner must be 64-char lowercase hex" unless $args{repo_owner} =~ $HEX64;
         push @tags, ['p', $args{repo_owner}];
     }
     if ($args{notify}) {
+        for my $n (@{$args{notify}}) {
+            croak "notify must be 64-char lowercase hex" unless $n =~ $HEX64;
+        }
         push @tags, ['p', $_] for @{$args{notify}};
     }
 
@@ -126,6 +137,7 @@ sub patch {
 
     # NIP-10 e reply tag for patch series
     if (defined $args{previous_patch}) {
+        croak "previous_patch must be 64-char lowercase hex" unless $args{previous_patch} =~ $HEX64;
         push @tags, ['e', $args{previous_patch}, $args{previous_patch_relay} // '', 'reply'];
     }
 
@@ -149,9 +161,13 @@ sub pull_request {
     push @tags, ['r', $args{earliest_unique_commit}] if defined $args{earliest_unique_commit};
 
     if (defined $args{repo_owner}) {
+        croak "repo_owner must be 64-char lowercase hex" unless $args{repo_owner} =~ $HEX64;
         push @tags, ['p', $args{repo_owner}];
     }
     if ($args{notify}) {
+        for my $n (@{$args{notify}}) {
+            croak "notify must be 64-char lowercase hex" unless $n =~ $HEX64;
+        }
         push @tags, ['p', $_] for @{$args{notify}};
     }
 
@@ -164,7 +180,10 @@ sub pull_request {
     push @tags, ['c', $commit];
     push @tags, ['clone', @$clone];
     push @tags, ['branch-name', $args{branch_name}] if defined $args{branch_name};
-    push @tags, ['e', $args{revises}] if defined $args{revises};
+    if (defined $args{revises}) {
+        croak "revises must be 64-char lowercase hex" unless $args{revises} =~ $HEX64;
+        push @tags, ['e', $args{revises}];
+    }
     push @tags, ['merge-base', $args{merge_base}] if defined $args{merge_base};
 
     delete @args{qw(repository earliest_unique_commit repo_owner notify subject
@@ -182,14 +201,21 @@ sub pull_request_update {
     my $commit     = $args{commit}     // croak "pull_request_update requires 'commit'";
     my $clone      = $args{clone}      // croak "pull_request_update requires 'clone'";
 
+    croak "pr_event must be 64-char lowercase hex" unless $pr_event =~ $HEX64;
+    croak "pr_author must be 64-char lowercase hex" unless $pr_author =~ $HEX64;
+
     my @tags;
     push @tags, ['a', $repository];
     push @tags, ['r', $args{earliest_unique_commit}] if defined $args{earliest_unique_commit};
 
     if (defined $args{repo_owner}) {
+        croak "repo_owner must be 64-char lowercase hex" unless $args{repo_owner} =~ $HEX64;
         push @tags, ['p', $args{repo_owner}];
     }
     if ($args{notify}) {
+        for my $n (@{$args{notify}}) {
+            croak "notify must be 64-char lowercase hex" unless $n =~ $HEX64;
+        }
         push @tags, ['p', $_] for @{$args{notify}};
     }
 
@@ -217,6 +243,7 @@ sub issue {
     push @tags, ['a', $repository];
 
     if (defined $args{repo_owner}) {
+        croak "repo_owner must be 64-char lowercase hex" unless $args{repo_owner} =~ $HEX64;
         push @tags, ['p', $args{repo_owner}];
     }
 
@@ -239,6 +266,10 @@ sub status {
     my $repo_owner    = $args{repo_owner}    // croak "status requires 'repo_owner'";
     my $target_author = $args{target_author} // croak "status requires 'target_author'";
 
+    croak "target must be 64-char lowercase hex" unless $target =~ $HEX64;
+    croak "repo_owner must be 64-char lowercase hex" unless $repo_owner =~ $HEX64;
+    croak "target_author must be 64-char lowercase hex" unless $target_author =~ $HEX64;
+
     my $kind = $STATUS_KINDS{$status};
     croak "unknown status: $status (must be open, applied, merged, resolved, closed, or draft)"
         unless defined $kind;
@@ -249,6 +280,7 @@ sub status {
     push @tags, ['e', $target, '', 'root'];
 
     if (defined $args{accepted_revision}) {
+        croak "accepted_revision must be 64-char lowercase hex" unless $args{accepted_revision} =~ $HEX64;
         push @tags, ['e', $args{accepted_revision}, '', 'reply'];
     }
 
@@ -256,6 +288,7 @@ sub status {
     push @tags, ['p', $target_author];
 
     if (defined $args{revision_author}) {
+        croak "revision_author must be 64-char lowercase hex" unless $args{revision_author} =~ $HEX64;
         push @tags, ['p', $args{revision_author}];
     }
 
@@ -270,6 +303,8 @@ sub status {
     # 1631-specific optional tags
     if ($args{applied_patches}) {
         for my $p (@{$args{applied_patches}}) {
+            croak "applied_patches id must be 64-char lowercase hex" if defined $p->{id} && $p->{id} !~ $HEX64;
+            croak "applied_patches pubkey must be 64-char lowercase hex" if defined $p->{pubkey} && $p->{pubkey} ne '' && $p->{pubkey} !~ $HEX64;
             push @tags, ['q', $p->{id}, $p->{relay_url} // '', $p->{pubkey} // ''];
         }
     }
@@ -592,6 +627,26 @@ lists.
 
 Replies to patches, PRs, and issues follow NIP-22 comment threading (see
 L<Net::Nostr::Comment>).
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $info = Net::Nostr::Git->new(%fields);
+
+Creates a new C<Net::Nostr::Git> object.  Typically returned by
+L</from_event>; calling C<new> directly is useful for testing or
+manual construction.
+
+    my $info = Net::Nostr::Git->new(
+        event_type => 'repository',
+        repo_id    => 'my-project',
+    );
+
+Accepted fields: C<event_type>, C<repo_id>, C<repo_name>,
+C<repo_description>, C<web>, C<clone_urls>, C<relay_urls>,
+C<earliest_unique_commit>, C<maintainer_pubkeys>,
+C<repository_address>, C<subject>, C<status_name>, C<grasp_servers>.
 
 =head1 CLASS METHODS
 

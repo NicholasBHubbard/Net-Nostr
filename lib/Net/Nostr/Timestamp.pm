@@ -7,6 +7,8 @@ use Net::Nostr::Event;
 
 use Class::Tiny qw(pubkey event_id kind ots_data relay_url);
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+
 sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
@@ -20,6 +22,8 @@ sub to_event {
     my $event_id = $self->event_id // croak "event_id is required";
     my $kind     = $self->kind     // croak "kind is required";
     my $ots_data = $self->ots_data // croak "ots_data is required";
+
+    croak "event_id must be 64-char lowercase hex" unless $event_id =~ $HEX64;
 
     my @e_tag = ('e', $event_id);
     push @e_tag, $self->relay_url if defined $self->relay_url;

@@ -141,4 +141,15 @@ subtest 'lookup croaks without on_failure' => sub {
     }, qr/on_failure/i, 'missing on_failure';
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $ident = Net::Nostr::Identifier->new(
+        base_url => 'http://localhost:9999',
+    );
+    is $ident->base_url, 'http://localhost:9999';
+};
+
 done_testing;

@@ -898,4 +898,121 @@ subtest 'relay with relay_info still accepts WebSocket' => sub {
     $relay->stop;
 };
 
+###############################################################################
+# Per-filter limit semantics (NIP-01)
+###############################################################################
+
+subtest 'REQ limit applies per filter, not globally' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    # Store 3 kind-1 events and 3 kind-2 events
+    my @stored_ok;
+    my $store_cv = AnyEvent->condvar;
+    my $store_timeout = AnyEvent->timer(after => 5, cb => sub { $store_cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @stored_ok, $parsed if $parsed->[0] eq 'OK';
+            $store_cv->send() if @stored_ok == 6;
+        });
+
+        for my $i (1..3) {
+            my $e1 = Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 1, content => "k1-$i",
+                sig => 'b' x 128, created_at => 1000 + $i, tags => [],
+            );
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e1)->serialize);
+            my $e2 = Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 2, content => "k2-$i",
+                sig => 'b' x 128, created_at => 2000 + $i, tags => [],
+            );
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e2)->serialize);
+        }
+    });
+    $store_cv->recv;
+
+    # Query with two filters: kind 1 limit 1, kind 2 limit 3
+    # The old bug would take min(1,3)=1 globally, returning only 1 event.
+    # Correct: 1 kind-1 event + 3 kind-2 events = 4 total.
+    my @query_msgs;
+    my $query_cv = AnyEvent->condvar;
+    my $query_timeout = AnyEvent->timer(after => 5, cb => sub { $query_cv->croak("timeout") });
+    my $ref2 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @query_msgs, $parsed;
+            $query_cv->send() if $parsed->[0] eq 'EOSE';
+        });
+
+        my $f1 = Net::Nostr::Filter->new(kinds => [1], limit => 1);
+        my $f2 = Net::Nostr::Filter->new(kinds => [2], limit => 3);
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'lim', filters => [$f1, $f2])->serialize);
+    });
+    $query_cv->recv;
+
+    my @events = grep { $_->[0] eq 'EVENT' } @query_msgs;
+    is(scalar @events, 4, 'per-filter limits: 1 + 3 = 4 events returned');
+
+    my @kinds = map { $_->[2]{kind} } @events;
+    is(scalar(grep { $_ == 1 } @kinds), 1, 'exactly 1 kind-1 event (limit 1)');
+    is(scalar(grep { $_ == 2 } @kinds), 3, 'exactly 3 kind-2 events (limit 3)');
+
+    $relay->stop;
+};
+
+subtest 'REQ deduplicates events matching multiple filters' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    # Store one kind-1 event from author 'aa...'
+    my $store_cv = AnyEvent->condvar;
+    my $store_timeout = AnyEvent->timer(after => 5, cb => sub { $store_cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $store_cv->send() if $parsed->[0] eq 'OK';
+        });
+
+        my $e = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'dedup test',
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e)->serialize);
+    });
+    $store_cv->recv;
+
+    # Query with two filters that both match the same event
+    my @query_msgs;
+    my $query_cv = AnyEvent->condvar;
+    my $query_timeout = AnyEvent->timer(after => 5, cb => sub { $query_cv->croak("timeout") });
+    my $ref2 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @query_msgs, $parsed;
+            $query_cv->send() if $parsed->[0] eq 'EOSE';
+        });
+
+        my $f1 = Net::Nostr::Filter->new(kinds => [1]);
+        my $f2 = Net::Nostr::Filter->new(authors => ['a' x 64]);
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'dup', filters => [$f1, $f2])->serialize);
+    });
+    $query_cv->recv;
+
+    my @events = grep { $_->[0] eq 'EVENT' } @query_msgs;
+    is(scalar @events, 1, 'duplicate event sent only once');
+
+    $relay->stop;
+};
+
 done_testing;

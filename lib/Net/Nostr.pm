@@ -38,6 +38,22 @@ client and relay functionality. Most of the useful functionality lives in the
 individual modules listed below -- start with L<Net::Nostr::Key> for identity
 management and L<Net::Nostr::Event> for creating events.
 
+=head1 CLASS METHODS
+
+=head2 client
+
+    my $client = Net::Nostr->client;
+
+Convenience factory that returns a new L<Net::Nostr::Client> instance.
+Equivalent to C<< Net::Nostr::Client->new >>.
+
+=head2 relay
+
+    my $relay = Net::Nostr->relay;
+
+Convenience factory that returns a new L<Net::Nostr::Relay> instance.
+Equivalent to C<< Net::Nostr::Relay->new >>.
+
 =head1 SUPPORTED NIPS
 
 =over 4

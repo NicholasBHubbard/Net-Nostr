@@ -288,4 +288,24 @@ subtest 'validate doc example' => sub {
     ok(Net::Nostr::Marketplace->validate($event)), 'validate returns true';
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $info = Net::Nostr::Marketplace->new(
+        name  => 'Widget',
+        price => 10.50,
+    );
+    is $info->name, 'Widget';
+    is $info->price, 10.50;
+    is_deeply $info->categories, [];
+    is_deeply $info->images, [];
+    is_deeply $info->shipping, [];
+    is_deeply $info->specs, [];
+    is_deeply $info->merchants, [];
+    is_deeply $info->items, [];
+    is_deeply $info->payment_options, [];
+};
+
 done_testing;

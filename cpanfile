@@ -20,5 +20,6 @@ requires 'Bitcoin::BIP39';
 on 'test' => sub {
     requires 'Test2::V0';
     requires 'Test::Pod';
+    requires 'Test::Pod::Coverage';
     requires 'Clone';
 };

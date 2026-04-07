@@ -197,4 +197,17 @@ subtest 'POD accessor: event_coordinate' => sub {
     is $info->event_coordinate, "30023:${other_pubkey}:my-article", 'event_coordinate';
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $info = Net::Nostr::Reaction->new(
+        event_id => 'aa' x 32,
+        content  => '+',
+    );
+    is $info->event_id, 'aa' x 32;
+    is $info->content, '+';
+};
+
 done_testing;

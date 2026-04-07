@@ -302,7 +302,7 @@ sub _validate_event_coordinate {
         unless @parts >= 2;
     croak "invalid event coordinate: kind must be integer"
         unless $parts[0] =~ /^\d+$/;
-    croak "invalid event coordinate: pubkey must be 64-char hex"
+    croak "invalid event coordinate: pubkey must be 64-char lowercase hex"
         unless $parts[1] =~ $HEX64;
 }
 

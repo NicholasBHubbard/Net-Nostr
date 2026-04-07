@@ -15,9 +15,17 @@ use Class::Tiny qw(
     mentions
 );
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+
 sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
+    if (defined $self->{root_id}) {
+        croak "root_id must be 64-char lowercase hex" unless $self->{root_id} =~ $HEX64;
+    }
+    if (defined $self->{reply_id}) {
+        croak "reply_id must be 64-char lowercase hex" unless $self->{reply_id} =~ $HEX64;
+    }
     $self->mentions($self->mentions // []);
     return $self;
 }
@@ -212,6 +220,28 @@ structure from existing events.
 
 Uses marked C<e> tags (preferred) with C<root> and C<reply> markers.
 Also parses deprecated positional C<e> tags for backward compatibility.
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $thread = Net::Nostr::Thread->new(%fields);
+
+Creates a new C<Net::Nostr::Thread> object.  Typically returned by
+L</from_event>; calling C<new> directly is useful for testing or
+manual construction.
+
+    my $thread = Net::Nostr::Thread->new(
+        root_id    => 'aa' x 32,
+        root_relay => 'wss://relay.example.com',
+    );
+
+Accepted fields: C<root_id>, C<root_relay>, C<root_pubkey>,
+C<reply_id>, C<reply_relay>, C<reply_pubkey>, C<mentions> (defaults
+to C<[]>).
+
+C<root_id> and C<reply_id> are validated as 64-character lowercase hex
+strings.
 
 =head1 CLASS METHODS
 

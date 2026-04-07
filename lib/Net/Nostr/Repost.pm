@@ -6,6 +6,8 @@ use Carp qw(croak);
 use JSON ();
 use Net::Nostr::Event;
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+
 use Class::Tiny qw(
     event_id
     relay_url
@@ -30,6 +32,11 @@ sub repost {
     my $pubkey    = $args{pubkey}    // croak "repost requires 'pubkey'";
     my $relay_url = $args{relay_url} // croak "repost requires 'relay_url'";
 
+    my $event_id     = $event->id;
+    my $author_pubkey = $event->pubkey;
+    croak "event_id must be 64-char lowercase hex" unless $event_id =~ $HEX64;
+    croak "author_pubkey must be 64-char lowercase hex" unless $author_pubkey =~ $HEX64;
+
     my $kind = $event->kind == 1 ? 6 : 16;
 
     # Content: stringified JSON of reposted event, or empty if overridden
@@ -43,10 +50,10 @@ sub repost {
     my @tags;
 
     # MUST: e tag with relay URL
-    push @tags, ['e', $event->id, $relay_url];
+    push @tags, ['e', $event_id, $relay_url];
 
     # SHOULD: p tag with original author
-    push @tags, ['p', $event->pubkey];
+    push @tags, ['p', $author_pubkey];
 
     # Generic repost extras (kind 16 only)
     if ($kind == 16) {
@@ -62,7 +69,7 @@ sub repost {
 
     # MAY: q tag for quote reposts
     if ($args{quote}) {
-        push @tags, ['q', $event->id, $relay_url, $event->pubkey];
+        push @tags, ['q', $event_id, $relay_url, $author_pubkey];
     }
 
     delete @args{qw(event relay_url quote content)};
@@ -195,6 +202,25 @@ the event ID and relay URL (MUST), a C<p> tag with the original author
 Quote reposts use a C<q> tag instead of being pulled into reply threads.
 The C<q> tag format is
 C<["q", "E<lt>event-idE<gt>", "E<lt>relay-urlE<gt>", "E<lt>pubkeyE<gt>"]>.
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $info = Net::Nostr::Repost->new(%fields);
+
+Creates a new C<Net::Nostr::Repost> object.  Typically returned by
+L</from_event>; calling C<new> directly is useful for testing or
+manual construction.
+
+    my $info = Net::Nostr::Repost->new(
+        event_id    => 'aa' x 32,
+        relay_url   => 'wss://relay.example.com',
+    );
+
+Accepted fields: C<event_id>, C<relay_url>, C<author_pubkey>,
+C<reposted_kind>, C<event_coordinate>, C<embedded_event>,
+C<quote_event_id>.
 
 =head1 CLASS METHODS
 

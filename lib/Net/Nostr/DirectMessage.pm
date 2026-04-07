@@ -6,6 +6,8 @@ use Carp qw(croak);
 use Net::Nostr::Event;
 use Net::Nostr::GiftWrap;
 
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+
 sub create {
     my ($class, %args) = @_;
     my $sender_pubkey = $args{sender_pubkey} // croak "sender_pubkey required";
@@ -17,6 +19,8 @@ sub create {
 
     my @tags;
     for my $r (@$recipients) {
+        my $pk = ref $r eq 'ARRAY' ? $r->[0] : $r;
+        croak "recipient pubkey must be 64-char lowercase hex" unless $pk =~ $HEX64;
         if (ref $r eq 'ARRAY') {
             push @tags, ['p', @$r];
         } else {
@@ -24,6 +28,8 @@ sub create {
         }
     }
     if (defined $reply_to) {
+        my $eid = ref $reply_to eq 'ARRAY' ? $reply_to->[0] : $reply_to;
+        croak "reply_to must be 64-char lowercase hex" unless $eid =~ $HEX64;
         if (ref $reply_to eq 'ARRAY') {
             push @tags, ['e', @$reply_to];
         } else {
@@ -33,6 +39,7 @@ sub create {
     push @tags, ['subject', $subject] if defined $subject;
     if ($quotes) {
         for my $q (@$quotes) {
+            croak "quote event_id must be 64-char lowercase hex" unless $q->[0] =~ $HEX64;
             push @tags, ['q', @$q];
         }
     }
@@ -58,6 +65,8 @@ sub create_file {
 
     my @tags;
     for my $r (@$recipients) {
+        my $pk = ref $r eq 'ARRAY' ? $r->[0] : $r;
+        croak "recipient pubkey must be 64-char lowercase hex" unless $pk =~ $HEX64;
         if (ref $r eq 'ARRAY') {
             push @tags, ['p', @$r];
         } else {
@@ -65,6 +74,8 @@ sub create_file {
         }
     }
     if (defined $args{reply_to}) {
+        my $eid = ref $args{reply_to} eq 'ARRAY' ? $args{reply_to}[0] : $args{reply_to};
+        croak "reply_to must be 64-char lowercase hex" unless $eid =~ $HEX64;
         if (ref $args{reply_to} eq 'ARRAY') {
             push @tags, ['e', @{$args{reply_to}}];
         } else {
@@ -218,8 +229,11 @@ encryption and L<NIP-59|Net::Nostr::GiftWrap> gift wrapping.
 
 Messages are created as unsigned kind 14 (chat) or kind 15 (file) events,
 then sealed and gift-wrapped individually for each recipient and the sender.
-This ensures no metadata leaks: participant identities, timestamps, and
-message content are all hidden.
+The gift wrap layer is designed to hide participant identities, timestamps,
+and message content from relays and third parties. However, metadata
+protection depends on proper usage: relay access patterns, network-level
+metadata, and the C<p> tag on the outer wrap (needed for routing) are
+still visible to the relay.
 
 Other event kinds (e.g. kind 7 reactions) MAY also be gift-wrapped and
 sent to chat participants using the same seal-and-wrap mechanism.
@@ -360,6 +374,13 @@ The returned rumor preserves all tags including C<subject>.
 Verifies that the seal's pubkey matches the rumor's pubkey (required by
 NIP-17). Croaks with "sender pubkey mismatch" if the seal was created by
 a different key than the rumor claims, which prevents impersonation attacks.
+
+B<Trust boundary>: This method decrypts and parses the gift wrap structure
+and verifies the seal/rumor pubkey consistency. It does B<not> verify the
+gift wrap's Schnorr signature or event ID hash. If you need full
+cryptographic verification of the outer event, call
+C<< $relay->_validate_event >> or verify the signature separately before
+calling C<receive>.
 
 =head2 create_relay_list
 

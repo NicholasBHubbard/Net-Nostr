@@ -921,4 +921,58 @@ subtest 'parse_discovery_event: croaks without k tag 24133' => sub {
     like $@, qr/24133/, 'croaks without k tag 24133';
 };
 
+# ==========================================================================
+# Hex64 validation for pubkey parameters used in tags and URIs
+# ==========================================================================
+
+subtest 'hex64 validation rejects invalid pubkeys' => sub {
+    # request_event remote_signer_pubkey
+    eval {
+        Net::Nostr::RemoteSigning->request_event(
+            method => 'ping', params => [],
+            pubkey => $client_pubkey,
+            remote_signer_pubkey => 'INVALID',
+        );
+    };
+    like $@, qr/remote_signer_pubkey must be 64-char lowercase hex/, 'request_event rejects bad remote_signer_pubkey';
+
+    eval {
+        Net::Nostr::RemoteSigning->request_event(
+            method => 'ping', params => [],
+            pubkey => $client_pubkey,
+            remote_signer_pubkey => 'AB' x 32,
+        );
+    };
+    like $@, qr/remote_signer_pubkey must be 64-char lowercase hex/, 'request_event rejects uppercase remote_signer_pubkey';
+
+    # response_event client_pubkey
+    eval {
+        Net::Nostr::RemoteSigning->response_event(
+            id => 'r1', result => 'ok',
+            pubkey => $remote_signer_pubkey,
+            client_pubkey => 'short',
+        );
+    };
+    like $@, qr/client_pubkey must be 64-char lowercase hex/, 'response_event rejects bad client_pubkey';
+
+    # create_bunker_uri
+    eval {
+        Net::Nostr::RemoteSigning->create_bunker_uri(
+            remote_signer_pubkey => 'NOTHEX',
+            relay => 'wss://relay.example.com',
+        );
+    };
+    like $@, qr/remote_signer_pubkey must be 64-char lowercase hex/, 'create_bunker_uri rejects bad pubkey';
+
+    # create_nostrconnect_uri
+    eval {
+        Net::Nostr::RemoteSigning->create_nostrconnect_uri(
+            client_pubkey => 'ZZ' x 32,
+            relay => 'wss://relay.example.com',
+            secret => 's',
+        );
+    };
+    like $@, qr/client_pubkey must be 64-char lowercase hex/, 'create_nostrconnect_uri rejects bad pubkey';
+};
+
 done_testing;

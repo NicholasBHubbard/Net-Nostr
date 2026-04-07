@@ -16,6 +16,20 @@ sub _validate_hex64 {
     }
 }
 
+sub _validate_kinds {
+    my ($values) = @_;
+    for my $v (@$values) {
+        croak "kinds: '$v' is not a valid kind (integer 0-65535)"
+            unless defined $v && $v =~ /^\d+$/ && $v >= 0 && $v <= 65535;
+    }
+}
+
+sub _validate_non_negative_int {
+    my ($field, $value) = @_;
+    croak "$field must be a non-negative integer"
+        unless defined $value && $value =~ /^\d+$/;
+}
+
 use Class::Tiny qw(ids authors kinds since until limit search _tag_filters);
 
 sub new {
@@ -24,11 +38,18 @@ sub new {
     my $self = bless {}, $class;
 
     for my $f (@SCALAR_FIELDS) {
-        $self->$f($args{$f}) if exists $args{$f};
+        if (exists $args{$f}) {
+            _validate_non_negative_int($f, $args{$f})
+                if $f eq 'since' || $f eq 'until' || $f eq 'limit';
+            $self->$f($args{$f});
+        }
     }
     for my $f (@LIST_FIELDS) {
         if (exists $args{$f}) {
+            croak "$f must be a non-empty array"
+                unless ref($args{$f}) eq 'ARRAY' && @{$args{$f}};
             _validate_hex64($f, $args{$f}) if $HEX64_REQUIRED{$f};
+            _validate_kinds($args{$f}) if $f eq 'kinds';
             $self->$f($args{$f});
         }
     }
@@ -36,6 +57,8 @@ sub new {
     # extract #<letter> tag filters
     for my $k (keys %args) {
         if ($k =~ /^#([a-zA-Z])$/) {
+            croak "$k must be a non-empty array"
+                unless ref($args{$k}) eq 'ARRAY' && @{$args{$k}};
             _validate_hex64("#$1", $args{$k}) if $HEX64_REQUIRED{$1};
             my $tf = $self->_tag_filters // {};
             $tf->{$1} = $args{$k};
@@ -212,7 +235,9 @@ filters in a subscription are OR-ed (use C<matches_any>).
     );
 
 All fields are optional. C<ids>, C<authors>, C<#e>, and C<#p> values must
-be 64-character lowercase hex strings. Croaks on invalid values.
+be 64-character lowercase hex strings. C<kinds> values must be integers
+between 0 and 65535. C<since>, C<until>, and C<limit> must be non-negative
+integers. Croaks on invalid values.
 
 The C<search> field (NIP-50) is a human-readable query string. It may
 contain C<key:value> extension pairs (e.g. C<language:en>). See

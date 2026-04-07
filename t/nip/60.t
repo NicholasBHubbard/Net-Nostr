@@ -12,6 +12,10 @@ my $json = JSON->new->utf8->canonical;
 my $pubkey  = 'aa' x 32;
 my $privkey = 'bb' x 32;
 
+my $eid1 = '11' x 32;
+my $eid2 = '22' x 32;
+my $eid3 = '33' x 32;
+
 # === kind 17375: Wallet Event ===
 
 subtest 'wallet_event creates kind 17375' => sub {
@@ -253,14 +257,14 @@ subtest 'history_event with unencrypted redeemed e tags' => sub {
         pubkey       => $pubkey,
         content      => 'encrypted',
         redeemed_ids => [
-            ['nutzap-id-1', 'wss://relay1'],
-            ['nutzap-id-2', ''],
+            [$eid1, 'wss://relay1'],
+            [$eid2, ''],
         ],
     );
     my @tags = @{$ev->tags};
     is scalar @tags, 2, 'two public e tags';
-    is_deeply $tags[0], ['e', 'nutzap-id-1', 'wss://relay1', 'redeemed'], 'first e tag with redeemed marker';
-    is_deeply $tags[1], ['e', 'nutzap-id-2', '', 'redeemed'], 'second e tag with redeemed marker';
+    is_deeply $tags[0], ['e', $eid1, 'wss://relay1', 'redeemed'], 'first e tag with redeemed marker';
+    is_deeply $tags[1], ['e', $eid2, '', 'redeemed'], 'second e tag with redeemed marker';
 };
 
 subtest 'history_event requires pubkey and content' => sub {
@@ -454,15 +458,15 @@ subtest 'quote_event expiration stringified' => sub {
 subtest 'delete_token creates kind 5 with k:7375 tag' => sub {
     my $ev = Net::Nostr::Wallet->delete_token(
         pubkey    => $pubkey,
-        event_ids => ['token-id-1', 'token-id-2'],
+        event_ids => [$eid1, $eid2],
     );
     is $ev->kind, 5, 'kind is 5 (NIP-09 deletion)';
     is $ev->pubkey, $pubkey, 'pubkey set';
 
     my @e_tags = grep { $_->[0] eq 'e' } @{$ev->tags};
     is scalar @e_tags, 2, 'two e tags for deleted tokens';
-    is $e_tags[0][1], 'token-id-1', 'first token ID';
-    is $e_tags[1][1], 'token-id-2', 'second token ID';
+    is $e_tags[0][1], $eid1, 'first token ID';
+    is $e_tags[1][1], $eid2, 'second token ID';
 
     my @k_tags = grep { $_->[0] eq 'k' } @{$ev->tags};
     is scalar @k_tags, 1, 'one k tag';
@@ -480,7 +484,7 @@ subtest 'delete_token requires pubkey and event_ids' => sub {
 subtest 'delete_token k tag is string not number' => sub {
     my $ev = Net::Nostr::Wallet->delete_token(
         pubkey    => $pubkey,
-        event_ids => ['token-id'],
+        event_ids => [$eid1],
     );
     my ($k) = grep { $_->[0] eq 'k' } @{$ev->tags};
     my $serialized = $json->encode($k);
@@ -687,7 +691,7 @@ subtest 'spending workflow: Alice spends 4 sats from [1,2,4,8]' => sub {
     # Step 3: MUST delete the original token event with k:7375
     my $delete_ev = Net::Nostr::Wallet->delete_token(
         pubkey    => $pubkey,
-        event_ids => ['event-id-1'],
+        event_ids => [$eid1],
     );
     is $delete_ev->kind, 5, 'delete event is kind 5';
     my ($k) = grep { $_->[0] eq 'k' } @{$delete_ev->tags};
@@ -727,7 +731,7 @@ subtest 'history event with encrypted content and public redeemed tags' => sub {
     my $ev = Net::Nostr::Wallet->history_event(
         pubkey       => $pubkey,
         content      => $encrypted_content,  # would be NIP-44 encrypted in practice
-        redeemed_ids => [['nutzap-id', 'wss://relay1']],
+        redeemed_ids => [[$eid1, 'wss://relay1']],
     );
 
     # Verify public tags only contain redeemed
@@ -783,6 +787,34 @@ subtest 'history_content e_tags with relay hints' => sub {
     my @e = grep { $_->[0] eq 'e' } @$data;
     is $e[0][2], 'wss://relay.example.com', 'relay hint preserved in destroyed tag';
     is $e[1][2], 'wss://relay2.example.com', 'relay hint preserved in created tag';
+};
+
+###############################################################################
+# Hex64 validation for event_ids in tags
+###############################################################################
+
+subtest 'rejects invalid hex64 in event_ids used for tags' => sub {
+    eval { Net::Nostr::Wallet->delete_token(pubkey => $pubkey, event_ids => ['not-hex']) };
+    like $@, qr/64-char lowercase hex/, 'delete_token croaks on non-hex event_id';
+
+    eval { Net::Nostr::Wallet->delete_token(pubkey => $pubkey, event_ids => ['AABB' x 16]) };
+    like $@, qr/64-char lowercase hex/, 'delete_token croaks on uppercase event_id';
+
+    eval {
+        Net::Nostr::Wallet->history_event(
+            pubkey => $pubkey, content => 'enc',
+            redeemed_ids => [['bad-id', 'wss://r']],
+        );
+    };
+    like $@, qr/64-char lowercase hex/, 'history_event croaks on non-hex redeemed event_id';
+
+    eval {
+        Net::Nostr::Wallet->history_event(
+            pubkey => $pubkey, content => 'enc',
+            redeemed_ids => [['aa' x 31, '']],
+        );
+    };
+    like $@, qr/64-char lowercase hex/, 'history_event croaks on too-short redeemed event_id';
 };
 
 done_testing;

@@ -155,4 +155,17 @@ subtest 'POD: validate' => sub {
     ok dies { Net::Nostr::Git->validate($bad) }, 'validate rejects non-NIP-34';
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $info = Net::Nostr::Git->new(
+        event_type => 'repository',
+        repo_id    => 'my-project',
+    );
+    is $info->event_type, 'repository';
+    is $info->repo_id, 'my-project';
+};
+
 done_testing;

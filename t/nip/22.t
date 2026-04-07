@@ -1012,4 +1012,83 @@ subtest 'extra args passed through to Event constructor' => sub {
     is $comment->created_at, 1700000000, 'created_at passed through';
 };
 
+subtest 'comment rejects invalid mention pubkey' => sub {
+    my $target = make_event(
+        id => $event_id_1, pubkey => $alice_pk, kind => 1063, content => '',
+    );
+    like(
+        dies { Net::Nostr::Comment->comment(
+            event    => $target,
+            pubkey   => $bob_pk,
+            content  => 'test',
+            mentions => ['bad-pubkey'],
+        ) },
+        qr/mention pubkey must be 64-char lowercase hex/,
+        'invalid mention pubkey rejected'
+    );
+};
+
+subtest 'comment rejects invalid quote id' => sub {
+    my $target = make_event(
+        id => $event_id_1, pubkey => $alice_pk, kind => 1063, content => '',
+    );
+    like(
+        dies { Net::Nostr::Comment->comment(
+            event   => $target,
+            pubkey  => $bob_pk,
+            content => 'test',
+            quotes  => [{ id => 'not-hex' }],
+        ) },
+        qr/quote id must be 64-char lowercase hex/,
+        'invalid quote id rejected'
+    );
+};
+
+subtest 'comment rejects invalid quote pubkey' => sub {
+    my $target = make_event(
+        id => $event_id_1, pubkey => $alice_pk, kind => 1063, content => '',
+    );
+    like(
+        dies { Net::Nostr::Comment->comment(
+            event   => $target,
+            pubkey  => $bob_pk,
+            content => 'test',
+            quotes  => [{ id => $event_id_1, pubkey => 'bad' }],
+        ) },
+        qr/quote pubkey must be 64-char lowercase hex/,
+        'invalid quote pubkey rejected'
+    );
+};
+
+subtest 'comment rejects invalid pubkey' => sub {
+    my $target = make_event(
+        id => $event_id_1, pubkey => $alice_pk, kind => 1063, content => '',
+    );
+    like(
+        dies { Net::Nostr::Comment->comment(
+            event   => $target,
+            pubkey  => 'bad-pubkey',
+            content => 'test',
+        ) },
+        qr/pubkey must be 64-char lowercase hex/,
+        'invalid pubkey rejected'
+    );
+};
+
+subtest 'reply rejects invalid pubkey' => sub {
+    my $parent = make_event(
+        id => $event_id_1, pubkey => $alice_pk, kind => 1111, content => 'hi',
+        tags => [['E', $event_id_1, '', $alice_pk], ['K', '1063'], ['e', $event_id_1]],
+    );
+    like(
+        dies { Net::Nostr::Comment->reply(
+            to      => $parent,
+            pubkey  => 'bad-pubkey',
+            content => 'test',
+        ) },
+        qr/pubkey must be 64-char lowercase hex/,
+        'reply rejects invalid pubkey'
+    );
+};
+
 done_testing;

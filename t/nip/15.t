@@ -868,4 +868,40 @@ subtest 'validate kind 30020 requires d tag' => sub {
     like $@, qr/d tag/, 'croaks without d tag';
 };
 
+subtest 'hex64 validation rejects invalid event IDs in tags' => sub {
+    my $valid_id = 'ab' x 32;
+
+    # bid_event: auction_event_id too short
+    eval { Net::Nostr::Marketplace->bid_event(
+        pubkey => $pubkey, amount => 100, auction_event_id => 'abc123',
+    ) };
+    like $@, qr/auction_event_id must be 64-char lowercase hex/, 'bid_event rejects short id';
+
+    # bid_event: uppercase hex
+    eval { Net::Nostr::Marketplace->bid_event(
+        pubkey => $pubkey, amount => 100, auction_event_id => 'AB' x 32,
+    ) };
+    like $@, qr/auction_event_id must be 64-char lowercase hex/, 'bid_event rejects uppercase';
+
+    # bid_confirmation_event: invalid bid_event_id
+    eval { Net::Nostr::Marketplace->bid_confirmation_event(
+        pubkey => $pubkey, bid_event_id => 'not-hex',
+        auction_event_id => $valid_id, status => 'accepted',
+    ) };
+    like $@, qr/bid_event_id must be 64-char lowercase hex/, 'bid_confirmation rejects bad bid_event_id';
+
+    # bid_confirmation_event: invalid auction_event_id
+    eval { Net::Nostr::Marketplace->bid_confirmation_event(
+        pubkey => $pubkey, bid_event_id => $valid_id,
+        auction_event_id => 'xyz', status => 'accepted',
+    ) };
+    like $@, qr/auction_event_id must be 64-char lowercase hex/, 'bid_confirmation rejects bad auction_event_id';
+
+    # valid IDs pass through fine
+    my $ev = Net::Nostr::Marketplace->bid_event(
+        pubkey => $pubkey, amount => 100, auction_event_id => $valid_id,
+    );
+    ok $ev, 'bid_event accepts valid hex64 id';
+};
+
 done_testing;

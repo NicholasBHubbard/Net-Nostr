@@ -7,6 +7,7 @@ use JSON ();
 use Net::Nostr::Event;
 
 my $JSON = JSON->new->utf8;
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
 
 sub create {
     my ($class, %args) = @_;
@@ -31,6 +32,7 @@ sub set_metadata {
     my ($class, %args) = @_;
     my $pubkey     = $args{pubkey}     // croak "set_metadata requires 'pubkey'";
     my $channel_id = $args{channel_id} // croak "set_metadata requires 'channel_id'";
+    croak "channel_id must be 64-char lowercase hex" unless defined $channel_id && $channel_id =~ $HEX64;
 
     my $relay_url  = $args{relay_url}  // '';
     my $categories = $args{categories};
@@ -60,6 +62,7 @@ sub message {
     my ($class, %args) = @_;
     my $pubkey     = $args{pubkey}     // croak "message requires 'pubkey'";
     my $channel_id = $args{channel_id} // croak "message requires 'channel_id'";
+    croak "channel_id must be 64-char lowercase hex" unless defined $channel_id && $channel_id =~ $HEX64;
     my $content    = $args{content}    // croak "message requires 'content'";
 
     my $relay_url = $args{relay_url} // '';
@@ -75,6 +78,7 @@ sub reply {
     my ($class, %args) = @_;
     my $pubkey     = $args{pubkey}     // croak "reply requires 'pubkey'";
     my $channel_id = $args{channel_id} // croak "reply requires 'channel_id'";
+    croak "channel_id must be 64-char lowercase hex" unless defined $channel_id && $channel_id =~ $HEX64;
     my $to         = $args{to}         // croak "reply requires 'to'";
     my $content    = $args{content}    // croak "reply requires 'content'";
 
@@ -97,6 +101,7 @@ sub hide_message {
     my ($class, %args) = @_;
     my $pubkey     = $args{pubkey}     // croak "hide_message requires 'pubkey'";
     my $message_id = $args{message_id} // croak "hide_message requires 'message_id'";
+    croak "message_id must be 64-char lowercase hex" unless defined $message_id && $message_id =~ $HEX64;
 
     my $content = '';
     if (defined $args{reason}) {
@@ -113,6 +118,7 @@ sub mute_user {
     my ($class, %args) = @_;
     my $pubkey      = $args{pubkey}      // croak "mute_user requires 'pubkey'";
     my $user_pubkey = $args{user_pubkey} // croak "mute_user requires 'user_pubkey'";
+    croak "user_pubkey must be 64-char lowercase hex" unless defined $user_pubkey && $user_pubkey =~ $HEX64;
 
     my $content = '';
     if (defined $args{reason}) {

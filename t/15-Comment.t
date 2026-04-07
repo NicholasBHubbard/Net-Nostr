@@ -134,4 +134,22 @@ subtest 'POD: podcast comment' => sub {
     is $K[0][1], 'podcast:item:guid', 'K tag';
 };
 
+###############################################################################
+# new() POD example
+###############################################################################
+
+subtest 'new() POD example' => sub {
+    my $hex_pubkey = 'aa' x 32;
+    my $info = Net::Nostr::Comment->new(
+        root_tag_name => 'E',
+        root_kind     => '30023',
+        root_value    => 'abc123',
+        root_pubkey   => $hex_pubkey,
+    );
+    is $info->root_tag_name, 'E';
+    is $info->root_kind, '30023';
+    is $info->root_value, 'abc123';
+    is $info->root_pubkey, $hex_pubkey;
+};
+
 done_testing;

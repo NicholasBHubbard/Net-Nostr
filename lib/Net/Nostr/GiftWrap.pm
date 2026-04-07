@@ -9,6 +9,7 @@ use Net::Nostr::Key;
 use Net::Nostr::Encryption;
 
 my $TWO_DAYS = 2 * 24 * 60 * 60;
+my $HEX64 = qr/\A[0-9a-f]{64}\z/;
 
 sub _random_timestamp {
     return int(time() - rand($TWO_DAYS));
@@ -35,6 +36,7 @@ sub seal {
     my $rumor            = $args{rumor}            // croak "rumor required";
     my $sender_key       = $args{sender_key}       // croak "sender_key required";
     my $recipient_pubkey = $args{recipient_pubkey} // croak "recipient_pubkey required";
+    croak "recipient_pubkey must be 64-char lowercase hex" unless $recipient_pubkey =~ $HEX64;
     my $created_at       = $args{created_at}       // _random_timestamp();
     my $expiration       = $args{expiration};
 
@@ -60,6 +62,7 @@ sub wrap {
     my ($class, %args) = @_;
     my $seal             = $args{seal}             // croak "seal required";
     my $recipient_pubkey = $args{recipient_pubkey} // croak "recipient_pubkey required";
+    croak "recipient_pubkey must be 64-char lowercase hex" unless $recipient_pubkey =~ $HEX64;
     my $wrapper_key      = $args{wrapper_key}      // Net::Nostr::Key->new;
     my $created_at       = $args{created_at}       // _random_timestamp();
     my $expiration       = $args{expiration};
@@ -286,6 +289,13 @@ that C<$sender_pubkey> matches C<< $unwrapped->pubkey >> for authentication
 (L<Net::Nostr::DirectMessage/receive> does this automatically).
 
 Croaks if the event is not kind 1059 or the seal is not kind 13.
+
+B<Trust boundary>: This method only decrypts and parses the layered
+structure. It checks kind numbers but does B<not> verify the gift wrap
+event's signature, event ID hash, or the seal event's signature. The
+returned rumor is unsigned by design (for deniability). Callers receiving
+gift wraps from untrusted sources should verify the outer event's
+signature before calling C<unwrap>.
 
 =head2 Multi-recipient wrapping
 

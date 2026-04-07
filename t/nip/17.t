@@ -904,4 +904,41 @@ subtest 'kind 15 p-tag with relay hint' => sub {
     is($p_tags[0][2], 'wss://relay.example.com', 'p-tag relay hint');
 };
 
+subtest 'create rejects invalid recipient pubkey' => sub {
+    like(
+        dies { Net::Nostr::DirectMessage->create(
+            sender_pubkey => 'a' x 64, recipients => ['bad'],
+            content => 'test',
+        ) },
+        qr/recipient pubkey must be 64-char lowercase hex/,
+        'invalid recipient pubkey rejected'
+    );
+};
+
+subtest 'create rejects invalid reply_to' => sub {
+    like(
+        dies { Net::Nostr::DirectMessage->create(
+            sender_pubkey => 'a' x 64,
+            recipients    => ['b' x 64],
+            content       => 'test',
+            reply_to      => 'not-hex',
+        ) },
+        qr/reply_to must be 64-char lowercase hex/,
+        'invalid reply_to rejected'
+    );
+};
+
+subtest 'create rejects invalid quote event_id' => sub {
+    like(
+        dies { Net::Nostr::DirectMessage->create(
+            sender_pubkey => 'a' x 64,
+            recipients    => ['b' x 64],
+            content       => 'test',
+            quotes        => [['not-hex']],
+        ) },
+        qr/quote event_id must be 64-char lowercase hex/,
+        'invalid quote event_id rejected'
+    );
+};
+
 done_testing;

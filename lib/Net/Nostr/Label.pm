@@ -206,6 +206,19 @@ Net::Nostr::Label - NIP-32 Labeling
         labels    => ['MIT'],
     );
 
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $label = Net::Nostr::Label->new(
+        namespaces => ['ISO-639-1'],
+        labels     => [['en', 'ISO-639-1']],
+        targets    => [['e', $event_id, $relay]],
+    );
+
+Creates a new label object. C<namespaces>, C<labels>, and C<targets>
+all default to C<[]>.
+
 =head1 DESCRIPTION
 
 Implements NIP-32 (Labeling). Provides methods to create kind 1985 label
@@ -287,6 +300,20 @@ has no target tags, or has l tag marks that don't match any L namespace.
 
 Returns a subscription filter hashref for querying label events. All
 parameters are optional.
+
+=head1 ACCESSORS
+
+=head2 namespaces
+
+Arrayref of L tag values (namespace strings).
+
+=head2 labels
+
+Arrayref of C<[value, namespace?]> pairs from l tags.
+
+=head2 targets
+
+Arrayref of target tags (C<e>, C<p>, C<a>, C<r>, or C<t> tags).
 
 =head1 SEE ALSO
 

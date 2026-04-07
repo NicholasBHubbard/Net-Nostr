@@ -165,6 +165,20 @@ Net::Nostr::MediaAttachment - NIP-92 Media Attachments
     # Get metadata for a specific URL
     my $info = Net::Nostr::MediaAttachment->for_url($event, $url);
 
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $att = Net::Nostr::MediaAttachment->new(
+        url      => 'https://example.com/photo.jpg',
+        m        => 'image/jpeg',
+        dim      => '1920x1080',
+        fallback => ['https://alt.example.com/photo.jpg'],
+    );
+
+Creates a new media attachment object. All fields are optional.
+C<fallback> defaults to C<[]> and C<fields> defaults to C<{}>.
+
 =head1 DESCRIPTION
 
 Implements NIP-92 (Media Attachments). Provides methods to build C<imeta>
@@ -215,9 +229,69 @@ if not found.
 
 =head1 ACCESSORS
 
-C<url>, C<m>, C<x>, C<ox>, C<size>, C<dim>, C<magnet>, C<i>, C<blurhash>,
-C<thumb>, C<image>, C<summary>, C<alt>, C<service>, C<fallback> (arrayref),
-C<fields> (hashref of unknown fields).
+=head2 url
+
+Media URL.
+
+=head2 m
+
+MIME type (e.g. C<'image/jpeg'>).
+
+=head2 x
+
+SHA-256 hash of the file.
+
+=head2 ox
+
+SHA-256 hash of the original file before any transformations.
+
+=head2 size
+
+File size in bytes.
+
+=head2 dim
+
+Dimensions string (e.g. C<'1920x1080'>).
+
+=head2 magnet
+
+Magnet URI.
+
+=head2 i
+
+Torrent infohash.
+
+=head2 blurhash
+
+Blurhash string.
+
+=head2 thumb
+
+Thumbnail URL.
+
+=head2 image
+
+Image URL.
+
+=head2 summary
+
+Description or summary.
+
+=head2 alt
+
+Accessibility description.
+
+=head2 service
+
+Service URL.
+
+=head2 fallback
+
+Arrayref of fallback URLs.
+
+=head2 fields
+
+Hashref of unknown/extension fields.
 
 =head1 SEE ALSO
 

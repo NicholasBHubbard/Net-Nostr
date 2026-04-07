@@ -48,6 +48,8 @@ sub new {
         _validate_subscription_id($args{subscription_id});
         $self->subscription_id($args{subscription_id});
     } elsif ($type eq 'OK') {
+        croak "event_id is required for OK message"
+            unless defined $args{event_id};
         $self->event_id($args{event_id});
         $self->accepted($args{accepted} ? 1 : 0);
         $self->message($args{message} // '');
@@ -55,6 +57,7 @@ sub new {
     } elsif ($type eq 'EOSE') {
         $self->subscription_id($args{subscription_id});
     } elsif ($type eq 'NOTICE') {
+        croak "message is required for NOTICE" unless defined $args{message};
         $self->message($args{message});
     } elsif ($type eq 'CLOSED') {
         $self->subscription_id($args{subscription_id});
@@ -146,6 +149,8 @@ my %PARSERS = (
     OK => sub {
         my ($arr) = @_;
         croak "OK message requires 4 elements\n" unless @$arr == 4;
+        croak "OK event_id must be 64-char lowercase hex\n"
+            unless defined $arr->[1] && $arr->[1] =~ /\A[0-9a-f]{64}\z/;
         return (
             event_id => $arr->[1],
             accepted => $arr->[2] ? 1 : 0,
@@ -310,13 +315,14 @@ Required fields by type:
     OK     - event_id, accepted (bool), optional message (defaults to '')
     EOSE   - subscription_id
     NOTICE - message
-    CLOSED - subscription_id, message
+    CLOSED - subscription_id, optional message
     COUNT  - subscription_id, filters (client-to-relay) or count (relay-to-client)
     AUTH   - challenge (relay-to-client) or event (client-to-relay)
 
 C<subscription_id> must be a non-empty string of at most 64 characters
-for REQ and CLOSE messages. Croaks on missing required fields, invalid
-subscription IDs, or unknown type.
+for REQ, CLOSE, and COUNT messages. C<message> is required for NOTICE.
+Croaks on missing required fields, invalid subscription IDs, or unknown
+type.
 
 =head1 METHODS
 
@@ -335,7 +341,16 @@ Returns the JSON-encoded message string per the NIP-01 wire format.
 
 Class method. Parses a JSON message string and returns a new
 Net::Nostr::Message object. Croaks on invalid JSON, unknown message
-types, or malformed messages.
+types, or malformed messages. Validates structural format of each
+message type (element count, field types). For EVENT messages, the
+contained event is constructed via C<< Net::Nostr::Event->new >> which
+validates field formats.
+
+B<Trust boundary>: C<parse> validates message structure and field formats
+but does B<not> verify event signatures, event ID hashes, or
+authenticity. The caller is responsible for verifying event integrity
+(e.g. via C<< Net::Nostr::Relay->_validate_event >> or
+C<< $event->verify_sig >>).
 
     my $msg = Net::Nostr::Message->parse('["NOTICE","hello"]');
     say $msg->type;     # 'NOTICE'
