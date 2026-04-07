@@ -64,6 +64,52 @@ subtest 'body fields are read-only' => sub {
     like(dies { $event->created_at(9999) }, qr/read-only/, 'created_at is read-only');
 };
 
+subtest 'tags are deep-copied on input (no aliasing)' => sub {
+    my $tags = [['t', 'original']];
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'b' x 64, kind => 1, content => 'hello',
+        created_at => 1000, tags => $tags,
+    );
+    my $id_before = $event->id;
+
+    # Mutate the caller's original arrayref
+    $tags->[0][1] = 'mutated';
+    push @$tags, ['t', 'injected'];
+
+    is($event->tags, [['t', 'original']], 'internal tags unaffected by caller mutation');
+    is($event->id, $id_before, 'event ID stable after caller mutates input tags');
+};
+
+subtest 'tags accessor returns a deep copy (no output aliasing)' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'b' x 64, kind => 1, content => 'hello',
+        created_at => 1000, tags => [['t', 'x']],
+    );
+    my $id_before = $event->id;
+
+    # Mutate the returned tags
+    my $out = $event->tags;
+    $out->[0][1] = 'mutated';
+    push @$out, ['t', 'injected'];
+
+    is($event->tags, [['t', 'x']], 'internal tags unaffected by output mutation');
+    is($event->id, $id_before, 'event ID stable after mutating returned tags');
+};
+
+subtest 'to_hash tags are deep-copied (no aliasing)' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'b' x 64, kind => 1, content => 'hello',
+        created_at => 1000, tags => [['t', 'x']],
+    );
+    my $id_before = $event->id;
+
+    my $h = $event->to_hash;
+    $h->{tags}[0][1] = 'mutated';
+
+    is($event->tags, [['t', 'x']], 'internal tags unaffected by to_hash mutation');
+    is($event->id, $id_before, 'event ID stable after mutating to_hash tags');
+};
+
 subtest 'sig is writable (does not affect event ID)' => sub {
     my $event = Net::Nostr::Event->new(
         content => 'hello', pubkey => 'b' x 64, kind => 1,

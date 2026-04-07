@@ -5,6 +5,7 @@ use strictures 2;
 use Carp qw(croak);
 use JSON ();
 use Digest::SHA qw(sha256_hex);
+use Storable ();
 use Crypt::PK::ECC::Schnorr;
 
 # Pre-declare read-only accessors so Class::Tiny registers them as
@@ -29,7 +30,9 @@ for my $field (qw(id pubkey created_at kind tags content)) {
     *$field = sub {
         my $self = shift;
         croak "$field is read-only after construction" if @_;
-        return $self->{$field};
+        return $field eq 'tags'
+            ? Storable::dclone($self->{$field})
+            : $self->{$field};
     };
 }
 # sig is the only writable field — it does not participate in the event
@@ -87,7 +90,7 @@ sub new {
             }
         }
     }
-    $self->{tags} = []            unless $self->{tags};
+    $self->{tags} = $self->{tags} ? Storable::dclone($self->{tags}) : [];
     $self->{id}   = $self->_calc_id unless $self->{id};
     return $self;
 }
@@ -99,7 +102,7 @@ sub json_serialize {
         $self->pubkey . '',
         $self->created_at + 0,
         $self->kind + 0,
-        $self->tags,
+        $self->{tags},
         $self->content . ''
     ]);
     return $json_serialized;
@@ -113,7 +116,7 @@ sub to_hash {
         pubkey     => $self->pubkey,
         created_at => $self->created_at,
         kind       => $self->kind,
-        tags       => $self->tags,
+        tags       => Storable::dclone($self->{tags}),
         content    => $self->content,
         sig        => $self->sig,
     };
@@ -313,8 +316,10 @@ signature verification.
 Events are B<immutable after construction>. The body fields (C<id>,
 C<pubkey>, C<created_at>, C<kind>, C<tags>, C<content>) are read-only.
 The only writable field is C<sig>, which does not participate in the
-event ID computation. This prevents a class of bugs where mutating a
-field silently invalidates the event ID and any existing signature.
+event ID computation. Tags are deep-copied on input and output so that
+callers cannot invalidate an event through retained references. This
+prevents a class of bugs where mutating a field silently invalidates the
+event ID and any existing signature.
 
 =head1 CONSTRUCTOR
 
@@ -386,8 +391,12 @@ Returns the event kind (integer). Read-only.
 
     my $tags = $event->tags;  # [['p', 'abc...'], ['e', 'def...']]
 
-Returns the tags arrayref. Each tag is an arrayref of strings. Read-only.
-All tags must be provided at construction time.
+Returns a deep copy of the tags arrayref. Each tag is an arrayref of
+strings. Read-only. All tags must be provided at construction time.
+
+Tags are deep-copied both on input (during construction) and on output
+(from this accessor and L</to_hash>), so callers cannot accidentally
+mutate the event's internal state through retained references.
 
 =head2 content
 
@@ -418,8 +427,9 @@ encoded with no extra whitespace.
     # { id => '...', pubkey => '...', created_at => 1000,
     #   kind => 1, tags => [...], content => '...', sig => '...' }
 
-Returns a hashref with all seven event fields. Useful for JSON encoding
-the full event object.
+Returns a hashref with all seven event fields. The C<tags> value is a
+deep copy, so mutating it will not affect the event. Useful for JSON
+encoding the full event object.
 
 =head1 METHODS
 
