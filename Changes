@@ -1,4 +1,4 @@
-0.003000   TBD
+1.000000   TBD
 
   - New: Net::Nostr::Relay::Store - indexed in-memory event storage backend
     with O(1) duplicate detection, replaceable/addressable lookups, and

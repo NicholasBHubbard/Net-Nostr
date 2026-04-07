@@ -2,7 +2,7 @@ package Net::Nostr;
 
 use strictures 2;
 
-our $VERSION = '0.002000';
+our $VERSION = '1.000000';
 
 use Net::Nostr::Client;
 use Net::Nostr::Relay;
