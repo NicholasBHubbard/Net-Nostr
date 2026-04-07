@@ -78,7 +78,7 @@ sub new {
     $self->{created_at} = time() unless defined $self->{created_at};
 
     # tags must be an arrayref of arrayrefs of defined strings
-    if ($self->{tags}) {
+    if (defined $self->{tags}) {
         croak "tags must be an arrayref"
             unless ref($self->{tags}) eq 'ARRAY';
         for my $tag (@{$self->{tags}}) {
@@ -90,7 +90,7 @@ sub new {
             }
         }
     }
-    $self->{tags} = $self->{tags} ? Storable::dclone($self->{tags}) : [];
+    $self->{tags} = defined $self->{tags} ? Storable::dclone($self->{tags}) : [];
     $self->{id}   = $self->_calc_id unless $self->{id};
     return $self;
 }

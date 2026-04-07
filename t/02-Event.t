@@ -461,6 +461,19 @@ subtest 'new() rejects tag with ref element' => sub {
     );
 };
 
+subtest 'new() rejects falsey non-undef tags' => sub {
+    for my $bad (0, '', '0') {
+        like(
+            dies { Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 1, content => 'test',
+                tags => $bad,
+            ) },
+            qr/tags must be an arrayref/,
+            "tags => '$bad' rejected"
+        );
+    }
+};
+
 subtest 'new() accepts valid tags' => sub {
     ok(lives { Net::Nostr::Event->new(
         pubkey => 'a' x 64, kind => 1, content => 'test',
@@ -551,6 +564,13 @@ subtest 'from_wire does not default tags' => sub {
     my $h = $EVENT->to_hash;
     $h->{tags} = undef;
     like(dies { Net::Nostr::Event->from_wire($h) }, qr/tags is required/, 'undef tags rejected');
+};
+
+subtest 'from_wire rejects falsey non-arrayref tags' => sub {
+    my $h = $EVENT->to_hash;
+    $h->{tags} = 0;
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/tags must be an arrayref/,
+        'tags => 0 rejected via from_wire');
 };
 
 subtest 'from_wire does not compute id' => sub {
