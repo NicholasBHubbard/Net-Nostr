@@ -536,4 +536,50 @@ subtest 'parse() AUTH event rejects missing event fields' => sub {
     like(dies { Net::Nostr::Message->parse($raw) }, qr/sig is required/, 'AUTH event missing sig rejected');
 };
 
+###############################################################################
+# parse() rejects non-object payloads with protocol-specific errors
+###############################################################################
+
+subtest 'parse() EVENT rejects non-object event (relay-to-client)' => sub {
+    my $raw = JSON->new->utf8->encode(['EVENT', 'sub1', 'not-a-hash']);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/EVENT event element must be a JSON object/,
+        'string event payload rejected with protocol error');
+};
+
+subtest 'parse() EVENT rejects non-object event (client-to-relay)' => sub {
+    my $raw = JSON->new->utf8->encode(['EVENT', 42]);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/EVENT event element must be a JSON object/,
+        'numeric event payload rejected with protocol error');
+};
+
+subtest 'parse() EVENT rejects array event payload' => sub {
+    my $raw = JSON->new->utf8->encode(['EVENT', 'sub1', [1,2,3]]);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/EVENT event element must be a JSON object/,
+        'array event payload rejected with protocol error');
+};
+
+subtest 'parse() REQ rejects non-object filter' => sub {
+    my $raw = JSON->new->utf8->encode(['REQ', 'sub1', 'not-a-hash']);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/REQ filter element must be a JSON object/,
+        'string filter rejected with protocol error');
+};
+
+subtest 'parse() REQ rejects array filter' => sub {
+    my $raw = JSON->new->utf8->encode(['REQ', 'sub1', [1,2,3]]);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/REQ filter element must be a JSON object/,
+        'array filter rejected with protocol error');
+};
+
+subtest 'parse() COUNT rejects non-object filter' => sub {
+    my $raw = JSON->new->utf8->encode(['COUNT', 'sub1', 'not-a-hash']);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/COUNT filter element must be a JSON object/,
+        'string filter rejected with protocol error');
+};
+
 done_testing;

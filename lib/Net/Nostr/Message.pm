@@ -135,13 +135,17 @@ my %PARSERS = (
     EVENT => sub {
         my ($arr) = @_;
         # client-to-relay: ["EVENT", {event}]
-        if (@$arr == 2 && ref($arr->[1]) eq 'HASH') {
+        if (@$arr == 2) {
+            croak "EVENT event element must be a JSON object\n"
+                unless ref($arr->[1]) eq 'HASH';
             return (
                 event => Net::Nostr::Event->from_wire($arr->[1]),
             );
         }
         # relay-to-client: ["EVENT", sub_id, {event}]
         croak "EVENT message requires 2 or 3 elements\n" unless @$arr == 3;
+        croak "EVENT event element must be a JSON object\n"
+            unless ref($arr->[2]) eq 'HASH';
         return (
             subscription_id => $arr->[1],
             event           => Net::Nostr::Event->from_wire($arr->[2]),
@@ -185,6 +189,8 @@ my %PARSERS = (
         croak "REQ message requires at least 3 elements\n" unless @$arr >= 3;
         my @filters;
         for my $i (2 .. $#$arr) {
+            croak "REQ filter element must be a JSON object\n"
+                unless ref($arr->[$i]) eq 'HASH';
             push @filters, Net::Nostr::Filter->new(%{$arr->[$i]});
         }
         return (
@@ -213,6 +219,8 @@ my %PARSERS = (
         # Client-to-relay: ["COUNT", sub_id, {filter}...]
         my @filters;
         for my $i (2 .. $#$arr) {
+            croak "COUNT filter element must be a JSON object\n"
+                unless ref($arr->[$i]) eq 'HASH';
             push @filters, Net::Nostr::Filter->new(%{$arr->[$i]});
         }
         return (
