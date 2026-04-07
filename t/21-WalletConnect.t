@@ -220,4 +220,22 @@ subtest 'create_uri rejects non-hex secret' => sub {
     like $@, qr/secret/, 'error mentions secret';
 };
 
+subtest 'WalletConnect inner classes reject unknown arguments' => sub {
+    ok !eval { Net::Nostr::WalletConnect::Connection->new(bogus => 'value') },
+        'Connection rejects unknown args';
+    like $@, qr/unknown.+bogus/i, 'Connection error mentions bogus';
+
+    ok !eval { Net::Nostr::WalletConnect::Info->new(bogus => 'value') },
+        'Info rejects unknown args';
+    like $@, qr/unknown.+bogus/i, 'Info error mentions bogus';
+
+    ok !eval { Net::Nostr::WalletConnect::Response->new(bogus => 'value') },
+        'Response rejects unknown args';
+    like $@, qr/unknown.+bogus/i, 'Response error mentions bogus';
+
+    ok !eval { Net::Nostr::WalletConnect::Notification->new(bogus => 'value') },
+        'Notification rejects unknown args';
+    like $@, qr/unknown.+bogus/i, 'Notification error mentions bogus';
+};
+
 done_testing;

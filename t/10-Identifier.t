@@ -152,4 +152,12 @@ subtest 'new() POD example' => sub {
     is $ident->base_url, 'http://localhost:9999';
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Identifier->new(bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

@@ -429,4 +429,12 @@ subtest 'round-trip: empty list' => sub {
     is($parsed->items, [], 'empty');
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::List->new(kind => 10000, bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

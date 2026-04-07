@@ -29,7 +29,11 @@ sub new {
     $args{moderators}  //= [];
     $args{relays}      //= [];
     $args{communities} //= [];
-    return bless \%args, $class;
+    my $self = bless \%args, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub community {
@@ -441,7 +445,7 @@ manual construction.
 Accepted fields: C<identifier>, C<name>, C<description>, C<image>,
 C<moderators> (defaults to C<[]>), C<relays> (defaults to C<[]>),
 C<communities> (defaults to C<[]>), C<post_id>, C<post_coordinate>,
-C<post_author>, C<post_kind>.
+C<post_author>, C<post_kind>. Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

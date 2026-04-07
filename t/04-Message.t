@@ -479,4 +479,12 @@ subtest 'parse() OK accepts valid event_id from wire' => sub {
     is($msg->event_id, 'aa' x 32, 'event_id parsed correctly');
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Message->new(type => 'NOTICE', message => 'hi', bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

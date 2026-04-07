@@ -250,4 +250,11 @@ subtest 'validate doc example' => sub {
     ok(Net::Nostr::Wallet->validate($event)), 'validate returns true for valid event';
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    eval { Net::Nostr::Wallet->new(
+        bogus => 'value',
+    ) };
+    like($@, qr/unknown.+bogus/i, 'unknown argument rejected');
+};
+
 done_testing;

@@ -232,4 +232,16 @@ subtest 'new() POD example' => sub {
     is $info->images, [];
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::ClassifiedListing->new(
+            identifier => 'my-listing',
+            title      => 'Guitar',
+            bogus      => 'value',
+        ) },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

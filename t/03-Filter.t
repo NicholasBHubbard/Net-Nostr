@@ -496,4 +496,25 @@ subtest 'non-empty arrays still accepted' => sub {
     ok(lives { Net::Nostr::Filter->new('#t' => ['nostr']) }, 'non-empty #t ok');
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Filter->new(bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
+subtest 'new() rejects non-string search' => sub {
+    like(
+        dies { Net::Nostr::Filter->new(search => ['not', 'a', 'string']) },
+        qr/search must be a string/i,
+        'arrayref search rejected'
+    );
+    like(
+        dies { Net::Nostr::Filter->new(search => { query => 'test' }) },
+        qr/search must be a string/i,
+        'hashref search rejected'
+    );
+};
+
 done_testing;

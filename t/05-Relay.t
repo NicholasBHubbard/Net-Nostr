@@ -1015,4 +1015,12 @@ subtest 'REQ deduplicates events matching multiple filters' => sub {
     $relay->stop;
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Relay->new(bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

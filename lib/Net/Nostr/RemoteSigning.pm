@@ -380,38 +380,86 @@ sub _generate_id {
 
 {
     package Net::Nostr::RemoteSigning::BunkerConnection;
+    use Carp qw(croak);
     use Class::Tiny qw(remote_signer_pubkey relays secret);
-    sub new { my $class = shift; bless { @_ }, $class }
+    sub new {
+        my $class = shift;
+        my $self = bless { @_ }, $class;
+        my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        my @unknown = grep { !exists $known{$_} } keys %$self;
+        croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        return $self;
+    }
 }
 
 {
     package Net::Nostr::RemoteSigning::NostrConnect;
+    use Carp qw(croak);
     use Class::Tiny qw(client_pubkey relays secret perms name url image);
-    sub new { my $class = shift; bless { @_ }, $class }
+    sub new {
+        my $class = shift;
+        my $self = bless { @_ }, $class;
+        my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        my @unknown = grep { !exists $known{$_} } keys %$self;
+        croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        return $self;
+    }
 }
 
 {
     package Net::Nostr::RemoteSigning::Nip05Metadata;
+    use Carp qw(croak);
     use Class::Tiny qw(pubkey relays nostrconnect_url);
-    sub new { my $class = shift; bless { @_ }, $class }
+    sub new {
+        my $class = shift;
+        my $self = bless { @_ }, $class;
+        my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        my @unknown = grep { !exists $known{$_} } keys %$self;
+        croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        return $self;
+    }
 }
 
 {
     package Net::Nostr::RemoteSigning::Discovery;
+    use Carp qw(croak);
     use Class::Tiny qw(pubkey relays nostrconnect_url);
-    sub new { my $class = shift; bless { @_ }, $class }
+    sub new {
+        my $class = shift;
+        my $self = bless { @_ }, $class;
+        my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        my @unknown = grep { !exists $known{$_} } keys %$self;
+        croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        return $self;
+    }
 }
 
 {
     package Net::Nostr::RemoteSigning::Request;
+    use Carp qw(croak);
     use Class::Tiny qw(id method params);
-    sub new { my $class = shift; bless { @_ }, $class }
+    sub new {
+        my $class = shift;
+        my $self = bless { @_ }, $class;
+        my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        my @unknown = grep { !exists $known{$_} } keys %$self;
+        croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        return $self;
+    }
 }
 
 {
     package Net::Nostr::RemoteSigning::Response;
+    use Carp qw(croak);
     use Class::Tiny qw(id result error);
-    sub new { my $class = shift; bless { @_ }, $class }
+    sub new {
+        my $class = shift;
+        my $self = bless { @_ }, $class;
+        my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        my @unknown = grep { !exists $known{$_} } keys %$self;
+        croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        return $self;
+    }
 
     sub is_error {
         my ($self) = @_;
@@ -685,7 +733,7 @@ of C<24133>. Optionally includes C<relay> and C<nostrconnect_url> tags.
 
 =head2 BunkerConnection
 
-Returned by L</parse_bunker_uri>.
+Returned by L</parse_bunker_uri>. Croaks on unknown arguments.
 
 =over 4
 
@@ -699,7 +747,7 @@ Returned by L</parse_bunker_uri>.
 
 =head2 NostrConnect
 
-Returned by L</parse_nostrconnect_uri>.
+Returned by L</parse_nostrconnect_uri>. Croaks on unknown arguments.
 
 =over 4
 
@@ -721,7 +769,7 @@ Returned by L</parse_nostrconnect_uri>.
 
 =head2 Nip05Metadata
 
-Returned by L</parse_nip05_metadata>.
+Returned by L</parse_nip05_metadata>. Croaks on unknown arguments.
 
 =over 4
 
@@ -735,7 +783,7 @@ Returned by L</parse_nip05_metadata>.
 
 =head2 Discovery
 
-Returned by L</parse_discovery_event>.
+Returned by L</parse_discovery_event>. Croaks on unknown arguments.
 
 =over 4
 
@@ -749,7 +797,7 @@ Returned by L</parse_discovery_event>.
 
 =head2 Request
 
-Returned by L</parse_request>.
+Returned by L</parse_request>. Croaks on unknown arguments.
 
 =over 4
 
@@ -763,7 +811,7 @@ Returned by L</parse_request>.
 
 =head2 Response
 
-Returned by L</parse_response>.
+Returned by L</parse_response>. Croaks on unknown arguments.
 
 =over 4
 

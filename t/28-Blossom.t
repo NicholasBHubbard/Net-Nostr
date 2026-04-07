@@ -131,4 +131,12 @@ subtest 'verify_sha256: POD example' => sub {
     ok(!Net::Nostr::Blossom->verify_sha256('tampered', $hash), 'tampered');
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Blossom->new(bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

@@ -251,4 +251,16 @@ subtest 'new() POD example' => sub {
     is $info->communities, [];
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Community->new(
+            identifier => 'my-community',
+            name       => 'My Community',
+            bogus      => 'value',
+        ) },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

@@ -292,14 +292,30 @@ sub _uri_decode {
 
 {
     package Net::Nostr::WalletConnect::Connection;
+    use Carp qw(croak);
     use Class::Tiny qw(wallet_pubkey relays secret lud16);
-    sub new { my $class = shift; bless { @_ }, $class }
+    sub new {
+        my $class = shift;
+        my $self = bless { @_ }, $class;
+        my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        my @unknown = grep { !exists $known{$_} } keys %$self;
+        croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        return $self;
+    }
 }
 
 {
     package Net::Nostr::WalletConnect::Info;
+    use Carp qw(croak);
     use Class::Tiny qw(capabilities encryption notification_types);
-    sub new { my $class = shift; bless { @_ }, $class }
+    sub new {
+        my $class = shift;
+        my $self = bless { @_ }, $class;
+        my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        my @unknown = grep { !exists $known{$_} } keys %$self;
+        croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        return $self;
+    }
 
     sub supports_capability {
         my ($self, $cap) = @_;
@@ -320,8 +336,16 @@ sub _uri_decode {
 
 {
     package Net::Nostr::WalletConnect::Response;
+    use Carp qw(croak);
     use Class::Tiny qw(result_type error result);
-    sub new { my $class = shift; bless { @_ }, $class }
+    sub new {
+        my $class = shift;
+        my $self = bless { @_ }, $class;
+        my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        my @unknown = grep { !exists $known{$_} } keys %$self;
+        croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        return $self;
+    }
 
     sub is_error {
         my ($self) = @_;
@@ -341,8 +365,16 @@ sub _uri_decode {
 
 {
     package Net::Nostr::WalletConnect::Notification;
+    use Carp qw(croak);
     use Class::Tiny qw(notification_type notification);
-    sub new { my $class = shift; bless { @_ }, $class }
+    sub new {
+        my $class = shift;
+        my $self = bless { @_ }, $class;
+        my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        my @unknown = grep { !exists $known{$_} } keys %$self;
+        croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        return $self;
+    }
 }
 
 1;
@@ -580,7 +612,7 @@ past.
 
 =head2 Connection
 
-Returned by L</parse_uri>.
+Returned by L</parse_uri>. Croaks on unknown arguments.
 
 =over 4
 
@@ -596,7 +628,7 @@ Returned by L</parse_uri>.
 
 =head2 Info
 
-Returned by L</parse_info>.
+Returned by L</parse_info>. Croaks on unknown arguments.
 
 =over 4
 
@@ -616,7 +648,7 @@ Returned by L</parse_info>.
 
 =head2 Response
 
-Returned by L</parse_response>.
+Returned by L</parse_response>. Croaks on unknown arguments.
 
 =over 4
 
@@ -640,7 +672,7 @@ C<UNSUPPORTED_ENCRYPTION>, C<OTHER>, C<PAYMENT_FAILED>, C<NOT_FOUND>.
 
 =head2 Notification
 
-Returned by L</parse_notification>.
+Returned by L</parse_notification>. Croaks on unknown arguments.
 
 =over 4
 

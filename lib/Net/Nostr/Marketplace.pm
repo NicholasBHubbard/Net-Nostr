@@ -54,7 +54,11 @@ sub new {
     $args{merchants}  //= [];
     $args{items}      //= [];
     $args{payment_options} //= [];
-    return bless \%args, $class;
+    my $self = bless \%args, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 # === Event creation ===
@@ -643,6 +647,8 @@ manual construction.
         name  => 'Widget',
         price => 10.50,
     );
+
+Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

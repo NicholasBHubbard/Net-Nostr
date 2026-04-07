@@ -181,4 +181,15 @@ subtest 'new() POD example' => sub {
     is_deeply $info->nutzap_ids, [];
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    eval { Net::Nostr::Nutzap->new(
+        mint_url  => 'https://mint1',
+        unit      => 'sat',
+        recipient => 'bb' x 32,
+        proofs    => [],
+        bogus     => 'value',
+    ) };
+    like($@, qr/unknown.+bogus/i, 'unknown argument rejected');
+};
+
 done_testing;

@@ -182,4 +182,16 @@ subtest 'new() POD example' => sub {
     is $info->kinds, [1, 30023];
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::AppHandler->new(
+            event_kind => '31337',
+            apps       => [],
+            bogus      => 'value',
+        ) },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

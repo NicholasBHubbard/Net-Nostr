@@ -6,6 +6,13 @@
   - Fix: Event tags are now deep-copied on input and output to prevent
     aliasing through retained references from silently invalidating the
     event ID or signature
+  - BREAKING: All constructors now reject unknown arguments. This affects
+    Relay, Key, Message, Filter, Identifier, List, Client, Blossom,
+    FollowList, RelayList, Nutzap, Community, AppHandler,
+    ClassifiedListing, Article, Marketplace, Label, MediaAttachment,
+    Wallet, and all WalletConnect/RemoteSigning inner classes.
+    Callers passing typo'd or unsupported keys will now get a croak.
+  - Filter: search field now rejects references (must be a plain string)
   - Harden validation across all modules: pubkeys, event IDs, signatures,
     relay URLs, and tag shapes are now strictly validated as 64-char
     lowercase hex where applicable

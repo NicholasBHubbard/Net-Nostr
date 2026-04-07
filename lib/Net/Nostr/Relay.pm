@@ -2,6 +2,7 @@ package Net::Nostr::Relay;
 
 use strictures 2;
 
+use Carp qw(croak);
 use Net::Nostr::Message;
 use Net::Nostr::Filter;
 use Net::Nostr::Deletion;
@@ -38,6 +39,9 @@ use Class::Tiny qw(
 sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
     $self->verify_signatures(1) unless defined $self->verify_signatures;
     $self->_server(AnyEvent::WebSocket::Server->new());
     return $self;
@@ -700,6 +704,8 @@ Default: C<undef> (NIP-11 disabled).
             version        => '1.0.0',
         ),
     );
+
+Croaks on unknown arguments.
 
 =back
 

@@ -35,12 +35,18 @@ use Class::Tiny qw(ids authors kinds since until limit search _tag_filters);
 sub new {
     my $class = shift;
     my %args = @_;
+    {
+        my %known = map { $_ => 1 } (@SCALAR_FIELDS, @LIST_FIELDS);
+        my @unknown = grep { !$known{$_} && !/^#[a-zA-Z]$/ } keys %args;
+        croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    }
     my $self = bless {}, $class;
 
     for my $f (@SCALAR_FIELDS) {
         if (exists $args{$f}) {
             _validate_non_negative_int($f, $args{$f})
                 if $f eq 'since' || $f eq 'until' || $f eq 'limit';
+            croak "search must be a string" if $f eq 'search' && ref($args{$f});
             $self->$f($args{$f});
         }
     }
@@ -237,7 +243,8 @@ filters in a subscription are OR-ed (use C<matches_any>).
 All fields are optional. C<ids>, C<authors>, C<#e>, and C<#p> values must
 be 64-character lowercase hex strings. C<kinds> values must be integers
 between 0 and 65535. C<since>, C<until>, and C<limit> must be non-negative
-integers. Croaks on invalid values.
+integers. C<search> must be a plain string (not a reference). Croaks on
+invalid values or unknown arguments.
 
 The C<search> field (NIP-50) is a human-readable query string. It may
 contain C<key:value> extension pairs (e.g. C<language:en>). See

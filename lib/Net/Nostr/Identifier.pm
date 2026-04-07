@@ -13,6 +13,9 @@ use Class::Tiny qw(
 sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
     return $self;
 }
 
@@ -271,6 +274,8 @@ if none are found.
 =head2 new
 
     my $ident = Net::Nostr::Identifier->new(%args);
+
+Croaks on unknown arguments.
 
 =over 4
 

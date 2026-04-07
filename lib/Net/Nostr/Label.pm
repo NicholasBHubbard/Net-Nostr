@@ -19,7 +19,11 @@ sub new {
     $args{namespaces} //= [];
     $args{labels}     //= [];
     $args{targets}    //= [];
-    return bless \%args, $class;
+    my $self = bless \%args, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub namespace_tag {
@@ -217,7 +221,7 @@ Net::Nostr::Label - NIP-32 Labeling
     );
 
 Creates a new label object. C<namespaces>, C<labels>, and C<targets>
-all default to C<[]>.
+all default to C<[]>. Croaks on unknown arguments.
 
 =head1 DESCRIPTION
 

@@ -536,4 +536,12 @@ subtest 'async connect callback receives error on failure' => sub {
     like($got_err, qr/connect failed/, 'error message describes failure');
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Client->new(bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

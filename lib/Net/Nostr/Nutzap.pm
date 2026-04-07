@@ -28,7 +28,11 @@ sub new {
     $args{mints}      //= [];
     $args{proofs}     //= [];
     $args{nutzap_ids} //= [];
-    return bless \%args, $class;
+    my $self = bless \%args, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub info_event {
@@ -333,7 +337,7 @@ manual construction.
 Accepted fields: C<relays> (defaults to C<[]>), C<mints> (defaults to C<[]>),
 C<p2pk_pubkey>, C<proofs> (defaults to C<[]>), C<mint_url>, C<unit>,
 C<recipient>, C<event_id>, C<event_kind>, C<nutzap_ids> (defaults to C<[]>),
-C<sender_pubkey>.
+C<sender_pubkey>. Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

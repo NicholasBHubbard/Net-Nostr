@@ -24,7 +24,11 @@ sub new {
     $args{kinds}     //= [];
     $args{platforms} //= [];
     $args{content}   //= '';
-    return bless \%args, $class;
+    my $self = bless \%args, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub recommendation {
@@ -282,7 +286,7 @@ manual construction.
 
 Accepted fields: C<event_kind>, C<identifier>, C<kinds> (defaults to C<[]>),
 C<content> (defaults to C<''>), C<apps> (defaults to C<[]>),
-C<platforms> (defaults to C<[]>).
+C<platforms> (defaults to C<[]>). Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

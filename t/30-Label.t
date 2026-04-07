@@ -191,4 +191,16 @@ subtest 'new() POD example' => sub {
     is $label->targets, [['e', $event_id, $relay]];
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Label->new(
+            namespaces => ['ISO-639-1'],
+            labels     => [['en', 'ISO-639-1']],
+            bogus      => 'value',
+        ) },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

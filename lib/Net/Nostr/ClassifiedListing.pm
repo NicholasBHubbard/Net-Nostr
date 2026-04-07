@@ -23,7 +23,11 @@ sub new {
     my %args = @_;
     $args{hashtags} //= [];
     $args{images}   //= [];
-    return bless \%args, $class;
+    my $self = bless \%args, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub _build_event {
@@ -232,7 +236,7 @@ manual construction.
 
 Accepted fields: C<identifier>, C<title>, C<summary>, C<published_at>,
 C<location>, C<price>, C<status>, C<images> (defaults to C<[]>),
-C<hashtags> (defaults to C<[]>).
+C<hashtags> (defaults to C<[]>). Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

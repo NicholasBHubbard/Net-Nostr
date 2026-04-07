@@ -308,4 +308,13 @@ subtest 'new() POD example' => sub {
     is_deeply $info->payment_options, [];
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    eval { Net::Nostr::Marketplace->new(
+        name  => 'Widget',
+        price => 10.50,
+        bogus => 'value',
+    ) };
+    like($@, qr/unknown.+bogus/i, 'unknown argument rejected');
+};
+
 done_testing;

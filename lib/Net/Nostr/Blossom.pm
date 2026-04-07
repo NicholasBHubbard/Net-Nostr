@@ -10,6 +10,8 @@ use Class::Tiny qw(_servers);
 
 sub new {
     my $class = shift;
+    my %args = @_;
+    croak "unknown argument(s): " . join(', ', sort keys %args) if %args;
     my $self = bless {}, $class;
     $self->_servers([]);
     return $self;
@@ -169,7 +171,7 @@ content matches the 64-character hex string in the URL.
 
     my $bl = Net::Nostr::Blossom->new;
 
-Creates an empty Blossom server list.
+Creates an empty Blossom server list. Croaks on unknown arguments.
 
 =head2 from_event
 

@@ -32,7 +32,11 @@ sub new {
     $args{del}          //= [];
     $args{e_tags}       //= [];
     $args{redeemed_ids} //= [];
-    return bless \%args, $class;
+    my $self = bless \%args, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 # === Event creation ===
@@ -420,6 +424,16 @@ developers SHOULD prefer local state when possible.
 All content fields are NIP-44 encrypted. This module accepts pre-encrypted
 content for event creation and provides helper methods to build the plaintext
 payloads and parse decrypted content.
+
+=head1 CONSTRUCTOR
+
+=head2 new
+
+    my $w = Net::Nostr::Wallet->new(%fields);
+
+Creates a new C<Net::Nostr::Wallet> object. Typically returned by
+L</from_event> or the C<parse_*> methods; calling C<new> directly is
+useful for testing. Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

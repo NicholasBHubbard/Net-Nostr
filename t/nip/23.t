@@ -432,4 +432,12 @@ subtest 'new() POD example' => sub {
     is $info->hashtags, [];
 };
 
+subtest 'Article->new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Article->new(bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

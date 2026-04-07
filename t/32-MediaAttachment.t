@@ -159,4 +159,16 @@ subtest 'new() POD example' => sub {
     is $att->fields, {};
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::MediaAttachment->new(
+            url   => 'https://example.com/photo.jpg',
+            m     => 'image/jpeg',
+            bogus => 'value',
+        ) },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

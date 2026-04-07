@@ -16,6 +16,9 @@ my %META_TAGS = map { $_ => 1 } qw(d title image description);
 
 sub new {
     my ($class, %args) = @_;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %args;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
     croak "new requires 'kind'" unless defined $args{kind};
     my $self = bless {}, $class;
     $self->kind($args{kind});
@@ -222,7 +225,8 @@ appropriate for a given kind is left to the caller.
     my $set  = Net::Nostr::List->new(kind => 30002, identifier => 'my-relays');
 
 Creates a new empty list. C<kind> is required. C<identifier> sets the
-C<d> tag value for sets (defaults to empty string).
+C<d> tag value for sets (defaults to empty string). Croaks on unknown
+arguments.
 
 =head2 from_event
 

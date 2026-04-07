@@ -35,7 +35,11 @@ sub new {
     my %args = @_;
     $args{fallback} //= [];
     $args{fields}   //= {};
-    return bless \%args, $class;
+    my $self = bless \%args, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub imeta_tag {
@@ -178,6 +182,7 @@ Net::Nostr::MediaAttachment - NIP-92 Media Attachments
 
 Creates a new media attachment object. All fields are optional.
 C<fallback> defaults to C<[]> and C<fields> defaults to C<{}>.
+Croaks on unknown arguments.
 
 =head1 DESCRIPTION
 

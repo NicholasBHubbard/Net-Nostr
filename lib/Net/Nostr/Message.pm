@@ -27,6 +27,9 @@ sub _extract_prefix {
 sub new {
     my $class = shift;
     my %args = @_;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %args;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
     my $self = bless {}, $class;
 
     croak "type is required" unless defined $args{type};
@@ -321,8 +324,8 @@ Required fields by type:
 
 C<subscription_id> must be a non-empty string of at most 64 characters
 for REQ, CLOSE, and COUNT messages. C<message> is required for NOTICE.
-Croaks on missing required fields, invalid subscription IDs, or unknown
-type.
+Croaks on missing required fields, invalid subscription IDs, unknown
+type, or unknown arguments.
 
 =head1 METHODS
 

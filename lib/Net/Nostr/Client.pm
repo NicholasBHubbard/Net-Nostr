@@ -16,6 +16,8 @@ use Class::Tiny qw(
 
 sub new {
     my $class = shift;
+    my %args = @_;
+    croak "unknown argument(s): " . join(', ', sort keys %args) if %args;
     my $self = bless {}, $class;
     $self->_ws_client(AnyEvent::WebSocket::Client->new);
     $self->_callbacks({});
@@ -219,7 +221,7 @@ messages, and counting events (NIP-45). Supports NIP-42 authentication.
     my $client = Net::Nostr::Client->new;
 
 Creates a new client instance. No connection is established until
-C<connect> is called.
+C<connect> is called. Croaks on unknown arguments.
 
 =head1 METHODS
 

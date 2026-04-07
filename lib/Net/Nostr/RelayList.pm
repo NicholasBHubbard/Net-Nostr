@@ -9,6 +9,8 @@ use Class::Tiny qw(_relays);
 
 sub new {
     my $class = shift;
+    my %args = @_;
+    croak "unknown argument(s): " . join(', ', sort keys %args) if %args;
     my $self = bless {}, $class;
     $self->_relays([]);
     return $self;
@@ -154,7 +156,7 @@ lists small (2-4 relays per category).
 
     my $rl = Net::Nostr::RelayList->new;
 
-Creates an empty relay list.
+Creates an empty relay list. Croaks on unknown arguments.
 
 =head2 from_event
 

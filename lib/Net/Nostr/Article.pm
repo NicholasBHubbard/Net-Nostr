@@ -19,7 +19,11 @@ sub new {
     my $class = shift;
     my %args = @_;
     $args{hashtags} //= [];
-    return bless \%args, $class;
+    my $self = bless \%args, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub _build_event {
@@ -199,7 +203,7 @@ manual construction.
     );
 
 Accepted fields: C<identifier>, C<title>, C<image>, C<summary>,
-C<published_at>, C<hashtags> (defaults to C<[]>).
+C<published_at>, C<hashtags> (defaults to C<[]>). Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

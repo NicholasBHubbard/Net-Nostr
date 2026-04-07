@@ -208,4 +208,30 @@ subtest 'POD discovery_event' => sub {
     is $event->kind, 31990, 'kind 31990';
 };
 
+subtest 'RemoteSigning inner classes reject unknown arguments' => sub {
+    ok !eval { Net::Nostr::RemoteSigning::BunkerConnection->new(bogus => 'value') },
+        'BunkerConnection rejects unknown args';
+    like $@, qr/unknown.+bogus/i, 'BunkerConnection error mentions bogus';
+
+    ok !eval { Net::Nostr::RemoteSigning::NostrConnect->new(bogus => 'value') },
+        'NostrConnect rejects unknown args';
+    like $@, qr/unknown.+bogus/i, 'NostrConnect error mentions bogus';
+
+    ok !eval { Net::Nostr::RemoteSigning::Nip05Metadata->new(bogus => 'value') },
+        'Nip05Metadata rejects unknown args';
+    like $@, qr/unknown.+bogus/i, 'Nip05Metadata error mentions bogus';
+
+    ok !eval { Net::Nostr::RemoteSigning::Discovery->new(bogus => 'value') },
+        'Discovery rejects unknown args';
+    like $@, qr/unknown.+bogus/i, 'Discovery error mentions bogus';
+
+    ok !eval { Net::Nostr::RemoteSigning::Request->new(bogus => 'value') },
+        'Request rejects unknown args';
+    like $@, qr/unknown.+bogus/i, 'Request error mentions bogus';
+
+    ok !eval { Net::Nostr::RemoteSigning::Response->new(bogus => 'value') },
+        'Response rejects unknown args';
+    like $@, qr/unknown.+bogus/i, 'Response error mentions bogus';
+};
+
 done_testing;
