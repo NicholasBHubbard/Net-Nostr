@@ -207,7 +207,44 @@ subtest 'verify_sig()' => sub {
     ok($event->verify_sig($key), 'valid sig verifies');
 
     my $other_key = Net::Nostr::Key->new;
-    ok(!$event->verify_sig($other_key), 'wrong key fails');
+    like(dies { $event->verify_sig($other_key) },
+        qr/pubkey does not match/, 'wrong key croaks');
+};
+
+subtest 'validate()' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $event = $key->create_event(kind => 1, content => 'validate me', tags => []);
+    ok($event->validate, 'fully signed event validates');
+};
+
+subtest 'validate() recomputes id' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $event = $key->create_event(kind => 1, content => 'test', tags => []);
+    # Tamper with the stored id by constructing with a wrong id
+    my $bad = Net::Nostr::Event->new(
+        id => 'f' x 64,
+        pubkey => $event->pubkey, kind => 1, content => 'test',
+        created_at => $event->created_at, tags => [],
+        sig => $event->sig,
+    );
+    like(dies { $bad->validate }, qr/id does not match/, 'tampered id detected');
+};
+
+subtest 'validate() requires sig' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'unsigned',
+    );
+    like(dies { $event->validate }, qr/sig is required/, 'unsigned event fails validate');
+};
+
+subtest 'validate() detects bad signature' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $event = Net::Nostr::Event->new(
+        pubkey => $key->pubkey_hex, kind => 1, content => 'test',
+        created_at => 1000, tags => [],
+        sig => 'a' x 128,
+    );
+    like(dies { $event->validate }, qr/signature is invalid/, 'bad sig fails validate');
 };
 
 subtest 'new() rejects missing pubkey' => sub {

@@ -641,7 +641,9 @@ subtest 'gift wrap is signed by random key, hiding true author' => sub {
     is($wrap->pubkey, $wrapper->pubkey_hex, 'wrap pubkey matches wrapper key');
     ok(defined $wrap->sig, 'wrap has a signature');
     ok($wrap->verify_sig($wrapper), 'wrap signature verifies with wrapper key');
-    ok(!$wrap->verify_sig($author_key), 'wrap signature does not verify with author key');
+    like(dies { $wrap->verify_sig($author_key) },
+        qr/pubkey does not match/,
+        'verify_sig rejects key that does not match wrap pubkey');
 };
 
 ###############################################################################

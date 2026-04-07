@@ -349,8 +349,8 @@ validates field formats.
 B<Trust boundary>: C<parse> validates message structure and field formats
 but does B<not> verify event signatures, event ID hashes, or
 authenticity. The caller is responsible for verifying event integrity
-(e.g. via C<< Net::Nostr::Relay->_validate_event >> or
-C<< $event->verify_sig >>).
+via C<< $event->validate >>, which recomputes the ID hash and verifies
+the signature against the event's own pubkey.
 
     my $msg = Net::Nostr::Message->parse('["NOTICE","hello"]');
     say $msg->type;     # 'NOTICE'

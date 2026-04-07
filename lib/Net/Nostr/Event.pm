@@ -236,9 +236,31 @@ sub content_warning_tag {
 
 sub verify_sig {
     my ($self, $key) = @_;
+    croak "pubkey does not match event pubkey"
+        unless $key->pubkey_hex eq $self->pubkey;
     my $sig_raw = pack 'H*', $self->sig;
     my $verifier = Crypt::PK::ECC::Schnorr->new(\$key->pubkey_der);
     return $verifier->verify_message($self->id, $sig_raw);
+}
+
+sub validate {
+    my ($self) = @_;
+    croak "sig is required for validation"
+        unless defined $self->sig && length $self->sig;
+
+    my $expected_id = sha256_hex($self->json_serialize);
+    croak "id does not match event hash"
+        unless $self->id eq $expected_id;
+
+    my $pubkey_raw = pack 'H*', $self->pubkey;
+    my $pk = Crypt::PK::ECC->new;
+    $pk->import_key_raw("\x02" . $pubkey_raw, 'secp256k1');
+    my $verifier = Crypt::PK::ECC::Schnorr->new(\$pk->export_key_der('public'));
+    my $sig_raw = pack 'H*', $self->sig;
+    croak "signature is invalid"
+        unless $verifier->verify_message($self->id, $sig_raw);
+
+    return 1;
 }
 
 sub _calc_id {
@@ -549,12 +571,29 @@ Returns true if the event kind is ephemeral (broadcast but never stored).
 Returns true if the event kind is addressable (only latest per
 pubkey+kind+d_tag is kept).
 
+=head2 validate
+
+    $event->validate;  # croaks on failure, returns 1 on success
+
+Full cryptographic validation: recomputes the event ID from the canonical
+serialization, compares it to the stored C<id>, and verifies the Schnorr
+signature against the event's own C<pubkey>. Croaks if the event is
+unsigned, the ID does not match, or the signature is invalid.
+
+This is the method callers should use to verify events received from
+untrusted sources (relays, peers, files).
+
+    my $event = Net::Nostr::Message->parse($json)->event;
+    $event->validate;  # croaks if tampered or forged
+
 =head2 verify_sig
 
     my $valid = $event->verify_sig($key);
 
-Verifies the event's Schnorr signature against the given
-L<Net::Nostr::Key> object. Returns true if the signature is valid.
+Low-level signature check: verifies the Schnorr signature against the
+stored C<id> using the given L<Net::Nostr::Key> object. Croaks if the
+key's pubkey does not match C<< $event->pubkey >>. Does B<not> recompute
+the event ID -- use L</validate> for full verification.
 
     my $key   = Net::Nostr::Key->new;
     my $event = $key->create_event(kind => 1, content => 'signed', tags => []);
