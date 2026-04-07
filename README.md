@@ -1,75 +1,61 @@
 # Net::Nostr
 
-A [Nostr](https://nostr.org/) client and relay library for Perl.
+A [Nostr](https://nostr.org/) library for Perl.
 
 Net::Nostr provides both client and relay functionality, implementing 35+
 NIPs covering identity, messaging, encryption, social features, and more.
 
-## Quick Start
-
-### Client
-
-```perl
-use Net::Nostr::Key;
-use Net::Nostr::Client;
-
-my $key    = Net::Nostr::Key->new;
-my $client = Net::Nostr::Client->new;
-$client->connect('wss://relay.example.com');
-
-my $event = $key->create_event(kind => 1, content => 'Hello Nostr!', tags => []);
-$client->publish($event);
-```
-
-### Relay
-
-```perl
-use Net::Nostr::Relay;
-
-my $relay = Net::Nostr::Relay->new;
-$relay->run('127.0.0.1', 8080);
-```
-
-## Main Components
-
-| Module | Description |
-|--------|-------------|
-| `Net::Nostr::Key` | Secp256k1 keypair management, BIP-340 Schnorr signatures |
-| `Net::Nostr::Event` | Event creation, serialization, ID computation |
-| `Net::Nostr::Client` | WebSocket client for connecting to relays |
-| `Net::Nostr::Relay` | In-process WebSocket relay server |
-| `Net::Nostr::Filter` | Event filtering for subscriptions |
-| `Net::Nostr::Message` | NIP-01 wire protocol messages |
-| `Net::Nostr::Encryption` | NIP-44 versioned encrypted payloads |
-| `Net::Nostr::GiftWrap` | NIP-59 gift wrap (three-layer encryption) |
-| `Net::Nostr::DirectMessage` | NIP-17 private direct messages |
-| `Net::Nostr::Bech32` | NIP-19 bech32-encoded entities |
-
-See [the full module list on MetaCPAN](https://metacpan.org/pod/Net::Nostr).
-
 ## Supported NIPs
 
-NIP-01, 02, 03, 05, 06, 09, 10, 11, 13, 15, 17, 18, 19, 21, 22, 23,
-25, 28, 29, 32, 34, 36, 40, 42, 44, 45, 46, 47, 50, 51, 56, 57, 59,
-60, 61, 65, 72, 89, 92, 99, B7.
+- [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) - Basic protocol flow
+- [NIP-02](https://github.com/nostr-protocol/nips/blob/master/02.md) - Follow list
+- [NIP-03](https://github.com/nostr-protocol/nips/blob/master/03.md) - OpenTimestamps attestations for events
+- [NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md) - Mapping Nostr keys to DNS-based internet identifiers
+- [NIP-06](https://github.com/nostr-protocol/nips/blob/master/06.md) - Basic key derivation from mnemonic seed phrase
+- [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) - Event deletion request
+- [NIP-10](https://github.com/nostr-protocol/nips/blob/master/10.md) - Text notes and threads
+- [NIP-11](https://github.com/nostr-protocol/nips/blob/master/11.md) - Relay information document
+- [NIP-13](https://github.com/nostr-protocol/nips/blob/master/13.md) - Proof of Work
+- [NIP-15](https://github.com/nostr-protocol/nips/blob/master/15.md) - Nostr Marketplace
+- [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md) - Private direct messages
+- [NIP-18](https://github.com/nostr-protocol/nips/blob/master/18.md) - Reposts
+- [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md) - bech32-encoded entities
+- [NIP-21](https://github.com/nostr-protocol/nips/blob/master/21.md) - `nostr:` URI scheme
+- [NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md) - Comment
+- [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) - Long-form content
+- [NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md) - Reactions
+- [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) - Public chat
+- [NIP-29](https://github.com/nostr-protocol/nips/blob/master/29.md) - Relay-based groups
+- [NIP-32](https://github.com/nostr-protocol/nips/blob/master/32.md) - Labeling
+- [NIP-34](https://github.com/nostr-protocol/nips/blob/master/34.md) - git stuff
+- [NIP-36](https://github.com/nostr-protocol/nips/blob/master/36.md) - Sensitive Content / Content Warning
+- [NIP-40](https://github.com/nostr-protocol/nips/blob/master/40.md) - Expiration timestamp
+- [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) - Authentication of clients to relays
+- [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md) - Encrypted payloads (versioned)
+- [NIP-45](https://github.com/nostr-protocol/nips/blob/master/45.md) - Event counts
+- [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) - Nostr Remote Signing
+- [NIP-47](https://github.com/nostr-protocol/nips/blob/master/47.md) - Nostr Wallet Connect
+- [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) - Search capability
+- [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) - Lists
+- [NIP-56](https://github.com/nostr-protocol/nips/blob/master/56.md) - Reporting
+- [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) - Lightning Zaps
+- [NIP-59](https://github.com/nostr-protocol/nips/blob/master/59.md) - Gift wrap
+- [NIP-60](https://github.com/nostr-protocol/nips/blob/master/60.md) - Cashu wallets
+- [NIP-61](https://github.com/nostr-protocol/nips/blob/master/61.md) - Nutzaps
+- [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) - Relay list metadata
+- [NIP-72](https://github.com/nostr-protocol/nips/blob/master/72.md) - Moderated Communities
+- [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) - Recommended Application Handlers
+- [NIP-92](https://github.com/nostr-protocol/nips/blob/master/92.md) - Media Attachments
+- [NIP-99](https://github.com/nostr-protocol/nips/blob/master/99.md) - Classified Listings
+- [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) - Blossom media
 
 NIP-04 (legacy encrypted DMs) is deprecated and not supported.
-
-## Security Notes
-
-- `Net::Nostr::Message->parse` validates message structure but does **not**
-  verify event signatures or ID hashes. Callers must verify events from
-  untrusted sources separately.
-- `Net::Nostr::GiftWrap->unwrap` decrypts and parses layered encryption
-  but does **not** verify outer event signatures. Verify before unwrapping
-  when processing events from untrusted relays.
-- The relay (`Net::Nostr::Relay`) verifies signatures by default.
 
 ## Documentation
 
 Full API documentation: https://metacpan.org/pod/Net::Nostr
 
-## Building
+## Build Distribution
 
 ```bash
 perl Makefile.PL

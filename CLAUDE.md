@@ -28,7 +28,7 @@ When naming things, always match terminology from the spec.
 
 Implement every MAY in a spec unless there's good reason not to. Pick sane defaults (e.g. unlimited, disabled) so MAY features are opt-in without breaking existing behavior.
 
-The POD in `lib/Net/Nostr.pm` has a list of supported NIPs. Update it when adding support for a new NIP.
+The POD in `lib/Net/Nostr.pm` and the projects `README.md` has a list of supported NIPs. Update them when adding support for a new NIP.
 
 ## Testing
 
