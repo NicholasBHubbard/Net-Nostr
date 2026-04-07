@@ -10,7 +10,7 @@ use Crypt::PK::ECC::Schnorr;
 
 # Pre-declare read-only accessors so Class::Tiny registers them as
 # attributes but does not generate read-write setters.
-use subs qw(id pubkey created_at kind tags content);
+use subs qw(id pubkey created_at kind tags content sig);
 
 use Class::Tiny qw(
     id
@@ -35,12 +35,23 @@ for my $field (qw(id pubkey created_at kind tags content)) {
             : $self->{$field};
     };
 }
-# sig is the only writable field -- it does not participate in the event
-# ID computation, so mutating it (e.g. after signing) is safe.
-# Class::Tiny's default read-write accessor handles it.
-
 my $HEX64  = qr/\A[0-9a-f]{64}\z/;
 my $HEX128 = qr/\A[0-9a-f]{128}\z/;
+
+# sig is the only writable field -- it does not participate in the event
+# ID computation, so mutating it (e.g. after signing) is safe.
+# Validates format on set; accepts undef to clear before signing.
+sub sig {
+    my $self = shift;
+    if (@_) {
+        my $val = $_[0];
+        croak "sig must be 128-char lowercase hex"
+            if defined $val && $val !~ $HEX128;
+        $self->{sig} = $val;
+        return $val;
+    }
+    return $self->{sig};
+}
 
 sub new {
     my $class = shift;
@@ -64,7 +75,7 @@ sub new {
         unless defined $self->{content};
 
     croak "sig must be 128-char lowercase hex"
-        if defined $self->{sig} && length($self->{sig}) && $self->{sig} !~ $HEX128;
+        if defined $self->{sig} && $self->{sig} !~ $HEX128;
 
     croak "id must be 64-char lowercase hex"
         if defined $self->{id} && $self->{id} !~ $HEX64;
@@ -445,9 +456,10 @@ Returns the event content string. Read-only.
     my $sig = $event->sig;           # get
     $event->sig($hex_signature);     # set
 
-Gets or sets the Schnorr signature as a 128-character hex string.
+Gets or sets the Schnorr signature as a 128-character lowercase hex string.
 This is the only writable field because the signature does not participate
-in event ID computation.
+in event ID computation. Setting C<undef> clears the signature. The setter
+croaks if the value is defined but not valid 128-char lowercase hex.
 
 =head2 json_serialize
 

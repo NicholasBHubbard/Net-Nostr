@@ -16,7 +16,6 @@ my %BASE_EVENT = (
     pubkey     => 'aa' x 32,
     kind       => 1,
     content    => 'best nostr apps for daily use',
-    sig        => '',
     created_at => 1000,
     tags       => [],
 );

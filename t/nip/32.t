@@ -285,7 +285,6 @@ subtest 'from_event: extract namespaces and labels' => sub {
             ['l', 'VI-hum', 'com.example.ontology'],
             ['p', $PUBKEY2, $RELAY],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::Label->from_event($event);
     is($info->namespaces, ['com.example.ontology'], 'namespaces');
@@ -304,7 +303,6 @@ subtest 'from_event: multiple namespaces' => sub {
             ['l', 'NS-nud', 'social.nos.ontology'],
             ['e', $EVID],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::Label->from_event($event);
     is(scalar @{$info->namespaces}, 2, 'two namespaces');
@@ -319,7 +317,6 @@ subtest 'from_event: self-reported labels on non-1985 event' => sub {
             ['L', 'ISO-639-1'],
             ['l', 'en', 'ISO-639-1'],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::Label->from_event($event);
     is($info->namespaces, ['ISO-639-1'], 'namespace from self-report');
@@ -334,7 +331,6 @@ subtest 'from_event: labels without namespace (ugc implied)' => sub {
             ['l', 'spam'],
             ['e', $EVID],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::Label->from_event($event);
     is(scalar @{$info->namespaces}, 0, 'no explicit namespace');
@@ -356,7 +352,6 @@ subtest 'labels_for: filter by namespace' => sub {
             ['l', 'NS-nud', 'social.nos.ontology'],
             ['e', $EVID],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::Label->from_event($event);
     my @cw = $info->labels_for('content-warning');
@@ -382,7 +377,6 @@ subtest 'has_label: with namespace' => sub {
             ['l', 'MIT', 'license'],
             ['e', $EVID],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::Label->from_event($event);
     ok($info->has_label('MIT', 'license'), 'has MIT in license namespace');
@@ -398,7 +392,6 @@ subtest 'has_label: without namespace' => sub {
             ['l', 'spam'],
             ['e', $EVID],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::Label->from_event($event);
     ok($info->has_label('spam'), 'has spam label');
@@ -418,7 +411,6 @@ subtest 'validate: valid kind 1985 with e target' => sub {
             ['l', 'MIT', 'license'],
             ['e', $EVID, $RELAY],
         ],
-        sig => '',
     );
     ok(Net::Nostr::Label->validate($event), 'valid with e target');
 };
@@ -428,7 +420,6 @@ subtest 'validate: valid kind 1985 with p target' => sub {
         pubkey => $PUBKEY, kind => 1985, content => '',
         created_at => 1000,
         tags => [['l', 'spam'], ['p', $PUBKEY2]],
-        sig => '',
     );
     ok(Net::Nostr::Label->validate($event), 'valid with p target');
 };
@@ -438,7 +429,6 @@ subtest 'validate: valid with a target' => sub {
         pubkey => $PUBKEY, kind => 1985, content => '',
         created_at => 1000,
         tags => [['l', 'x'], ['a', "34550:$PUBKEY2:test"]],
-        sig => '',
     );
     ok(Net::Nostr::Label->validate($event), 'valid with a target');
 };
@@ -448,7 +438,6 @@ subtest 'validate: valid with r target' => sub {
         pubkey => $PUBKEY, kind => 1985, content => '',
         created_at => 1000,
         tags => [['l', 'x'], ['r', 'wss://relay.com']],
-        sig => '',
     );
     ok(Net::Nostr::Label->validate($event), 'valid with r target');
 };
@@ -458,7 +447,6 @@ subtest 'validate: valid with t target' => sub {
         pubkey => $PUBKEY, kind => 1985, content => '',
         created_at => 1000,
         tags => [['l', 'x'], ['t', 'nostr']],
-        sig => '',
     );
     ok(Net::Nostr::Label->validate($event), 'valid with t target');
 };
@@ -468,7 +456,6 @@ subtest 'validate: wrong kind' => sub {
         pubkey => $PUBKEY, kind => 1, content => '',
         created_at => 1000,
         tags => [['l', 'x'], ['e', $EVID]],
-        sig => '',
     );
     like(dies { Net::Nostr::Label->validate($event) }, qr/kind/, 'wrong kind');
 };
@@ -478,7 +465,6 @@ subtest 'validate: missing target tags' => sub {
         pubkey => $PUBKEY, kind => 1985, content => '',
         created_at => 1000,
         tags => [['L', 'license'], ['l', 'MIT', 'license']],
-        sig => '',
     );
     like(dies { Net::Nostr::Label->validate($event) }, qr/target/, 'no targets');
 };
@@ -492,7 +478,6 @@ subtest 'validate: l tag mark must match L tag' => sub {
             ['l', 'MIT', 'other-namespace'],
             ['e', $EVID],
         ],
-        sig => '',
     );
     like(dies { Net::Nostr::Label->validate($event) },
         qr/mark.*match|namespace/i, 'l mark must match L');
@@ -711,7 +696,6 @@ subtest 'l tag SHOULD include mark even without L tag' => sub {
             ['l', 'spam', 'ugc'],
             ['e', $EVID],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::Label->from_event($event);
     is($info->labels, [['spam', 'ugc']], 'mark present without L tag');

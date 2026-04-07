@@ -208,7 +208,6 @@ subtest 'from_event: parses kind 30023' => sub {
             ['t', 'nostr'],
             ['t', 'test'],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::Article->from_event($event);
@@ -228,7 +227,6 @@ subtest 'from_event: parses kind 30024 drafts' => sub {
         content    => '# Draft',
         created_at => 1000,
         tags       => [['d', 'draft-1']],
-        sig => '',
     );
 
     my $info = Net::Nostr::Article->from_event($event);
@@ -239,7 +237,7 @@ subtest 'from_event: parses kind 30024 drafts' => sub {
 subtest 'from_event: returns undef for non-article kinds' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 1, content => 'note', created_at => 1000,
-        tags => [], sig => '',
+        tags => [],
     );
     is(Net::Nostr::Article->from_event($event), undef, 'kind 1 returns undef');
 };
@@ -247,7 +245,7 @@ subtest 'from_event: returns undef for non-article kinds' => sub {
 subtest 'from_event: handles missing optional metadata' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30023, content => 'Minimal.',
-        created_at => 1000, tags => [['d', 'min']], sig => '',
+        created_at => 1000, tags => [['d', 'min']],
     );
 
     my $info = Net::Nostr::Article->from_event($event);
@@ -266,7 +264,7 @@ subtest 'from_event: handles missing optional metadata' => sub {
 subtest 'validate: valid article' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30023, content => 'Test.',
-        created_at => 1000, tags => [['d', 'test']], sig => '',
+        created_at => 1000, tags => [['d', 'test']],
     );
     ok(Net::Nostr::Article->validate($event), 'valid article passes');
 };
@@ -274,7 +272,7 @@ subtest 'validate: valid article' => sub {
 subtest 'validate: valid draft' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30024, content => 'Draft.',
-        created_at => 1000, tags => [['d', 'draft']], sig => '',
+        created_at => 1000, tags => [['d', 'draft']],
     );
     ok(Net::Nostr::Article->validate($event), 'valid draft passes');
 };
@@ -282,7 +280,7 @@ subtest 'validate: valid draft' => sub {
 subtest 'validate: wrong kind' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 1, content => 'note',
-        created_at => 1000, tags => [['d', 'x']], sig => '',
+        created_at => 1000, tags => [['d', 'x']],
     );
     like(dies { Net::Nostr::Article->validate($event) }, qr/30023|30024/, 'wrong kind rejected');
 };
@@ -290,7 +288,7 @@ subtest 'validate: wrong kind' => sub {
 subtest 'validate: missing d tag' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30023, content => 'Test.',
-        created_at => 1000, tags => [], sig => '',
+        created_at => 1000, tags => [],
     );
     like(dies { Net::Nostr::Article->validate($event) }, qr/d tag/, 'missing d tag rejected');
 };
@@ -302,7 +300,7 @@ subtest 'validate: missing d tag' => sub {
 subtest 'to_naddr: generates naddr for article' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30023, content => 'Test.',
-        created_at => 1000, tags => [['d', 'my-article']], sig => '',
+        created_at => 1000, tags => [['d', 'my-article']],
     );
 
     my $naddr = Net::Nostr::Article->to_naddr($event);
@@ -318,7 +316,7 @@ subtest 'to_naddr: generates naddr for article' => sub {
 subtest 'to_naddr: with relay hints' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30023, content => 'Test.',
-        created_at => 1000, tags => [['d', 'test']], sig => '',
+        created_at => 1000, tags => [['d', 'test']],
     );
 
     my $naddr = Net::Nostr::Article->to_naddr($event, relays => ['wss://relay.com']);
@@ -337,7 +335,7 @@ subtest 'replies use NIP-22 comments' => sub {
 
     my $article = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30023, content => 'Article.',
-        created_at => 1000, tags => [['d', 'article-1']], sig => '',
+        created_at => 1000, tags => [['d', 'article-1']],
     );
 
     my $comment = Net::Nostr::Comment->comment(

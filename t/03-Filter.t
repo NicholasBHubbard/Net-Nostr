@@ -11,7 +11,6 @@ my %BASE_EVENT = (
     pubkey     => 'aa' x 32,
     kind       => 1,
     content    => 'hello',
-    sig        => '',
     created_at => 1000,
     tags       => [],
 );

@@ -80,7 +80,7 @@ subtest 'SYNOPSIS: parse listing metadata' => sub {
 subtest 'SYNOPSIS: generate naddr' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $pubkey, kind => 30402, content => 'Test.',
-        created_at => 1000, tags => [['d', 'test']], sig => '',
+        created_at => 1000, tags => [['d', 'test']],
     );
     my $naddr = Net::Nostr::ClassifiedListing->to_naddr($event,
         relays => ['wss://relay.example.com'],
@@ -91,7 +91,7 @@ subtest 'SYNOPSIS: generate naddr' => sub {
 subtest 'SYNOPSIS: validate' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $pubkey, kind => 30402, content => 'Test.',
-        created_at => 1000, tags => [['d', 'test']], sig => '',
+        created_at => 1000, tags => [['d', 'test']],
     );
     ok(Net::Nostr::ClassifiedListing->validate($event), 'valid listing');
 };
@@ -145,7 +145,6 @@ subtest 'from_event: POD example' => sub {
             ['title', 'Vintage Guitar'],
             ['price', '500', 'USD'],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::ClassifiedListing->from_event($event);
@@ -161,7 +160,7 @@ subtest 'from_event: POD example' => sub {
 subtest 'validate: POD eval example' => sub {
     my $bad = Net::Nostr::Event->new(
         pubkey => $pubkey, kind => 1, content => 'not a listing',
-        created_at => 1000, tags => [], sig => '',
+        created_at => 1000, tags => [],
     );
     eval { Net::Nostr::ClassifiedListing->validate($bad) };
     like($@, qr/30402|30403/, 'Invalid listing caught');
@@ -176,7 +175,6 @@ subtest 'accessor: price arrayref formats' => sub {
         pubkey => $pubkey, kind => 30402, content => 'x',
         created_at => 1000,
         tags => [['d', 'a'], ['price', '100', 'USD']],
-        sig => '',
     );
     my $info = Net::Nostr::ClassifiedListing->from_event($event);
     is($info->price, ['100', 'USD'], 'price without frequency');
@@ -185,7 +183,6 @@ subtest 'accessor: price arrayref formats' => sub {
         pubkey => $pubkey, kind => 30402, content => 'x',
         created_at => 1000,
         tags => [['d', 'b'], ['price', '15', 'EUR', 'month']],
-        sig => '',
     );
     my $info2 = Net::Nostr::ClassifiedListing->from_event($event2);
     is($info2->price, ['15', 'EUR', 'month'], 'price with frequency');
@@ -196,7 +193,6 @@ subtest 'accessor: images arrayref of arrayrefs' => sub {
         pubkey => $pubkey, kind => 30402, content => 'x',
         created_at => 1000,
         tags => [['d', 'a'], ['image', 'https://example.com/a.jpg', '256x256'], ['image', 'https://example.com/b.jpg']],
-        sig => '',
     );
     my $info = Net::Nostr::ClassifiedListing->from_event($event);
     is($info->images, [['https://example.com/a.jpg', '256x256'], ['https://example.com/b.jpg']], 'images with and without dimensions');
@@ -207,7 +203,6 @@ subtest 'accessor: hashtags arrayref' => sub {
         pubkey => $pubkey, kind => 30402, content => 'x',
         created_at => 1000,
         tags => [['d', 'a'], ['t', 'electronics'], ['t', 'gadgets']],
-        sig => '',
     );
     my $info = Net::Nostr::ClassifiedListing->from_event($event);
     is($info->hashtags, ['electronics', 'gadgets'], 'hashtags from t tags');

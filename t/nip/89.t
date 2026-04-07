@@ -324,7 +324,6 @@ subtest 'from_event: parses kind 31989 recommendation' => sub {
             ['a', "31990:$APP_PK:abcd", 'wss://relay1', 'web'],
             ['a', "31990:$APP_PK2:efgh", 'wss://relay2', 'ios'],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::AppHandler->from_event($event);
@@ -346,7 +345,6 @@ subtest 'from_event: recommendation with minimal a tag (no relay/platform)' => s
             ['d', '1'],
             ['a', "31990:$APP_PK:handler1"],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::AppHandler->from_event($event);
@@ -375,7 +373,6 @@ subtest 'from_event: parses kind 31990 handler' => sub {
             ['web', 'https://zapstr.live/p/<bech32>', 'nprofile'],
             ['ios', 'com.zapstr:///<bech32>'],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::AppHandler->from_event($event);
@@ -403,7 +400,6 @@ subtest 'from_event: handler with generic platform tag (no entity)' => sub {
             ['k', '1'],
             ['web', 'https://app.com/e/<bech32>'],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::AppHandler->from_event($event);
@@ -419,7 +415,7 @@ subtest 'from_event: handler with generic platform tag (no entity)' => sub {
 subtest 'from_event: returns undef for non-handler kinds' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 1, content => 'note', created_at => 1000,
-        tags => [], sig => '',
+        tags => [],
     );
     is(Net::Nostr::AppHandler->from_event($event), undef, 'kind 1 returns undef');
 };
@@ -433,7 +429,6 @@ subtest 'validate: valid recommendation' => sub {
         pubkey => $PUBKEY, kind => 31989, content => '',
         created_at => 1000,
         tags => [['d', '31337'], ['a', "31990:$APP_PK:abcd"]],
-        sig => '',
     );
     ok(Net::Nostr::AppHandler->validate($event), 'valid recommendation passes');
 };
@@ -443,7 +438,6 @@ subtest 'validate: valid handler' => sub {
         pubkey => $APP_PK, kind => 31990, content => '',
         created_at => 1000,
         tags => [['d', 'handler'], ['k', '31337']],
-        sig => '',
     );
     ok(Net::Nostr::AppHandler->validate($event), 'valid handler passes');
 };
@@ -451,7 +445,7 @@ subtest 'validate: valid handler' => sub {
 subtest 'validate: wrong kind' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 1, content => 'note',
-        created_at => 1000, tags => [['d', 'x']], sig => '',
+        created_at => 1000, tags => [['d', 'x']],
     );
     like(dies { Net::Nostr::AppHandler->validate($event) },
         qr/31989|31990/, 'wrong kind rejected');
@@ -461,7 +455,6 @@ subtest 'validate: recommendation missing d tag' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 31989, content => '',
         created_at => 1000, tags => [['a', "31990:$APP_PK:abcd"]],
-        sig => '',
     );
     like(dies { Net::Nostr::AppHandler->validate($event) },
         qr/d tag/, 'missing d tag rejected');
@@ -471,7 +464,6 @@ subtest 'validate: handler missing d tag' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $APP_PK, kind => 31990, content => '',
         created_at => 1000, tags => [['k', '31337']],
-        sig => '',
     );
     like(dies { Net::Nostr::AppHandler->validate($event) },
         qr/d tag/, 'missing d tag rejected');
@@ -481,7 +473,6 @@ subtest 'validate: handler missing k tag' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $APP_PK, kind => 31990, content => '',
         created_at => 1000, tags => [['d', 'handler']],
-        sig => '',
     );
     like(dies { Net::Nostr::AppHandler->validate($event) },
         qr/k tag/, 'missing k tag rejected');

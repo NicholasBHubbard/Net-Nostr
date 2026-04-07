@@ -293,7 +293,6 @@ subtest 'spec example: approval event' => sub {
         content => 'My post',
         created_at => 1000,
         tags    => [],
-        sig     => '',
     );
 
     my $approval = Net::Nostr::Community->approval(
@@ -332,7 +331,7 @@ subtest 'spec example: approval event' => sub {
 subtest 'approval: requires community a tag' => sub {
     my $post = Net::Nostr::Event->new(
         id => 'ab' x 32, pubkey => $user_pk, kind => 1111,
-        content => 'x', created_at => 1000, tags => [], sig => '',
+        content => 'x', created_at => 1000, tags => [],
     );
     like(dies {
         Net::Nostr::Community->approval(
@@ -350,7 +349,7 @@ subtest 'approval: replaceable event via a tag' => sub {
     my $post = Net::Nostr::Event->new(
         id => 'cd' x 32, pubkey => $user_pk, kind => 30023,
         content => 'article', created_at => 1000,
-        tags => [['d', 'my-article']], sig => '',
+        tags => [['d', 'my-article']],
     );
 
     my $approval = Net::Nostr::Community->approval(
@@ -375,7 +374,7 @@ subtest 'approval: replaceable event via e tag (specific version)' => sub {
     my $post = Net::Nostr::Event->new(
         id => 'cd' x 32, pubkey => $user_pk, kind => 30023,
         content => 'article', created_at => 1000,
-        tags => [['d', 'my-article']], sig => '',
+        tags => [['d', 'my-article']],
     );
 
     my $approval = Net::Nostr::Community->approval(
@@ -398,7 +397,7 @@ subtest 'approval: replaceable event via both e and a tags' => sub {
     my $post = Net::Nostr::Event->new(
         id => 'cd' x 32, pubkey => $user_pk, kind => 30023,
         content => 'article', created_at => 1000,
-        tags => [['d', 'my-article']], sig => '',
+        tags => [['d', 'my-article']],
     );
 
     my $approval = Net::Nostr::Community->approval(
@@ -447,7 +446,7 @@ subtest 'approval: content has full event JSON for e tag approval' => sub {
 subtest 'approval: default uses e tag for regular events' => sub {
     my $post = Net::Nostr::Event->new(
         id => 'ab' x 32, pubkey => $user_pk, kind => 1111,
-        content => 'post', created_at => 1000, tags => [], sig => '',
+        content => 'post', created_at => 1000, tags => [],
     );
     my $approval = Net::Nostr::Community->approval(
         pubkey           => $mod1_pk,
@@ -466,7 +465,7 @@ subtest 'approval: default uses e tag for regular events' => sub {
 subtest 'approval: multiple community a tags' => sub {
     my $post = Net::Nostr::Event->new(
         id => 'ab' x 32, pubkey => $user_pk, kind => 1111,
-        content => 'post', created_at => 1000, tags => [], sig => '',
+        content => 'post', created_at => 1000, tags => [],
     );
 
     my $approval = Net::Nostr::Community->approval(
@@ -502,7 +501,6 @@ subtest 'from_event: parse community definition' => sub {
             ['relay', 'wss://r1.com', 'author'],
             ['relay', 'wss://r2.com'],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::Community->from_event($event);
@@ -526,7 +524,7 @@ subtest 'from_event: parse community definition' => sub {
 subtest 'from_event: parse approval event' => sub {
     my $post_json = $JSON->encode({
         id => 'ab' x 32, pubkey => $user_pk, kind => 1111,
-        content => 'Hello', created_at => 1000, tags => [], sig => '',
+        content => 'Hello', created_at => 1000, tags => [],
     });
     my $event = Net::Nostr::Event->new(
         pubkey => $mod1_pk, kind => 4550, content => $post_json,
@@ -537,7 +535,6 @@ subtest 'from_event: parse approval event' => sub {
             ['p', $user_pk, 'wss://relay.com'],
             ['k', '1111'],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::Community->from_event($event);
@@ -554,7 +551,7 @@ subtest 'from_event: parse approval event' => sub {
 subtest 'from_event: returns undef for non-community kind' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $owner_pk, kind => 1, content => '', tags => [],
-        created_at => 1000, sig => '',
+        created_at => 1000,
     );
     is(Net::Nostr::Community->from_event($event), undef, 'undef for kind 1');
 };
@@ -566,7 +563,7 @@ subtest 'from_event: returns undef for non-community kind' => sub {
 subtest 'validate: rejects non-community kind' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $owner_pk, kind => 1, content => '',
-        created_at => 1000, tags => [], sig => '',
+        created_at => 1000, tags => [],
     );
     like(dies { Net::Nostr::Community->validate($event) },
         qr/34550|4550/, 'rejects wrong kind');
@@ -575,7 +572,7 @@ subtest 'validate: rejects non-community kind' => sub {
 subtest 'validate: community MUST have d tag' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $owner_pk, kind => 34550, content => '',
-        created_at => 1000, tags => [], sig => '',
+        created_at => 1000, tags => [],
     );
     like(dies { Net::Nostr::Community->validate($event) },
         qr/d tag/, 'missing d tag');
@@ -584,7 +581,7 @@ subtest 'validate: community MUST have d tag' => sub {
 subtest 'validate: valid community passes' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $owner_pk, kind => 34550, content => '',
-        created_at => 1000, tags => [['d', 'mycomm']], sig => '',
+        created_at => 1000, tags => [['d', 'mycomm']],
     );
     ok(Net::Nostr::Community->validate($event), 'valid community');
 };
@@ -594,7 +591,6 @@ subtest 'validate: approval MUST have community a tag' => sub {
         pubkey => $mod1_pk, kind => 4550, content => '{}',
         created_at => 1000,
         tags => [['e', 'ab' x 32], ['p', $user_pk], ['k', '1111']],
-        sig => '',
     );
     like(dies { Net::Nostr::Community->validate($event) },
         qr/community.*a tag/, 'missing community a tag');
@@ -605,7 +601,6 @@ subtest 'validate: approval MUST have e or a tag for post' => sub {
         pubkey => $mod1_pk, kind => 4550, content => '{}',
         created_at => 1000,
         tags => [['a', "34550:$owner_pk:c"], ['p', $user_pk], ['k', '1111']],
-        sig => '',
     );
     like(dies { Net::Nostr::Community->validate($event) },
         qr/e or a tag/, 'missing post e or a tag');
@@ -616,7 +611,6 @@ subtest 'validate: approval MUST have p tag for post author' => sub {
         pubkey => $mod1_pk, kind => 4550, content => '{}',
         created_at => 1000,
         tags => [['a', "34550:$owner_pk:c"], ['e', 'ab' x 32], ['k', '1111']],
-        sig => '',
     );
     like(dies { Net::Nostr::Community->validate($event) },
         qr/p tag/, 'missing p tag');
@@ -632,7 +626,6 @@ subtest 'validate: valid approval passes' => sub {
             ['p', $user_pk],
             ['k', '1111'],
         ],
-        sig => '',
     );
     ok(Net::Nostr::Community->validate($event), 'valid approval');
 };
@@ -736,7 +729,6 @@ subtest 'from_event approval: non-34550 a tag is post coordinate' => sub {
             ['p', $user_pk],
             ['k', '30023'],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::Community->from_event($event);
@@ -754,7 +746,7 @@ subtest 'cross-posting: repost with community a tag' => sub {
     # This is done with existing Repost module; verify the a tag format works.
     my $original = Net::Nostr::Event->new(
         id => 'ab' x 32, pubkey => $user_pk, kind => 1111,
-        content => 'Original post', created_at => 1000, tags => [], sig => '',
+        content => 'Original post', created_at => 1000, tags => [],
     );
     my $repost = Net::Nostr::Event->new(
         pubkey => $user_pk, kind => 6,
@@ -766,7 +758,6 @@ subtest 'cross-posting: repost with community a tag' => sub {
             ['e', 'ab' x 32],
             ['p', $user_pk],
         ],
-        sig => '',
     );
 
     # Content MUST be the original event, not the approval event
@@ -793,7 +784,6 @@ subtest 'validate: approval with a tag for post (no e tag) is valid' => sub {
             ['p', $user_pk],
             ['k', '30023'],
         ],
-        sig => '',
     );
     ok(Net::Nostr::Community->validate($event), 'valid with a tag for post');
 };

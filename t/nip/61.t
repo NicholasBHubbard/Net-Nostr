@@ -335,7 +335,6 @@ subtest 'from_event: parses kind 10019 info' => sub {
             ['mint', 'https://mint2', 'sat'],
             ['pubkey', $P2PK_PUBKEY],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::Nutzap->from_event($event);
@@ -361,7 +360,6 @@ subtest 'from_event: parses kind 9321 nutzap' => sub {
             ['e', $EVENTID, 'wss://relay.example'],
             ['k', '1'],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::Nutzap->from_event($event);
@@ -382,7 +380,6 @@ subtest 'from_event: parses kind 7376 redemption' => sub {
             ['e', $nutzap_id, 'wss://r', 'redeemed'],
             ['p', $PUBKEY2],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::Nutzap->from_event($event);
@@ -394,7 +391,7 @@ subtest 'from_event: parses kind 7376 redemption' => sub {
 subtest 'from_event: returns undef for unrelated kinds' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 1, content => 'note', created_at => 1000,
-        tags => [], sig => '',
+        tags => [],
     );
     is(Net::Nostr::Nutzap->from_event($event), undef, 'kind 1 returns undef');
 };
@@ -411,7 +408,6 @@ subtest 'validate: valid kind 10019' => sub {
             ['mint', 'https://m', 'sat'],
             ['pubkey', $P2PK_PUBKEY],
         ],
-        sig => '',
     );
     ok(Net::Nostr::Nutzap->validate($event), 'valid 10019');
 };
@@ -423,7 +419,6 @@ subtest 'validate: kind 10019 missing relay' => sub {
             ['mint', 'https://m', 'sat'],
             ['pubkey', $P2PK_PUBKEY],
         ],
-        sig => '',
     );
     like(dies { Net::Nostr::Nutzap->validate($event) }, qr/relay/, 'missing relay');
 };
@@ -435,7 +430,6 @@ subtest 'validate: kind 10019 missing mint' => sub {
             ['relay', 'wss://r'],
             ['pubkey', $P2PK_PUBKEY],
         ],
-        sig => '',
     );
     like(dies { Net::Nostr::Nutzap->validate($event) }, qr/mint/, 'missing mint');
 };
@@ -447,7 +441,6 @@ subtest 'validate: kind 10019 missing pubkey tag' => sub {
             ['relay', 'wss://r'],
             ['mint', 'https://m', 'sat'],
         ],
-        sig => '',
     );
     like(dies { Net::Nostr::Nutzap->validate($event) }, qr/pubkey/, 'missing pubkey tag');
 };
@@ -460,7 +453,6 @@ subtest 'validate: valid kind 9321' => sub {
             ['u', 'https://m'],
             ['p', $PUBKEY2],
         ],
-        sig => '',
     );
     ok(Net::Nostr::Nutzap->validate($event), 'valid 9321');
 };
@@ -472,7 +464,6 @@ subtest 'validate: kind 9321 missing proof' => sub {
             ['u', 'https://m'],
             ['p', $PUBKEY2],
         ],
-        sig => '',
     );
     like(dies { Net::Nostr::Nutzap->validate($event) }, qr/proof/, 'missing proof');
 };
@@ -484,7 +475,6 @@ subtest 'validate: kind 9321 missing u tag' => sub {
             ['proof', '{}'],
             ['p', $PUBKEY2],
         ],
-        sig => '',
     );
     like(dies { Net::Nostr::Nutzap->validate($event) }, qr/u tag/, 'missing u tag');
 };
@@ -496,7 +486,6 @@ subtest 'validate: kind 9321 missing p tag' => sub {
             ['proof', '{}'],
             ['u', 'https://m'],
         ],
-        sig => '',
     );
     like(dies { Net::Nostr::Nutzap->validate($event) }, qr/p tag/, 'missing p tag');
 };
@@ -508,7 +497,6 @@ subtest 'validate: valid kind 7376' => sub {
             ['e', $EVENTID, '', 'redeemed'],
             ['p', $PUBKEY2],
         ],
-        sig => '',
     );
     ok(Net::Nostr::Nutzap->validate($event), 'valid 7376');
 };
@@ -517,7 +505,6 @@ subtest 'validate: kind 7376 missing e tag' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 7376, content => '', created_at => 1000,
         tags => [['p', $PUBKEY2]],
-        sig => '',
     );
     like(dies { Net::Nostr::Nutzap->validate($event) }, qr/e tag/, 'missing e tag');
 };
@@ -525,7 +512,7 @@ subtest 'validate: kind 7376 missing e tag' => sub {
 subtest 'validate: wrong kind' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 1, content => '', created_at => 1000,
-        tags => [], sig => '',
+        tags => [],
     );
     like(dies { Net::Nostr::Nutzap->validate($event) }, qr/10019|9321|7376/, 'wrong kind');
 };
@@ -774,7 +761,6 @@ subtest 'from_event: parses multiple proofs from kind 9321' => sub {
             ['unit', 'sat'],
             ['p', $PUBKEY2],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::Nutzap->from_event($event);
@@ -794,7 +780,6 @@ subtest 'from_event: parses mint with no units' => sub {
             ['mint', 'https://m'],
             ['pubkey', $P2PK_PUBKEY],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::Nutzap->from_event($event);

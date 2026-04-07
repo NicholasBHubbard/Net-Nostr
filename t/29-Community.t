@@ -66,7 +66,7 @@ subtest 'SYNOPSIS: reply to a post' => sub {
 subtest 'SYNOPSIS: approve a post' => sub {
     my $post = Net::Nostr::Event->new(
         id => 'ee' x 32, pubkey => $user_pk, kind => 1111,
-        content => 'Hello!', created_at => 1000, tags => [], sig => '',
+        content => 'Hello!', created_at => 1000, tags => [],
     );
     my $approval = Net::Nostr::Community->approval(
         pubkey           => $mod_pk,
@@ -127,7 +127,7 @@ subtest 'post: with relay hint' => sub {
 subtest 'approval: content has JSON event' => sub {
     my $post = Net::Nostr::Event->new(
         id => 'ff' x 32, pubkey => $user_pk, kind => 1111,
-        content => 'Test', created_at => 1000, tags => [], sig => '',
+        content => 'Test', created_at => 1000, tags => [],
     );
     my $approval = Net::Nostr::Community->approval(
         pubkey           => $mod_pk,
@@ -153,7 +153,6 @@ subtest 'from_event: community accessors' => sub {
             ['description', 'Great place'],
             ['p', $mod_pk, '', 'moderator'],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::Community->from_event($event);
     is($info->identifier, 'my-community', 'identifier');
@@ -169,13 +168,13 @@ subtest 'from_event: community accessors' => sub {
 subtest 'validate: POD example' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $owner_pk, kind => 34550, content => '',
-        created_at => 1000, tags => [['d', 'test']], sig => '',
+        created_at => 1000, tags => [['d', 'test']],
     );
     ok(Net::Nostr::Community->validate($event), 'valid');
 
     my $bad = Net::Nostr::Event->new(
         pubkey => $owner_pk, kind => 1, content => '',
-        created_at => 1000, tags => [], sig => '',
+        created_at => 1000, tags => [],
     );
     like(dies { Net::Nostr::Community->validate($bad) }, qr/./, 'invalid');
 };
@@ -219,7 +218,7 @@ subtest 'legacy_post_filter: POD example' => sub {
 subtest 'approval: multi-community POD example' => sub {
     my $post = Net::Nostr::Event->new(
         id => 'ff' x 32, pubkey => $user_pk, kind => 1111,
-        content => 'Test', created_at => 1000, tags => [], sig => '',
+        content => 'Test', created_at => 1000, tags => [],
     );
     my $event = Net::Nostr::Community->approval(
         pubkey      => $mod_pk,

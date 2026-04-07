@@ -264,7 +264,6 @@ subtest 'from_event: profile report' => sub {
         pubkey => $PUBKEY, kind => 1984, content => '',
         created_at => 1000,
         tags => [['p', $PUBKEY2, 'spam']],
-        sig => '',
     );
     my $info = Net::Nostr::Report->from_event($event);
     is($info->reported_pubkey, $PUBKEY2, 'reported pubkey');
@@ -280,7 +279,6 @@ subtest 'from_event: note report' => sub {
             ['e', $EVID, 'illegal'],
             ['p', $PUBKEY2],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::Report->from_event($event);
     is($info->reported_pubkey, $PUBKEY2, 'reported pubkey');
@@ -298,7 +296,6 @@ subtest 'from_event: blob report' => sub {
             ['p', $PUBKEY2],
             ['server', 'https://example.com/file.ext'],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::Report->from_event($event);
     is($info->blob_hash, $BLOB_HASH, 'blob hash');
@@ -316,7 +313,6 @@ subtest 'validate: valid profile report' => sub {
         pubkey => $PUBKEY, kind => 1984, content => '',
         created_at => 1000,
         tags => [['p', $PUBKEY2, 'spam']],
-        sig => '',
     );
     ok(Net::Nostr::Report->validate($event), 'valid');
 };
@@ -326,7 +322,6 @@ subtest 'validate: valid note report' => sub {
         pubkey => $PUBKEY, kind => 1984, content => '',
         created_at => 1000,
         tags => [['e', $EVID, 'illegal'], ['p', $PUBKEY2]],
-        sig => '',
     );
     ok(Net::Nostr::Report->validate($event), 'valid');
 };
@@ -341,7 +336,6 @@ subtest 'validate: valid blob report' => sub {
             ['p', $PUBKEY2],
             ['server', 'https://example.com/file.ext'],
         ],
-        sig => '',
     );
     ok(Net::Nostr::Report->validate($event), 'valid blob report');
 };
@@ -351,7 +345,6 @@ subtest 'validate: wrong kind' => sub {
         pubkey => $PUBKEY, kind => 1, content => '',
         created_at => 1000,
         tags => [['p', $PUBKEY2, 'spam']],
-        sig => '',
     );
     like(dies { Net::Nostr::Report->validate($event) }, qr/kind/, 'wrong kind');
 };
@@ -361,7 +354,6 @@ subtest 'validate: missing p tag' => sub {
         pubkey => $PUBKEY, kind => 1984, content => '',
         created_at => 1000,
         tags => [['e', $EVID, 'illegal']],
-        sig => '',
     );
     like(dies { Net::Nostr::Report->validate($event) }, qr/p tag/, 'missing p tag');
 };
@@ -371,7 +363,6 @@ subtest 'validate: missing report type on p tag (profile-only report)' => sub {
         pubkey => $PUBKEY, kind => 1984, content => '',
         created_at => 1000,
         tags => [['p', $PUBKEY2]],
-        sig => '',
     );
     like(dies { Net::Nostr::Report->validate($event) },
         qr/report.type/i, 'missing report type');
@@ -382,7 +373,6 @@ subtest 'validate: x tag without e tag' => sub {
         pubkey => $PUBKEY, kind => 1984, content => '',
         created_at => 1000,
         tags => [['x', $BLOB_HASH, 'malware'], ['p', $PUBKEY2]],
-        sig => '',
     );
     like(dies { Net::Nostr::Report->validate($event) },
         qr/e tag/, 'x tag requires e tag');

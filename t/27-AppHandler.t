@@ -108,7 +108,7 @@ subtest 'client_tag: embedding in event' => sub {
 subtest 'accessor: event_kind' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $pubkey, kind => 31989, content => '',
-        created_at => 1000, tags => [['d', '31337']], sig => '',
+        created_at => 1000, tags => [['d', '31337']],
     );
     my $info = Net::Nostr::AppHandler->from_event($event);
     is($info->event_kind, '31337', 'event_kind from d tag');
@@ -122,7 +122,6 @@ subtest 'accessor: apps' => sub {
             ['d', '31337'],
             ['a', "31990:$app_pk:id", 'wss://relay', 'web'],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::AppHandler->from_event($event);
     is($info->apps->[0]{coordinate}, "31990:$app_pk:id", 'app coordinate');
@@ -135,7 +134,6 @@ subtest 'accessor: kinds' => sub {
         pubkey => $app_pk, kind => 31990, content => '',
         created_at => 1000,
         tags => [['d', 'h'], ['k', '31337'], ['k', '30023']],
-        sig => '',
     );
     my $info = Net::Nostr::AppHandler->from_event($event);
     is($info->kinds, ['31337', '30023'], 'kinds from k tags');
@@ -145,7 +143,7 @@ subtest 'accessor: content' => sub {
     my $meta = '{"name":"Zapstr"}';
     my $event = Net::Nostr::Event->new(
         pubkey => $app_pk, kind => 31990, content => $meta,
-        created_at => 1000, tags => [['d', 'h'], ['k', '1']], sig => '',
+        created_at => 1000, tags => [['d', 'h'], ['k', '1']],
     );
     my $info = Net::Nostr::AppHandler->from_event($event);
     is($info->content, $meta, 'content preserved');
@@ -159,7 +157,6 @@ subtest 'accessor: platforms' => sub {
             ['d', 'h'], ['k', '1'],
             ['web', 'https://app.com/<bech32>', 'nevent'],
         ],
-        sig => '',
     );
     my $info = Net::Nostr::AppHandler->from_event($event);
     is($info->platforms->[0]{platform}, 'web', 'platform');

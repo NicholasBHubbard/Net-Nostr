@@ -380,7 +380,6 @@ subtest 'from_event: parses kind 30402' => sub {
             ['t', 'electronics'],
             ['t', 'gadgets'],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::ClassifiedListing->from_event($event);
@@ -403,7 +402,6 @@ subtest 'from_event: parses kind 30403 drafts' => sub {
         content    => '# Draft',
         created_at => 1000,
         tags       => [['d', 'draft-1'], ['title', 'Draft Title']],
-        sig => '',
     );
 
     my $info = Net::Nostr::ClassifiedListing->from_event($event);
@@ -415,7 +413,7 @@ subtest 'from_event: parses kind 30403 drafts' => sub {
 subtest 'from_event: returns undef for non-listing kinds' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 1, content => 'note', created_at => 1000,
-        tags => [], sig => '',
+        tags => [],
     );
     is(Net::Nostr::ClassifiedListing->from_event($event), undef, 'kind 1 returns undef');
 };
@@ -423,7 +421,7 @@ subtest 'from_event: returns undef for non-listing kinds' => sub {
 subtest 'from_event: handles missing optional metadata' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30402, content => 'Minimal.',
-        created_at => 1000, tags => [['d', 'min']], sig => '',
+        created_at => 1000, tags => [['d', 'min']],
     );
 
     my $info = Net::Nostr::ClassifiedListing->from_event($event);
@@ -443,7 +441,6 @@ subtest 'from_event: price with frequency' => sub {
         pubkey => $PUBKEY, kind => 30402, content => 'Subscription.',
         created_at => 1000,
         tags => [['d', 'sub'], ['price', '15', 'EUR', 'month']],
-        sig => '',
     );
 
     my $info = Net::Nostr::ClassifiedListing->from_event($event);
@@ -457,7 +454,7 @@ subtest 'from_event: price with frequency' => sub {
 subtest 'validate: valid listing' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30402, content => 'Test.',
-        created_at => 1000, tags => [['d', 'test']], sig => '',
+        created_at => 1000, tags => [['d', 'test']],
     );
     ok(Net::Nostr::ClassifiedListing->validate($event), 'valid listing passes');
 };
@@ -465,7 +462,7 @@ subtest 'validate: valid listing' => sub {
 subtest 'validate: valid draft' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30403, content => 'Draft.',
-        created_at => 1000, tags => [['d', 'draft']], sig => '',
+        created_at => 1000, tags => [['d', 'draft']],
     );
     ok(Net::Nostr::ClassifiedListing->validate($event), 'valid draft passes');
 };
@@ -473,7 +470,7 @@ subtest 'validate: valid draft' => sub {
 subtest 'validate: wrong kind' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 1, content => 'note',
-        created_at => 1000, tags => [['d', 'x']], sig => '',
+        created_at => 1000, tags => [['d', 'x']],
     );
     like(dies { Net::Nostr::ClassifiedListing->validate($event) },
         qr/30402|30403/, 'wrong kind rejected');
@@ -482,7 +479,7 @@ subtest 'validate: wrong kind' => sub {
 subtest 'validate: missing d tag' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30402, content => 'Test.',
-        created_at => 1000, tags => [], sig => '',
+        created_at => 1000, tags => [],
     );
     like(dies { Net::Nostr::ClassifiedListing->validate($event) },
         qr/d tag/, 'missing d tag rejected');
@@ -495,7 +492,7 @@ subtest 'validate: missing d tag' => sub {
 subtest 'to_naddr: generates naddr for listing' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30402, content => 'Test.',
-        created_at => 1000, tags => [['d', 'my-listing']], sig => '',
+        created_at => 1000, tags => [['d', 'my-listing']],
     );
 
     my $naddr = Net::Nostr::ClassifiedListing->to_naddr($event);
@@ -511,7 +508,7 @@ subtest 'to_naddr: generates naddr for listing' => sub {
 subtest 'to_naddr: with relay hints' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => $PUBKEY, kind => 30402, content => 'Test.',
-        created_at => 1000, tags => [['d', 'test']], sig => '',
+        created_at => 1000, tags => [['d', 'test']],
     );
 
     my $naddr = Net::Nostr::ClassifiedListing->to_naddr($event, relays => ['wss://relay.com']);
@@ -627,7 +624,6 @@ subtest 'from_event: multiple images round-trip' => sub {
             ['image', 'https://example.com/b.jpg'],
             ['image', 'https://example.com/c.jpg', '1024x768'],
         ],
-        sig => '',
     );
 
     my $info = Net::Nostr::ClassifiedListing->from_event($event);

@@ -120,6 +120,28 @@ subtest 'sig is writable (does not affect event ID)' => sub {
     ok(lives { $event->sig(undef) }, 'sig can be cleared');
 };
 
+subtest 'sig setter rejects invalid values' => sub {
+    my $event = Net::Nostr::Event->new(
+        content => 'hello', pubkey => 'b' x 64, kind => 1,
+        created_at => 1673361254, tags => [],
+    );
+    like(dies { $event->sig('too-short') },
+        qr/sig must be 128-char lowercase hex/,
+        'short string rejected');
+    like(dies { $event->sig('A' x 128) },
+        qr/sig must be 128-char lowercase hex/,
+        'uppercase hex rejected');
+    like(dies { $event->sig('g' x 128) },
+        qr/sig must be 128-char lowercase hex/,
+        'non-hex rejected');
+    like(dies { $event->sig('') },
+        qr/sig must be 128-char lowercase hex/,
+        'empty string rejected');
+    like(dies { $event->sig(0) },
+        qr/sig must be 128-char lowercase hex/,
+        'zero rejected');
+};
+
 subtest 'created_at 0 is preserved' => sub {
     my $event = Net::Nostr::Event->new(
         content => '', pubkey => 'b' x 64, kind => 1,
@@ -357,11 +379,22 @@ subtest 'new() rejects invalid id' => sub {
     );
 };
 
-subtest 'new() allows empty sig (unsigned event)' => sub {
+subtest 'new() allows omitted sig (unsigned event)' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => 'a' x 64, kind => 1, content => 'hello',
     );
-    ok !defined($event->sig) || $event->sig eq '', 'unsigned event OK';
+    ok !defined($event->sig), 'unsigned event has undef sig';
+};
+
+subtest 'new() rejects empty string sig' => sub {
+    like(
+        dies { Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'hello',
+            sig => '',
+        ) },
+        qr/sig must be 128-char lowercase hex/,
+        'empty string sig rejected in constructor'
+    );
 };
 
 
