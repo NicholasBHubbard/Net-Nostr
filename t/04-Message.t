@@ -487,4 +487,53 @@ subtest 'new() rejects unknown arguments' => sub {
     );
 };
 
+###############################################################################
+# parse() rejects EVENT with missing required event fields (from_wire)
+###############################################################################
+
+subtest 'parse() EVENT rejects missing event id' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{id};
+    my $raw = JSON->new->utf8->encode(['EVENT', 'sub1', $h]);
+    like(dies { Net::Nostr::Message->parse($raw) }, qr/id is required/, 'missing id rejected');
+};
+
+subtest 'parse() EVENT rejects missing created_at' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{created_at};
+    my $raw = JSON->new->utf8->encode(['EVENT', 'sub1', $h]);
+    like(dies { Net::Nostr::Message->parse($raw) }, qr/created_at is required/, 'missing created_at rejected');
+};
+
+subtest 'parse() EVENT rejects missing tags' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{tags};
+    my $raw = JSON->new->utf8->encode(['EVENT', 'sub1', $h]);
+    like(dies { Net::Nostr::Message->parse($raw) }, qr/tags is required/, 'missing tags rejected');
+};
+
+subtest 'parse() EVENT rejects missing sig' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{sig};
+    my $raw = JSON->new->utf8->encode(['EVENT', 'sub1', $h]);
+    like(dies { Net::Nostr::Message->parse($raw) }, qr/sig is required/, 'missing sig rejected');
+};
+
+subtest 'parse() client EVENT rejects missing event fields' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{id};
+    my $raw = JSON->new->utf8->encode(['EVENT', $h]);
+    like(dies { Net::Nostr::Message->parse($raw) }, qr/id is required/, 'client EVENT missing id rejected');
+};
+
+subtest 'parse() AUTH event rejects missing event fields' => sub {
+    my $h = $EVENT->to_hash;
+    $h->{kind} = 22242;
+    # recompute the id since we changed kind; but the point is that removing
+    # a field is what we're testing
+    delete $h->{sig};
+    my $raw = JSON->new->utf8->encode(['AUTH', $h]);
+    like(dies { Net::Nostr::Message->parse($raw) }, qr/sig is required/, 'AUTH event missing sig rejected');
+};
+
 done_testing;

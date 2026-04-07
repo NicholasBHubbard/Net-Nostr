@@ -136,17 +136,15 @@ my %PARSERS = (
         my ($arr) = @_;
         # client-to-relay: ["EVENT", {event}]
         if (@$arr == 2 && ref($arr->[1]) eq 'HASH') {
-            my $event_hash = $arr->[1];
             return (
-                event => Net::Nostr::Event->new(%$event_hash, id => $event_hash->{id}),
+                event => Net::Nostr::Event->from_wire($arr->[1]),
             );
         }
         # relay-to-client: ["EVENT", sub_id, {event}]
         croak "EVENT message requires 2 or 3 elements\n" unless @$arr == 3;
-        my $event_hash = $arr->[2];
         return (
             subscription_id => $arr->[1],
-            event           => Net::Nostr::Event->new(%$event_hash, id => $event_hash->{id}),
+            event           => Net::Nostr::Event->from_wire($arr->[2]),
         );
     },
     OK => sub {
@@ -227,9 +225,8 @@ my %PARSERS = (
         croak "AUTH message requires 2 elements\n" unless @$arr == 2;
         # If second element is a hash, it's a signed event from client
         if (ref($arr->[1]) eq 'HASH') {
-            my $event_hash = $arr->[1];
             return (
-                event => Net::Nostr::Event->new(%$event_hash, id => $event_hash->{id}),
+                event => Net::Nostr::Event->from_wire($arr->[1]),
             );
         }
         # Otherwise it's a challenge string from relay
@@ -345,9 +342,10 @@ Returns the JSON-encoded message string per the NIP-01 wire format.
 Class method. Parses a JSON message string and returns a new
 Net::Nostr::Message object. Croaks on invalid JSON, unknown message
 types, or malformed messages. Validates structural format of each
-message type (element count, field types). For EVENT messages, the
-contained event is constructed via C<< Net::Nostr::Event->new >> which
-validates field formats.
+message type (element count, field types). For EVENT and AUTH messages,
+the contained event is constructed via C<< Net::Nostr::Event->from_wire >>
+which requires all seven NIP-01 fields (id, pubkey, created_at, kind,
+tags, content, sig) and rejects missing or undefined fields.
 
 B<Trust boundary>: C<parse> validates message structure and field formats
 but does B<not> verify event signatures, event ID hashes, or

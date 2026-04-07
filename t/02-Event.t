@@ -483,4 +483,111 @@ subtest 'new() rejects unknown arguments' => sub {
     );
 };
 
+###############################################################################
+# from_wire: strict wire parser
+###############################################################################
+
+subtest 'from_wire accepts complete event hash' => sub {
+    my $h = $EVENT->to_hash;
+    my $event = Net::Nostr::Event->from_wire($h);
+    is $event->id, $EVENT->id, 'id preserved';
+    is $event->pubkey, $EVENT->pubkey, 'pubkey preserved';
+    is $event->created_at, $EVENT->created_at, 'created_at preserved';
+    is $event->kind, $EVENT->kind, 'kind preserved';
+    is $event->tags, $EVENT->tags, 'tags preserved';
+    is $event->content, $EVENT->content, 'content preserved';
+    is $event->sig, $EVENT->sig, 'sig preserved';
+};
+
+subtest 'from_wire rejects missing id' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{id};
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/id is required/, 'missing id rejected');
+};
+
+subtest 'from_wire rejects missing pubkey' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{pubkey};
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/pubkey is required/, 'missing pubkey rejected');
+};
+
+subtest 'from_wire rejects missing created_at' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{created_at};
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/created_at is required/, 'missing created_at rejected');
+};
+
+subtest 'from_wire rejects missing kind' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{kind};
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/kind is required/, 'missing kind rejected');
+};
+
+subtest 'from_wire rejects missing tags' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{tags};
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/tags is required/, 'missing tags rejected');
+};
+
+subtest 'from_wire rejects missing content' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{content};
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/content is required/, 'missing content rejected');
+};
+
+subtest 'from_wire rejects missing sig' => sub {
+    my $h = $EVENT->to_hash;
+    delete $h->{sig};
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/sig is required/, 'missing sig rejected');
+};
+
+subtest 'from_wire does not default created_at' => sub {
+    my $h = $EVENT->to_hash;
+    $h->{created_at} = undef;
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/created_at is required/, 'undef created_at rejected');
+};
+
+subtest 'from_wire does not default tags' => sub {
+    my $h = $EVENT->to_hash;
+    $h->{tags} = undef;
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/tags is required/, 'undef tags rejected');
+};
+
+subtest 'from_wire does not compute id' => sub {
+    my $h = $EVENT->to_hash;
+    $h->{id} = undef;
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/id is required/, 'undef id rejected');
+};
+
+subtest 'from_wire still validates formats' => sub {
+    my $h = $EVENT->to_hash;
+    $h->{pubkey} = 'ZZZZ';
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/pubkey must be 64-char/, 'bad pubkey format rejected');
+
+    $h = $EVENT->to_hash;
+    $h->{id} = 'short';
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/id must be 64-char/, 'bad id format rejected');
+
+    $h = $EVENT->to_hash;
+    $h->{sig} = 'bad';
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/sig must be 128-char/, 'bad sig format rejected');
+
+    $h = $EVENT->to_hash;
+    $h->{kind} = -1;
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/kind must be/, 'bad kind rejected');
+};
+
+subtest 'from_wire rejects unknown fields' => sub {
+    my $h = $EVENT->to_hash;
+    $h->{bogus} = 'value';
+    like(dies { Net::Nostr::Event->from_wire($h) }, qr/unknown.+bogus/i, 'unknown field rejected');
+};
+
+subtest 'from_wire round-trips with to_hash' => sub {
+    my $h = $EVENT->to_hash;
+    my $event = Net::Nostr::Event->from_wire($h);
+    my $h2 = $event->to_hash;
+    is $h2, $h, 'round-trip preserves all fields';
+};
+
 done_testing;

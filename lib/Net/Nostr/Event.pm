@@ -35,7 +35,7 @@ for my $field (qw(id pubkey created_at kind tags content)) {
             : $self->{$field};
     };
 }
-# sig is the only writable field — it does not participate in the event
+# sig is the only writable field -- it does not participate in the event
 # ID computation, so mutating it (e.g. after signing) is safe.
 # Class::Tiny's default read-write accessor handles it.
 
@@ -93,6 +93,18 @@ sub new {
     $self->{tags} = $self->{tags} ? Storable::dclone($self->{tags}) : [];
     $self->{id}   = $self->_calc_id unless $self->{id};
     return $self;
+}
+
+sub from_wire {
+    my ($class, $hash) = @_;
+    croak "from_wire requires a hashref" unless ref($hash) eq 'HASH';
+
+    for my $field (qw(id pubkey created_at kind tags content sig)) {
+        croak "$field is required"
+            unless defined $hash->{$field};
+    }
+
+    return $class->new(%$hash);
 }
 
 sub json_serialize {
@@ -295,7 +307,7 @@ Net::Nostr::Event - Nostr protocol event object
     say $event->id;   # 64-char hex sha256
     say $event->sig;  # 128-char hex signature
 
-    # Manual construction (e.g. when parsing from the wire)
+    # Manual construction (local builder -- defaults created_at, tags, id)
     my $event = Net::Nostr::Event->new(
         pubkey     => $key->pubkey_hex,
         kind       => 1,
@@ -303,6 +315,9 @@ Net::Nostr::Event - Nostr protocol event object
         tags       => [['t', 'nostr']],
         created_at => 1700000000,
     );
+
+    # Parse from wire (strict -- all 7 fields required, no defaults)
+    my $event = Net::Nostr::Event->from_wire(\%hash);
 
     say $event->json_serialize;  # canonical JSON array for hashing
     my $hash = $event->to_hash;  # { id, pubkey, created_at, kind, tags, content, sig }
@@ -334,10 +349,13 @@ event ID and any existing signature.
         sig        => $hex_sig,
     );
 
-Creates a new event. C<pubkey>, C<kind>, and C<content> are required.
-C<tags> defaults to C<[]>, C<created_at> defaults to C<time()>, and C<id>
-is automatically computed from the canonical serialization. If C<id> is
-passed explicitly (e.g. when parsing from the wire), it is preserved as-is.
+Strict builder for local event construction. C<pubkey>, C<kind>, and
+C<content> are required. C<tags> defaults to C<[]>, C<created_at> defaults
+to C<time()>, and C<id> is automatically computed from the canonical
+serialization. If C<id> is passed explicitly, it is preserved as-is.
+
+For events parsed from the wire, use L</from_wire> instead, which requires
+all seven NIP-01 fields and does not apply any defaults.
 
 Croaks if any required field is missing or if values fail format validation:
 
@@ -356,6 +374,24 @@ Croaks if any required field is missing or if values fail format validation:
 =item * Unknown arguments are rejected
 
 =back
+
+=head2 from_wire
+
+    my $event = Net::Nostr::Event->from_wire(\%hash);
+
+Strict wire parser. Constructs an event from a hashref received over the
+wire (e.g. from JSON-decoded protocol messages). All seven NIP-01 event
+fields are required: C<id>, C<pubkey>, C<created_at>, C<kind>, C<tags>,
+C<content>, C<sig>. No defaults are applied. Croaks if any field is
+missing, undefined, or fails format validation.
+
+This is the entry point used by L<Net::Nostr::Message/parse> for EVENT
+and AUTH messages. Use L</new> for local event construction where
+defaults (C<created_at>, C<tags>, C<id>) are convenient.
+
+    my $hash = { id => '...', pubkey => '...', created_at => 1000,
+                 kind => 1, tags => [], content => 'hi', sig => '...' };
+    my $event = Net::Nostr::Event->from_wire($hash);
 
 =head1 ACCESSORS
 

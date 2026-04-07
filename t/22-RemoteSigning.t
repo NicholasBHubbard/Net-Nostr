@@ -234,4 +234,80 @@ subtest 'RemoteSigning inner classes reject unknown arguments' => sub {
     like $@, qr/unknown.+bogus/i, 'Response error mentions bogus';
 };
 
+###############################################################################
+# parse_request validation
+###############################################################################
+
+subtest 'parse_request rejects missing id' => sub {
+    my $json = JSON->new->utf8->encode({ method => 'ping', params => [] });
+    ok !eval { Net::Nostr::RemoteSigning->parse_request($json) }, 'croaks';
+    like $@, qr/id is required/, 'error mentions id';
+};
+
+subtest 'parse_request rejects missing method' => sub {
+    my $json = JSON->new->utf8->encode({ id => 'r1', params => [] });
+    ok !eval { Net::Nostr::RemoteSigning->parse_request($json) }, 'croaks';
+    like $@, qr/method is required/, 'error mentions method';
+};
+
+subtest 'parse_request rejects missing params' => sub {
+    my $json = JSON->new->utf8->encode({ id => 'r1', method => 'ping' });
+    ok !eval { Net::Nostr::RemoteSigning->parse_request($json) }, 'croaks';
+    like $@, qr/params is required/, 'error mentions params';
+};
+
+subtest 'parse_request rejects non-arrayref params' => sub {
+    my $json = JSON->new->utf8->encode({ id => 'r1', method => 'ping', params => 'bad' });
+    ok !eval { Net::Nostr::RemoteSigning->parse_request($json) }, 'croaks';
+    like $@, qr/params must be an arrayref/, 'error mentions arrayref';
+};
+
+###############################################################################
+# parse_response validation
+###############################################################################
+
+subtest 'parse_response rejects missing id' => sub {
+    my $json = JSON->new->utf8->encode({ result => 'pong' });
+    ok !eval { Net::Nostr::RemoteSigning->parse_response($json) }, 'croaks';
+    like $@, qr/id is required/, 'error mentions id';
+};
+
+###############################################################################
+# Request constructor validation
+###############################################################################
+
+subtest 'Request constructor rejects missing id' => sub {
+    ok !eval { Net::Nostr::RemoteSigning::Request->new(method => 'ping', params => []) },
+        'croaks';
+    like $@, qr/id is required/, 'error mentions id';
+};
+
+subtest 'Request constructor rejects missing method' => sub {
+    ok !eval { Net::Nostr::RemoteSigning::Request->new(id => 'r1', params => []) },
+        'croaks';
+    like $@, qr/method is required/, 'error mentions method';
+};
+
+subtest 'Request constructor rejects missing params' => sub {
+    ok !eval { Net::Nostr::RemoteSigning::Request->new(id => 'r1', method => 'ping') },
+        'croaks';
+    like $@, qr/params is required/, 'error mentions params';
+};
+
+subtest 'Request constructor rejects non-arrayref params' => sub {
+    ok !eval { Net::Nostr::RemoteSigning::Request->new(id => 'r1', method => 'ping', params => 'bad') },
+        'croaks';
+    like $@, qr/params must be an arrayref/, 'error mentions arrayref';
+};
+
+###############################################################################
+# Response constructor validation
+###############################################################################
+
+subtest 'Response constructor rejects missing id' => sub {
+    ok !eval { Net::Nostr::RemoteSigning::Response->new(result => 'pong') },
+        'croaks';
+    like $@, qr/id is required/, 'error mentions id';
+};
+
 done_testing;

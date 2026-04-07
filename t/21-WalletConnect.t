@@ -238,4 +238,72 @@ subtest 'WalletConnect inner classes reject unknown arguments' => sub {
     like $@, qr/unknown.+bogus/i, 'Notification error mentions bogus';
 };
 
+###############################################################################
+# parse_info validation
+###############################################################################
+
+subtest 'parse_info rejects wrong event kind' => sub {
+    my $event = make_event(
+        id => '1' x 64, kind => 1, pubkey => $wallet_pubkey,
+        created_at => 1000,
+        content => 'pay_invoice',
+        tags => [],
+        sig => '2' x 128,
+    );
+    ok !eval { Net::Nostr::WalletConnect->parse_info($event) }, 'croaks';
+    like $@, qr/kind 13194/, 'error mentions kind';
+};
+
+###############################################################################
+# parse_response validation
+###############################################################################
+
+subtest 'parse_response rejects missing result_type' => sub {
+    my $json = JSON->new->utf8->encode({ result => { preimage => 'abc' } });
+    ok !eval { Net::Nostr::WalletConnect->parse_response($json) }, 'croaks';
+    like $@, qr/result_type is required/, 'error mentions result_type';
+};
+
+###############################################################################
+# parse_notification validation
+###############################################################################
+
+subtest 'parse_notification rejects missing notification_type' => sub {
+    my $json = JSON->new->utf8->encode({ notification => { amount => 50000 } });
+    ok !eval { Net::Nostr::WalletConnect->parse_notification($json) }, 'croaks';
+    like $@, qr/notification_type is required/, 'error mentions notification_type';
+};
+
+subtest 'parse_notification rejects missing notification' => sub {
+    my $json = JSON->new->utf8->encode({ notification_type => 'payment_received' });
+    ok !eval { Net::Nostr::WalletConnect->parse_notification($json) }, 'croaks';
+    like $@, qr/notification is required/, 'error mentions notification';
+};
+
+###############################################################################
+# Response constructor validation
+###############################################################################
+
+subtest 'WC Response constructor rejects missing result_type' => sub {
+    ok !eval { Net::Nostr::WalletConnect::Response->new(result => { preimage => 'abc' }) },
+        'croaks';
+    like $@, qr/result_type is required/, 'error mentions result_type';
+};
+
+###############################################################################
+# Notification constructor validation
+###############################################################################
+
+subtest 'WC Notification constructor rejects missing notification_type' => sub {
+    ok !eval { Net::Nostr::WalletConnect::Notification->new(notification => { amount => 50000 }) },
+        'croaks';
+    like $@, qr/notification_type is required/, 'error mentions notification_type';
+};
+
+subtest 'WC Notification constructor rejects missing notification' => sub {
+    ok !eval { Net::Nostr::WalletConnect::Notification->new(notification_type => 'payment_received') },
+        'croaks';
+    like $@, qr/notification is required/, 'error mentions notification';
+};
+
 done_testing;

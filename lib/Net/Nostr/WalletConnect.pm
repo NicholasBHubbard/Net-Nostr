@@ -86,6 +86,7 @@ sub info_event {
 
 sub parse_info {
     my ($class, $event) = @_;
+    croak "info event MUST be kind 13194" unless $event->kind == 13194;
 
     my @capabilities = split / /, $event->content;
     my (@encryption, @notification_types);
@@ -344,6 +345,7 @@ sub _uri_decode {
         my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
         my @unknown = grep { !exists $known{$_} } keys %$self;
         croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        croak "result_type is required" unless defined $self->{result_type};
         return $self;
     }
 
@@ -373,6 +375,8 @@ sub _uri_decode {
         my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
         my @unknown = grep { !exists $known{$_} } keys %$self;
         croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        croak "notification_type is required" unless defined $self->{notification_type};
+        croak "notification is required" unless defined $self->{notification};
         return $self;
     }
 }
@@ -510,8 +514,9 @@ joined as a space-separated string in the content field.
 
     my $info = Net::Nostr::WalletConnect->parse_info($event);
 
-Parses a kind 13194 info event. Returns an L</Info> object. If the event
-has no C<encryption> tag, defaults to C<['nip04']> per spec.
+Parses a kind 13194 info event. Returns an L</Info> object. Croaks if the
+event is not kind 13194. If the event has no C<encryption> tag, defaults
+to C<['nip04']> per spec.
 
 =head2 request
 
@@ -545,6 +550,7 @@ C<encryption> and C<expiration> tags.
     my $resp = Net::Nostr::WalletConnect->parse_response($json);
 
 Parses a decrypted JSON response payload. Returns a L</Response> object.
+Croaks if C<result_type> is missing.
 
 =head2 response_event
 
@@ -564,7 +570,7 @@ Creates a kind 23195 response L<Net::Nostr::Event> with C<p> and C<e> tags.
     my $notif = Net::Nostr::WalletConnect->parse_notification($json);
 
 Parses a decrypted JSON notification payload. Returns a L</Notification>
-object.
+object. Croaks if C<notification_type> or C<notification> is missing.
 
 =head2 notification_event
 
@@ -648,7 +654,8 @@ Returned by L</parse_info>. Croaks on unknown arguments.
 
 =head2 Response
 
-Returned by L</parse_response>. Croaks on unknown arguments.
+Returned by L</parse_response>. Croaks on unknown arguments or missing
+C<result_type>.
 
 =over 4
 
@@ -672,7 +679,8 @@ C<UNSUPPORTED_ENCRYPTION>, C<OTHER>, C<PAYMENT_FAILED>, C<NOT_FOUND>.
 
 =head2 Notification
 
-Returned by L</parse_notification>. Croaks on unknown arguments.
+Returned by L</parse_notification>. Croaks on unknown arguments or missing
+required fields (C<notification_type>, C<notification>).
 
 =over 4
 

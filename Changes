@@ -14,6 +14,16 @@
     or broadcasting (useful for tests and programmatic seeding)
   - Relay events accessor now returns a snapshot (array copy). Mutating
     the returned arrayref no longer affects the relay's internal state
+  - New: Event->from_wire strict wire parser validates all 7 NIP-01 fields
+    (id, pubkey, created_at, kind, tags, content, sig) are present and
+    defined. Message->parse now uses from_wire instead of Event->new, so
+    malformed wire events are rejected rather than silently normalized
+  - Tighten NIP-46 payload parsers: parse_request now rejects missing id,
+    method, or params (and non-arrayref params); parse_response rejects
+    missing id. Request and Response constructors enforce the same rules.
+  - Tighten NIP-47 payload parsers: parse_info now rejects wrong event kind;
+    parse_response rejects missing result_type; parse_notification rejects
+    missing notification_type or notification. Constructors enforce the same.
   - BREAKING: Net::Nostr::Event is now immutable after construction. Body
     fields (id, pubkey, created_at, kind, tags, content) are read-only.
     Only sig remains writable. add_pubkey_ref and add_event_ref removed.

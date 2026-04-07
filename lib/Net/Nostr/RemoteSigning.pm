@@ -444,6 +444,10 @@ sub _generate_id {
         my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
         my @unknown = grep { !exists $known{$_} } keys %$self;
         croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        croak "id is required" unless defined $self->{id};
+        croak "method is required" unless defined $self->{method};
+        croak "params is required" unless defined $self->{params};
+        croak "params must be an arrayref" unless ref($self->{params}) eq 'ARRAY';
         return $self;
     }
 }
@@ -458,6 +462,7 @@ sub _generate_id {
         my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
         my @unknown = grep { !exists $known{$_} } keys %$self;
         croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        croak "id is required" unless defined $self->{id};
         return $self;
     }
 
@@ -661,12 +666,15 @@ to the client's pubkey.
     my $req = Net::Nostr::RemoteSigning->parse_request($json);
 
 Parses a decrypted JSON request payload. Returns a L</Request> object.
+Croaks if C<id>, C<method>, or C<params> is missing, or if C<params> is
+not an arrayref.
 
 =head2 parse_response
 
     my $resp = Net::Nostr::RemoteSigning->parse_response($json);
 
 Parses a decrypted JSON response payload. Returns a L</Response> object.
+Croaks if C<id> is missing.
 
 =head2 parse_permissions
 
@@ -797,7 +805,8 @@ Returned by L</parse_discovery_event>. Croaks on unknown arguments.
 
 =head2 Request
 
-Returned by L</parse_request>. Croaks on unknown arguments.
+Returned by L</parse_request>. Croaks on unknown arguments or missing
+required fields (C<id>, C<method>, C<params>). C<params> must be an arrayref.
 
 =over 4
 
@@ -811,7 +820,8 @@ Returned by L</parse_request>. Croaks on unknown arguments.
 
 =head2 Response
 
-Returned by L</parse_response>. Croaks on unknown arguments.
+Returned by L</parse_response>. Croaks on unknown arguments or missing
+C<id>.
 
 =over 4
 
