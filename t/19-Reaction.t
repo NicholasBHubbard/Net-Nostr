@@ -210,4 +210,9 @@ subtest 'new() POD example' => sub {
     is $info->content, '+';
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    eval { Net::Nostr::Reaction->new(event_id => 'aa' x 32, bogus => 'value') };
+    like($@, qr/unknown.+bogus/i, 'unknown argument rejected');
+};
+
 done_testing;

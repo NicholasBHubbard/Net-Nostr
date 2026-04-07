@@ -168,4 +168,12 @@ subtest 'new() POD example' => sub {
     is $info->repo_id, 'my-project';
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Git->new(event_type => 'repository', bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

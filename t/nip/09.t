@@ -481,4 +481,12 @@ sub free_port {
     return $port;
 }
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Deletion->new(reason => 'spam', bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

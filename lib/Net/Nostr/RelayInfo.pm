@@ -2,6 +2,7 @@ package Net::Nostr::RelayInfo;
 
 use strictures 2;
 
+use Carp qw(croak);
 use JSON ();
 
 use Class::Tiny qw(
@@ -18,7 +19,11 @@ my @STRUCT_FIELDS = qw(supported_nips limitation fees);
 
 sub new {
     my $class = shift;
-    return bless { @_ }, $class;
+    my $self = bless { @_ }, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub to_json {
@@ -144,10 +149,10 @@ correct Accept header, and handle CORS preflight OPTIONS requests.
         fees             => { admission => [{ amount => 1000, unit => 'msats' }] },
     );
 
-All fields are optional and may be omitted. The C<name> field SHOULD be less
-than 30 characters. The C<pubkey> field is the administrative contact pubkey.
-The C<self> field is the relay's own pubkey. C<supported_nips> is an arrayref
-of integer NIP numbers.
+All fields are optional and may be omitted. Croaks on unknown arguments.
+The C<name> field SHOULD be less than 30 characters. The C<pubkey> field is
+the administrative contact pubkey. The C<self> field is the relay's own
+pubkey. C<supported_nips> is an arrayref of integer NIP numbers.
 
 The C<limitation> hashref may contain any of the following keys:
 

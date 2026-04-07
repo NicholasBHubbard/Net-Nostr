@@ -245,4 +245,12 @@ subtest 'new() POD example' => sub {
     is $info->fees, { admission => [{ amount => 1000, unit => 'msats' }] };
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::RelayInfo->new(name => 'test', bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

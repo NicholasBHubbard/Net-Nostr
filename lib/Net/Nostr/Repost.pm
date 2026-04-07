@@ -22,7 +22,11 @@ my $JSON = JSON->new->utf8;
 
 sub new {
     my $class = shift;
-    return bless { @_ }, $class;
+    my $self = bless { @_ }, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub repost {
@@ -220,7 +224,7 @@ manual construction.
 
 Accepted fields: C<event_id>, C<relay_url>, C<author_pubkey>,
 C<reposted_kind>, C<event_coordinate>, C<embedded_event>,
-C<quote_event_id>.
+C<quote_event_id>. Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

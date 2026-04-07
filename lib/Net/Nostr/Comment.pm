@@ -22,7 +22,11 @@ use Class::Tiny qw(
 
 sub new {
     my $class = shift;
-    return bless { @_ }, $class;
+    my $self = bless { @_ }, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub comment {
@@ -292,6 +296,7 @@ manual construction.
 Accepted fields: C<root_tag_name>, C<root_value>, C<root_relay>,
 C<root_kind>, C<root_pubkey>, C<parent_tag_name>, C<parent_value>,
 C<parent_relay>, C<parent_kind>, C<parent_pubkey>.
+Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

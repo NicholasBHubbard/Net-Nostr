@@ -12,6 +12,9 @@ use Class::Tiny qw(reason _events _addresses _kinds);
 sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
     $self->_events($self->_events // []);
     $self->_addresses($self->_addresses // []);
     $self->_kinds($self->_kinds // {});
@@ -146,7 +149,7 @@ but there is no guarantee that events will be deleted from all relays.
     my $del = Net::Nostr::Deletion->new(reason => 'posted by accident');
 
 Creates an empty deletion request. C<reason> is optional and becomes the
-event's C<content> field.
+event's C<content> field. Croaks on unknown arguments.
 
 =head2 from_event
 

@@ -152,4 +152,12 @@ subtest 'new() POD example' => sub {
     is $info->root_pubkey, $hex_pubkey;
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Comment->new(root_tag_name => 'E', bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

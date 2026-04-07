@@ -49,4 +49,12 @@ subtest 'POD: parse a received timestamp attestation' => sub {
     is $ts->relay_url, 'wss://relay.example.com', 'relay_url';
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Timestamp->new(pubkey => 'a' x 64, bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

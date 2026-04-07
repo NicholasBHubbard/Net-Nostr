@@ -457,4 +457,12 @@ subtest 'new() POD example' => sub {
     is $thread->mentions, [];
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Thread->new(root_id => 'aa' x 32, bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

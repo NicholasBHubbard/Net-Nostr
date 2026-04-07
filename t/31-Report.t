@@ -161,4 +161,12 @@ subtest 'new() POD example' => sub {
     is $report->event_id, $event_id_hex;
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Report->new(report_type => 'spam', bogus => 'value') },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

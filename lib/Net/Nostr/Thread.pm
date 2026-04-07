@@ -20,6 +20,9 @@ my $HEX64 = qr/\A[0-9a-f]{64}\z/;
 sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
     if (defined $self->{root_id}) {
         croak "root_id must be 64-char lowercase hex" unless $self->{root_id} =~ $HEX64;
     }
@@ -241,7 +244,7 @@ C<reply_id>, C<reply_relay>, C<reply_pubkey>, C<mentions> (defaults
 to C<[]>).
 
 C<root_id> and C<reply_id> are validated as 64-character lowercase hex
-strings.
+strings. Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

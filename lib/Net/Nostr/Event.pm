@@ -43,6 +43,10 @@ sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
 
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+
     croak "pubkey is required"
         unless defined $self->{pubkey};
     croak "pubkey must be 64-char lowercase hex"
@@ -343,6 +347,8 @@ Croaks if any required field is missing or if values fail format validation:
 =item * C<sig>, if provided, must be 128-character lowercase hex
 
 =item * C<id>, if provided, must be 64-character lowercase hex
+
+=item * Unknown arguments are rejected
 
 =back
 

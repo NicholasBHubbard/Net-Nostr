@@ -25,7 +25,11 @@ use Class::Tiny qw(
 
 sub new {
     my $class = shift;
-    return bless { @_ }, $class;
+    my $self = bless { @_ }, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 my %STATUS_KINDS = (
@@ -647,6 +651,7 @@ Accepted fields: C<event_type>, C<repo_id>, C<repo_name>,
 C<repo_description>, C<web>, C<clone_urls>, C<relay_urls>,
 C<earliest_unique_commit>, C<maintainer_pubkeys>,
 C<repository_address>, C<subject>, C<status_name>, C<grasp_servers>.
+Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

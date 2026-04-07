@@ -20,7 +20,11 @@ my %REPORT_TYPES = map { $_ => 1 }
 
 sub new {
     my $class = shift;
-    return bless { @_ }, $class;
+    my $self = bless { @_ }, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub report {
@@ -207,8 +211,9 @@ Net::Nostr::Report - NIP-56 Reporting
         event_id        => $event_id_hex,
     );
 
-Creates a new report object. All fields are optional. This is the raw
-constructor; use L</report> to build a complete kind 1984 event.
+Creates a new report object. All fields are optional. Croaks on unknown
+arguments. This is the raw constructor; use L</report> to build a
+complete kind 1984 event.
 
 =head1 DESCRIPTION
 

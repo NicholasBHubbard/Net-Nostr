@@ -426,4 +426,15 @@ subtest 'new() accepts valid tags' => sub {
     ) }, 'empty tags array accepted');
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    like(
+        dies { Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'test',
+            tags => [], bogus => 'value',
+        ) },
+        qr/unknown.+bogus/i,
+        'unknown argument rejected'
+    );
+};
+
 done_testing;

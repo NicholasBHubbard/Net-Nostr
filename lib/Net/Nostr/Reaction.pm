@@ -18,7 +18,11 @@ use Class::Tiny qw(
 
 sub new {
     my $class = shift;
-    return bless { @_ }, $class;
+    my $self = bless { @_ }, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    return $self;
 }
 
 sub react {
@@ -232,6 +236,7 @@ manual construction.
 
 Accepted fields: C<event_id>, C<relay_url>, C<author_pubkey>,
 C<content>, C<reacted_kind>, C<event_coordinate>.
+Croaks on unknown arguments.
 
 =head1 CLASS METHODS
 

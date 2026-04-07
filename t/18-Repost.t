@@ -289,4 +289,9 @@ subtest 'new() POD example' => sub {
     is $info->relay_url, 'wss://relay.example.com';
 };
 
+subtest 'new() rejects unknown arguments' => sub {
+    eval { Net::Nostr::Repost->new(event_id => 'aa' x 32, bogus => 'value') };
+    like($@, qr/unknown.+bogus/i, 'unknown argument rejected');
+};
+
 done_testing;

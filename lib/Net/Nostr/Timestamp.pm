@@ -12,6 +12,9 @@ my $HEX64 = qr/\A[0-9a-f]{64}\z/;
 sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
+    my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    my @unknown = grep { !exists $known{$_} } keys %$self;
+    croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
     return $self;
 }
 
@@ -120,7 +123,7 @@ SHOULD contain a single Bitcoin attestation and no pending attestations.
 
 Creates a new timestamp attestation. C<pubkey>, C<event_id>, C<kind>, and
 C<ots_data> are required. C<relay_url> is optional and will be included in
-the C<e> tag if provided.
+the C<e> tag if provided. Croaks on unknown arguments.
 
 =head2 from_event
 
