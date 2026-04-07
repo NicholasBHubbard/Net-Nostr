@@ -5,6 +5,16 @@ A [Nostr](https://nostr.org/) library for Perl.
 Net::Nostr provides both client and relay functionality, implementing 35+
 NIPs covering identity, messaging, encryption, social features, and more.
 
+## Documentation
+
+Full API documentation: https://metacpan.org/pod/Net::Nostr
+
+## Installation
+
+```
+$ cpanm Net::Nostr
+```
+
 ## Supported NIPs
 
 - [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) - Basic protocol flow
@@ -51,14 +61,10 @@ NIPs covering identity, messaging, encryption, social features, and more.
 
 NIP-04 (legacy encrypted DMs) is deprecated and not supported.
 
-## Documentation
-
-Full API documentation: https://metacpan.org/pod/Net::Nostr
-
 ## Build Distribution
 
 ```bash
-perl Makefile.PL
-make manifest
-make dist
+$ perl Makefile.PL
+$ make manifest
+$ make dist
 ```
