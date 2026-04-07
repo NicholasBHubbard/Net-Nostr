@@ -45,7 +45,12 @@
   - Filter constructor now rejects empty arrays for list fields, validates
     kind ranges and numeric fields
   - Message constructor now validates subscription_id format, requires
-    message for NOTICE, validates event_id for OK
+    message for NOTICE and CLOSED, validates event_id as 64-char hex for
+    OK, requires event to be a Net::Nostr::Event object for EVENT/AUTH,
+    rejects reference values for message/challenge fields, requires
+    subscription_id for EOSE/CLOSED
+  - Message parser now rejects non-scalar values for string fields
+    (subscription_id, message, challenge) in all message types
   - Relay now applies filter limits per-filter (not globally), improved
     error handling for malformed messages
   - Bech32 decoder now validates exact byte lengths for TLV payloads

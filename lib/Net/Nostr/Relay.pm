@@ -295,7 +295,8 @@ sub _on_connection {
         my $msg = eval { Net::Nostr::Message->parse($message->body) };
         if ($@) {
             if ($type eq 'EVENT' || $type eq 'AUTH') {
-                my $event_id = (ref($arr->[1]) eq 'HASH' ? $arr->[1]{id} : '') // '';
+                my $raw_id = (ref($arr->[1]) eq 'HASH' ? $arr->[1]{id} : '') // '';
+                my $event_id = $raw_id =~ /\A[0-9a-f]{64}\z/ ? $raw_id : ('0' x 64);
                 my $reason = $@;
                 $reason =~ s/\n\z//;
                 $conn->send(Net::Nostr::Message->new(

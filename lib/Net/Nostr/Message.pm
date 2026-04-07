@@ -4,6 +4,7 @@ use strictures 2;
 
 use Carp qw(croak);
 use JSON ();
+use Scalar::Util qw(blessed);
 use Net::Nostr::Event;
 use Net::Nostr::Filter;
 use Class::Tiny qw(type subscription_id event event_id accepted message prefix filters challenge count approximate);
@@ -13,7 +14,7 @@ my $JSON = JSON->new->utf8;
 sub _validate_subscription_id {
     my ($sub_id) = @_;
     croak "subscription_id must be a non-empty string"
-        unless defined $sub_id && length($sub_id) > 0;
+        unless defined $sub_id && !ref($sub_id) && length($sub_id) > 0;
     croak "subscription_id must be at most 64 characters"
         unless length($sub_id) <= 64;
 }
@@ -39,6 +40,8 @@ sub new {
 
     if ($type eq 'EVENT') {
         croak "event is required for EVENT message" unless $args{event};
+        croak "event must be a Net::Nostr::Event object"
+            unless blessed($args{event}) && $args{event}->isa('Net::Nostr::Event');
         $self->event($args{event});
         $self->subscription_id($args{subscription_id}) if defined $args{subscription_id};
     } elsif ($type eq 'REQ') {
@@ -53,16 +56,28 @@ sub new {
     } elsif ($type eq 'OK') {
         croak "event_id is required for OK message"
             unless defined $args{event_id};
+        croak "event_id must be 64-char lowercase hex"
+            unless $args{event_id} =~ /\A[0-9a-f]{64}\z/;
         $self->event_id($args{event_id});
         $self->accepted($args{accepted} ? 1 : 0);
-        $self->message($args{message} // '');
+        my $msg = $args{message} // '';
+        croak "message must be a string" if ref($msg);
+        $self->message($msg);
         $self->prefix(_extract_prefix($self->message));
     } elsif ($type eq 'EOSE') {
+        croak "subscription_id is required for EOSE"
+            unless defined $args{subscription_id};
         $self->subscription_id($args{subscription_id});
     } elsif ($type eq 'NOTICE') {
         croak "message is required for NOTICE" unless defined $args{message};
+        croak "message must be a string" if ref($args{message});
         $self->message($args{message});
     } elsif ($type eq 'CLOSED') {
+        croak "subscription_id is required for CLOSED"
+            unless defined $args{subscription_id};
+        croak "message is required for CLOSED"
+            unless defined $args{message};
+        croak "message must be a string" if ref($args{message});
         $self->subscription_id($args{subscription_id});
         $self->message($args{message});
         $self->prefix(_extract_prefix($self->message));
@@ -81,8 +96,11 @@ sub new {
     } elsif ($type eq 'AUTH') {
         # Bidirectional: relay sends challenge string, client sends signed event
         if (defined $args{event}) {
+            croak "event must be a Net::Nostr::Event object"
+                unless blessed($args{event}) && $args{event}->isa('Net::Nostr::Event');
             $self->event($args{event});
         } elsif (defined $args{challenge}) {
+            croak "challenge must be a string" if ref($args{challenge});
             $self->challenge($args{challenge});
         } else {
             croak "AUTH requires either 'event' or 'challenge'";
@@ -144,6 +162,8 @@ my %PARSERS = (
         }
         # relay-to-client: ["EVENT", sub_id, {event}]
         croak "EVENT message requires 2 or 3 elements\n" unless @$arr == 3;
+        croak "EVENT subscription_id must be a string\n"
+            if ref($arr->[1]);
         croak "EVENT event element must be a JSON object\n"
             unless ref($arr->[2]) eq 'HASH';
         return (
@@ -156,6 +176,8 @@ my %PARSERS = (
         croak "OK message requires 4 elements\n" unless @$arr == 4;
         croak "OK event_id must be 64-char lowercase hex\n"
             unless defined $arr->[1] && $arr->[1] =~ /\A[0-9a-f]{64}\z/;
+        croak "OK message must be a string\n"
+            if ref($arr->[3]);
         return (
             event_id => $arr->[1],
             accepted => $arr->[2] ? 1 : 0,
@@ -165,6 +187,8 @@ my %PARSERS = (
     EOSE => sub {
         my ($arr) = @_;
         croak "EOSE message requires 2 elements\n" unless @$arr == 2;
+        croak "EOSE subscription_id must be a string\n"
+            if ref($arr->[1]);
         return (
             subscription_id => $arr->[1],
         );
@@ -172,6 +196,10 @@ my %PARSERS = (
     CLOSED => sub {
         my ($arr) = @_;
         croak "CLOSED message requires 3 elements\n" unless @$arr == 3;
+        croak "CLOSED subscription_id must be a string\n"
+            if ref($arr->[1]);
+        croak "CLOSED message must be a string\n"
+            if ref($arr->[2]);
         return (
             subscription_id => $arr->[1],
             message         => $arr->[2],
@@ -180,6 +208,8 @@ my %PARSERS = (
     NOTICE => sub {
         my ($arr) = @_;
         croak "NOTICE message requires 2 elements\n" unless @$arr == 2;
+        croak "NOTICE message must be a string\n"
+            if ref($arr->[1]);
         return (
             message => $arr->[1],
         );
@@ -238,6 +268,8 @@ my %PARSERS = (
             );
         }
         # Otherwise it's a challenge string from relay
+        croak "AUTH challenge must be a string\n"
+            if ref($arr->[1]);
         return (
             challenge => $arr->[1],
         );
@@ -317,20 +349,25 @@ C<REQ>, C<CLOSE>, C<OK>, C<EOSE>, C<NOTICE>, C<CLOSED>, C<COUNT>, C<AUTH>.
 
 Required fields by type:
 
-    EVENT  - event (Net::Nostr::Event), optional subscription_id
+    EVENT  - event (Net::Nostr::Event object), optional subscription_id
     REQ    - subscription_id, filters (arrayref of Net::Nostr::Filter)
     CLOSE  - subscription_id
-    OK     - event_id, accepted (bool), optional message (defaults to '')
+    OK     - event_id (64-char lowercase hex), accepted (bool), optional message (defaults to '')
     EOSE   - subscription_id
-    NOTICE - message
-    CLOSED - subscription_id, optional message
+    NOTICE - message (string)
+    CLOSED - subscription_id, message (string)
     COUNT  - subscription_id, filters (client-to-relay) or count (relay-to-client)
-    AUTH   - challenge (relay-to-client) or event (client-to-relay)
+    AUTH   - challenge (string) or event (Net::Nostr::Event object)
 
 C<subscription_id> must be a non-empty string of at most 64 characters
-for REQ, CLOSE, and COUNT messages. C<message> is required for NOTICE.
-Croaks on missing required fields, invalid subscription IDs, unknown
-type, or unknown arguments.
+for REQ, CLOSE, and COUNT messages. For EOSE and CLOSED, subscription_id
+must be defined but is not length-validated (relay-to-client messages echo
+back whatever the client sent). C<event_id> must be 64-character
+lowercase hex. C<event> must be a L<Net::Nostr::Event> object.
+C<message> and C<challenge> must be non-reference scalars.
+
+Croaks on missing required fields, invalid field formats, type mismatches,
+unknown type, or unknown arguments.
 
 =head1 METHODS
 
@@ -350,10 +387,13 @@ Returns the JSON-encoded message string per the NIP-01 wire format.
 Class method. Parses a JSON message string and returns a new
 Net::Nostr::Message object. Croaks on invalid JSON, unknown message
 types, or malformed messages. Validates structural format of each
-message type (element count, field types). For EVENT and AUTH messages,
-the contained event is constructed via C<< Net::Nostr::Event->from_wire >>
-which requires all seven NIP-01 fields (id, pubkey, created_at, kind,
-tags, content, sig) and rejects missing or undefined fields.
+message type (element count, field types). String fields
+(subscription_id, message, challenge) are rejected if they are JSON
+objects or arrays. C<event_id> in OK messages must be 64-character
+lowercase hex. For EVENT and AUTH messages, the contained event is
+constructed via C<< Net::Nostr::Event->from_wire >> which requires all
+seven NIP-01 fields (id, pubkey, created_at, kind, tags, content, sig)
+and rejects missing or undefined fields.
 
 B<Trust boundary>: C<parse> validates message structure and field formats
 but does B<not> verify event signatures, event ID hashes, or
