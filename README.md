@@ -5,15 +5,15 @@ A [Nostr](https://nostr.org/) library for Perl.
 Net::Nostr provides both client and relay functionality, implementing 35+
 NIPs covering identity, messaging, encryption, social features, and more.
 
-## Documentation
-
-Full API documentation: https://metacpan.org/pod/Net::Nostr
-
 ## Installation
 
 ```
 $ cpanm Net::Nostr
 ```
+
+## Documentation
+
+Full API documentation: https://metacpan.org/pod/Net::Nostr
 
 ## Supported NIPs
 
