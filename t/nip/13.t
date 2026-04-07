@@ -338,8 +338,6 @@ subtest 'relay accepts events meeting min_pow_difficulty' => sub {
     my $key = Net::Nostr::Key->new;
     my $event = $key->create_event(kind => 1, content => 'pow test', tags => []);
     my $mined = $event->mine(4);
-    # re-sign with the key
-    $mined->pubkey($key->pubkey_hex);
     $key->sign_event($mined);
     $client->publish($mined);
 

@@ -26,9 +26,8 @@ sub _rumor_hash {
 
 sub create_rumor {
     my ($class, %args) = @_;
-    my $event = Net::Nostr::Event->new(%args);
-    $event->sig(undef);
-    return $event;
+    delete $args{sig};  # rumors are unsigned
+    return Net::Nostr::Event->new(%args);
 }
 
 sub seal {
@@ -136,7 +135,6 @@ sub unwrap {
         tags       => $rumor_data->{tags} // [],
         content    => $rumor_data->{content},
     );
-    $rumor->sig(undef);
 
     return ($rumor, $seal_data->{pubkey});
 }

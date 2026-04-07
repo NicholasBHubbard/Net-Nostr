@@ -47,28 +47,31 @@ subtest 'json_serialize()' => sub {
     is($decoded->[4], [['p', 'abc123'], ['e', 'def456']], 'tags serialize as array of arrays');
 };
 
-subtest 'add_pubkey_ref()' => sub {
+###############################################################################
+# Immutability: body fields are read-only after construction
+###############################################################################
+
+subtest 'body fields are read-only' => sub {
     my $event = Net::Nostr::Event->new(
-        content => 'hello',
-        pubkey => 'b' x 64,
-        kind => 1,
-        created_at => 1673361254,
-        tags => [['e', 'event1']]
+        content => 'hello', pubkey => 'b' x 64, kind => 1,
+        created_at => 1673361254, tags => [['e', 'event1']],
     );
-    $event->add_pubkey_ref('c' x 64);
-    is($event->tags, [['e', 'event1'], ['p', 'c' x 64]], 'appends p tag without nesting');
+    like(dies { $event->id('f' x 64) }, qr/read-only/, 'id is read-only');
+    like(dies { $event->pubkey('c' x 64) }, qr/read-only/, 'pubkey is read-only');
+    like(dies { $event->kind(2) }, qr/read-only/, 'kind is read-only');
+    like(dies { $event->content('changed') }, qr/read-only/, 'content is read-only');
+    like(dies { $event->tags([]) }, qr/read-only/, 'tags is read-only');
+    like(dies { $event->created_at(9999) }, qr/read-only/, 'created_at is read-only');
 };
 
-subtest 'add_event_ref()' => sub {
+subtest 'sig is writable (does not affect event ID)' => sub {
     my $event = Net::Nostr::Event->new(
-        content => 'hello',
-        pubkey => 'b' x 64,
-        kind => 1,
-        created_at => 1673361254,
-        tags => [['p', 'pubkey1']]
+        content => 'hello', pubkey => 'b' x 64, kind => 1,
+        created_at => 1673361254, tags => [],
     );
-    $event->add_event_ref('d' x 64);
-    is($event->tags, [['p', 'pubkey1'], ['e', 'd' x 64]], 'appends e tag without nesting');
+    ok(lives { $event->sig('a' x 128) }, 'sig can be set after construction');
+    is($event->sig, 'a' x 128, 'sig value updated');
+    ok(lives { $event->sig(undef) }, 'sig can be cleared');
 };
 
 subtest 'created_at 0 is preserved' => sub {
@@ -278,27 +281,6 @@ subtest 'new() allows empty sig (unsigned event)' => sub {
     ok !defined($event->sig) || $event->sig eq '', 'unsigned event OK';
 };
 
-subtest 'add_pubkey_ref rejects invalid pubkey' => sub {
-    my $event = Net::Nostr::Event->new(
-        pubkey => 'a' x 64, kind => 1, content => 'test',
-    );
-    like(
-        dies { $event->add_pubkey_ref('bad') },
-        qr/pubkey must be 64-char lowercase hex/,
-        'bad pubkey rejected'
-    );
-};
-
-subtest 'add_event_ref rejects invalid event_id' => sub {
-    my $event = Net::Nostr::Event->new(
-        pubkey => 'a' x 64, kind => 1, content => 'test',
-    );
-    like(
-        dies { $event->add_event_ref('bad') },
-        qr/event_id must be 64-char lowercase hex/,
-        'bad event_id rejected'
-    );
-};
 
 ###############################################################################
 # created_at validation

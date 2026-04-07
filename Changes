@@ -1,5 +1,8 @@
 0.003000   TBD
 
+  - BREAKING: Net::Nostr::Event is now immutable after construction. Body
+    fields (id, pubkey, created_at, kind, tags, content) are read-only.
+    Only sig remains writable. add_pubkey_ref and add_event_ref removed.
   - Harden validation across all modules: pubkeys, event IDs, signatures,
     relay URLs, and tag shapes are now strictly validated as 64-char
     lowercase hex where applicable

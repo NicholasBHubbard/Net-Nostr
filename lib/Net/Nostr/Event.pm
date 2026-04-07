@@ -7,6 +7,10 @@ use JSON ();
 use Digest::SHA qw(sha256_hex);
 use Crypt::PK::ECC::Schnorr;
 
+# Pre-declare read-only accessors so Class::Tiny registers them as
+# attributes but does not generate read-write setters.
+use subs qw(id pubkey created_at kind tags content);
+
 use Class::Tiny qw(
     id
     pubkey
@@ -17,6 +21,21 @@ use Class::Tiny qw(
     sig
 );
 
+# Read-only accessors for body fields (affect event ID).
+# Mutation after construction would silently invalidate the ID and any
+# signature, so setters are intentionally forbidden.
+for my $field (qw(id pubkey created_at kind tags content)) {
+    no strict 'refs';
+    *$field = sub {
+        my $self = shift;
+        croak "$field is read-only after construction" if @_;
+        return $self->{$field};
+    };
+}
+# sig is the only writable field — it does not participate in the event
+# ID computation, so mutating it (e.g. after signing) is safe.
+# Class::Tiny's default read-write accessor handles it.
+
 my $HEX64  = qr/\A[0-9a-f]{64}\z/;
 my $HEX128 = qr/\A[0-9a-f]{128}\z/;
 
@@ -25,37 +44,37 @@ sub new {
     my $self = bless { @_ }, $class;
 
     croak "pubkey is required"
-        unless defined $self->pubkey;
+        unless defined $self->{pubkey};
     croak "pubkey must be 64-char lowercase hex"
-        unless $self->pubkey =~ $HEX64;
+        unless $self->{pubkey} =~ $HEX64;
 
     croak "kind is required"
-        unless defined $self->kind;
+        unless defined $self->{kind};
     croak "kind must be an integer between 0 and 65535"
-        unless $self->kind =~ /\A\d+\z/ && $self->kind >= 0 && $self->kind <= 65535;
+        unless $self->{kind} =~ /\A\d+\z/ && $self->{kind} >= 0 && $self->{kind} <= 65535;
 
     croak "content is required"
-        unless defined $self->content;
+        unless defined $self->{content};
 
     croak "sig must be 128-char lowercase hex"
-        if defined $self->sig && length($self->sig) && $self->sig !~ $HEX128;
+        if defined $self->{sig} && length($self->{sig}) && $self->{sig} !~ $HEX128;
 
     croak "id must be 64-char lowercase hex"
-        if defined $self->id && $self->id !~ $HEX64;
+        if defined $self->{id} && $self->{id} !~ $HEX64;
 
     # created_at must be a non-negative integer (unix timestamp)
-    if (defined $self->created_at) {
+    if (defined $self->{created_at}) {
         croak "created_at must be a non-negative integer"
-            unless $self->created_at =~ /\A\d+\z/;
+            unless $self->{created_at} =~ /\A\d+\z/;
     }
 
-    $self->created_at(time())  unless defined $self->created_at;
+    $self->{created_at} = time() unless defined $self->{created_at};
 
     # tags must be an arrayref of arrayrefs of defined strings
-    if ($self->tags) {
+    if ($self->{tags}) {
         croak "tags must be an arrayref"
-            unless ref($self->tags) eq 'ARRAY';
-        for my $tag (@{$self->tags}) {
+            unless ref($self->{tags}) eq 'ARRAY';
+        for my $tag (@{$self->{tags}}) {
             croak "each tag must be an arrayref of strings"
                 unless ref($tag) eq 'ARRAY';
             for my $elem (@$tag) {
@@ -64,8 +83,8 @@ sub new {
             }
         }
     }
-    $self->tags([])            unless $self->tags;
-    $self->id($self->_calc_id) unless $self->id;
+    $self->{tags} = []            unless $self->{tags};
+    $self->{id}   = $self->_calc_id unless $self->{id};
     return $self;
 }
 
@@ -82,19 +101,6 @@ sub json_serialize {
     return $json_serialized;
 }
 
-sub add_pubkey_ref {
-    my ($self, $pubkey) = @_;
-    croak "pubkey must be 64-char lowercase hex"
-        unless defined $pubkey && $pubkey =~ $HEX64;
-    $self->tags([@{$self->tags}, ['p', $pubkey]]);
-}
-
-sub add_event_ref {
-    my ($self, $event_id) = @_;
-    croak "event_id must be 64-char lowercase hex"
-        unless defined $event_id && $event_id =~ $HEX64;
-    $self->tags([@{$self->tags}, ['e', $event_id]]);
-}
 
 sub to_hash {
     my ($self) = @_;
@@ -275,8 +281,14 @@ Net::Nostr::Event - Nostr protocol event object
 =head1 DESCRIPTION
 
 Represents a Nostr event as defined by NIP-01. Handles canonical JSON
-serialization, automatic ID computation, tag management, kind classification,
-and signature verification.
+serialization, automatic ID computation, kind classification, and
+signature verification.
+
+Events are B<immutable after construction>. The body fields (C<id>,
+C<pubkey>, C<created_at>, C<kind>, C<tags>, C<content>) are read-only.
+The only writable field is C<sig>, which does not participate in the
+event ID computation. This prevents a class of bugs where mutating a
+field silently invalidates the event ID and any existing signature.
 
 =head1 CONSTRUCTOR
 
@@ -312,43 +324,48 @@ Croaks if any required field is missing or if values fail format validation:
 
 =back
 
-=head1 METHODS
+=head1 ACCESSORS
+
+All body accessors are B<read-only>. Attempting to set them after
+construction will croak. C<sig> is the only writable accessor.
 
 =head2 id
 
     my $id = $event->id;  # '3bf0c63f...' (64-char hex)
 
 Returns the event ID, a SHA-256 hex digest of the canonical serialization.
+Read-only.
 
 =head2 pubkey
 
     my $pubkey = $event->pubkey;
 
-Returns the author's public key as a 64-character hex string.
+Returns the author's public key as a 64-character hex string. Read-only.
 
 =head2 created_at
 
     my $ts = $event->created_at;  # Unix timestamp
 
-Returns the event creation timestamp.
+Returns the event creation timestamp. Read-only.
 
 =head2 kind
 
     my $kind = $event->kind;  # 1
 
-Returns the event kind (integer).
+Returns the event kind (integer). Read-only.
 
 =head2 tags
 
     my $tags = $event->tags;  # [['p', 'abc...'], ['e', 'def...']]
 
-Returns the tags arrayref. Each tag is an arrayref of strings.
+Returns the tags arrayref. Each tag is an arrayref of strings. Read-only.
+All tags must be provided at construction time.
 
 =head2 content
 
     my $content = $event->content;
 
-Returns the event content string.
+Returns the event content string. Read-only.
 
 =head2 sig
 
@@ -356,6 +373,8 @@ Returns the event content string.
     $event->sig($hex_signature);     # set
 
 Gets or sets the Schnorr signature as a 128-character hex string.
+This is the only writable field because the signature does not participate
+in event ID computation.
 
 =head2 json_serialize
 
@@ -374,19 +393,7 @@ encoded with no extra whitespace.
 Returns a hashref with all seven event fields. Useful for JSON encoding
 the full event object.
 
-=head2 add_pubkey_ref
-
-    $event->add_pubkey_ref('deadbeef' x 8);
-    # tags now includes ['p', 'deadbeef...']
-
-Appends a C<p> tag referencing the given pubkey hex string.
-
-=head2 add_event_ref
-
-    $event->add_event_ref('abcd1234' x 8);
-    # tags now includes ['e', 'abcd1234...']
-
-Appends an C<e> tag referencing the given event ID hex string.
+=head1 METHODS
 
 =head2 difficulty
 

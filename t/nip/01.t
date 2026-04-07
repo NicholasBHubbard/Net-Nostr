@@ -193,33 +193,13 @@ subtest 'empty tags array serializes correctly' => sub {
     is($decoded->[4], [], 'empty tags serializes as empty array');
 };
 
-subtest 'add_pubkey_ref appends p tag' => sub {
+subtest 'tags are provided at construction time' => sub {
     my $event = Net::Nostr::Event->new(
         pubkey => 'a' x 64, kind => 1, content => 'test',
-        created_at => 1000, tags => []
+        created_at => 1000,
+        tags => [['p', 'a' x 64], ['e', 'b' x 64], ['p', 'c' x 64]],
     );
-    $event->add_pubkey_ref('deadbeef' x 8);
-    is($event->tags, [['p', 'deadbeef' x 8]], 'p tag appended');
-};
-
-subtest 'add_event_ref appends e tag' => sub {
-    my $event = Net::Nostr::Event->new(
-        pubkey => 'a' x 64, kind => 1, content => 'test',
-        created_at => 1000, tags => []
-    );
-    $event->add_event_ref('deadbeef' x 8);
-    is($event->tags, [['e', 'deadbeef' x 8]], 'e tag appended');
-};
-
-subtest 'multiple tags accumulate correctly' => sub {
-    my $event = Net::Nostr::Event->new(
-        pubkey => 'a' x 64, kind => 1, content => 'test',
-        created_at => 1000, tags => []
-    );
-    $event->add_pubkey_ref('a' x 64);
-    $event->add_event_ref('b' x 64);
-    $event->add_pubkey_ref('c' x 64);
-    is($event->tags, [['p', 'a' x 64], ['e', 'b' x 64], ['p', 'c' x 64]], 'tags accumulate in order');
+    is($event->tags, [['p', 'a' x 64], ['e', 'b' x 64], ['p', 'c' x 64]], 'tags set at construction');
 };
 
 ###############################################################################
