@@ -82,15 +82,17 @@ sub _establish_ws {
 sub _handle_nip11_or_ws {
     my ($self, $fh, $peer_host) = @_;
     my $fileno = fileno($fh);
-    my $w; $w = AnyEvent->io(fh => $fh, poll => 'r', cb => sub {
+    my $buf = '';
+    my ($w, $timer);
+
+    my $cleanup = sub {
         undef $w;
+        undef $timer;
         delete $self->_nip11_watchers->{$fileno};
+    };
 
-        my $buf = '';
-        recv($fh, $buf, 8192, MSG_PEEK);
-
-        if ($buf =~ /\r\n\r\n/ && $buf =~ /^OPTIONS\s/i) {
-            # CORS preflight
+    my $dispatch = sub {
+        if ($buf =~ /^OPTIONS\s/i) {
             sysread($fh, my $discard, 8192);
             syswrite($fh, Net::Nostr::RelayInfo->cors_preflight_response);
             close $fh;
@@ -98,9 +100,8 @@ sub _handle_nip11_or_ws {
             return;
         }
 
-        if ($buf =~ /\r\n\r\n/ && $buf =~ /Accept:\s*application\/nostr\+json/i
+        if ($buf =~ /Accept:\s*application\/nostr\+json/i
             && $buf !~ /Upgrade:\s*websocket/i) {
-            # NIP-11 request
             sysread($fh, my $discard, 8192);
             syswrite($fh, $self->relay_info->to_http_response);
             close $fh;
@@ -108,10 +109,27 @@ sub _handle_nip11_or_ws {
             return;
         }
 
-        # WebSocket upgrade
+        $self->_establish_ws($fh, $peer_host);
+    };
+
+    $w = AnyEvent->io(fh => $fh, poll => 'r', cb => sub {
+        my $chunk = '';
+        recv($fh, $chunk, 8192, MSG_PEEK);
+        $buf = $chunk;  # MSG_PEEK returns the full buffer each time
+
+        if ($buf =~ /\r\n\r\n/ || length($buf) >= 8192) {
+            $cleanup->();
+            $dispatch->();
+        }
+    });
+
+    $timer = AnyEvent->timer(after => 5, cb => sub {
+        $cleanup->();
+        # Timed out waiting for headers — fall through to WebSocket
         $self->_establish_ws($fh, $peer_host);
     });
-    $self->_nip11_watchers->{$fileno} = $w;
+
+    $self->_nip11_watchers->{$fileno} = [$w, $timer];
 }
 
 sub run {

@@ -462,4 +462,92 @@ subtest 'relay with empty RelayInfo serves empty document' => sub {
     $relay->stop;
 };
 
+###############################################################################
+# Fragmented HTTP request must still be correctly classified
+###############################################################################
+
+subtest 'fragmented NIP-11 request is correctly handled' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_info => Net::Nostr::RelayInfo->new(name => 'Fragment Test'),
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    tcp_connect '127.0.0.1', $port, sub {
+        my ($fh) = @_ or return $cv->croak("connect failed: $!");
+
+        my $part1 = "GET / HTTP/1.1\r\nHost: 127.0.0.1:$port\r\n";
+        my $part2 = "Accept: application/nostr+json\r\nConnection: close\r\n\r\n";
+
+        my $response = '';
+        my $hdl; $hdl = AnyEvent::Handle->new(
+            fh       => $fh,
+            on_error => sub { undef $hdl; $cv->send($response) },
+            on_eof   => sub { undef $hdl; $cv->send($response) },
+            on_read  => sub { $response .= $_[0]->rbuf; $_[0]->rbuf = '' },
+        );
+
+        # Send first fragment without \r\n\r\n
+        $hdl->push_write($part1);
+
+        # Send remainder after a short delay
+        my $t; $t = AnyEvent->timer(after => 0.1, cb => sub {
+            undef $t;
+            $hdl->push_write($part2);
+        });
+    };
+
+    my $resp = $cv->recv;
+    my ($status, $hdrs, $body) = parse_http_response($resp);
+
+    like($status, qr{200 OK}, 'fragmented request gets HTTP 200');
+    my $doc = $JSON->decode($body);
+    is($doc->{name}, 'Fragment Test', 'NIP-11 response body correct');
+
+    $relay->stop;
+};
+
+subtest 'fragmented OPTIONS request is correctly handled' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_info => Net::Nostr::RelayInfo->new(name => 'Fragment Test'),
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    tcp_connect '127.0.0.1', $port, sub {
+        my ($fh) = @_ or return $cv->croak("connect failed: $!");
+
+        my $part1 = "OPTIONS / HTTP/1.1\r\n";
+        my $part2 = "Host: 127.0.0.1:$port\r\nConnection: close\r\n\r\n";
+
+        my $response = '';
+        my $hdl; $hdl = AnyEvent::Handle->new(
+            fh       => $fh,
+            on_error => sub { undef $hdl; $cv->send($response) },
+            on_eof   => sub { undef $hdl; $cv->send($response) },
+            on_read  => sub { $response .= $_[0]->rbuf; $_[0]->rbuf = '' },
+        );
+
+        $hdl->push_write($part1);
+        my $t; $t = AnyEvent->timer(after => 0.1, cb => sub {
+            undef $t;
+            $hdl->push_write($part2);
+        });
+    };
+
+    my $resp = $cv->recv;
+    my ($status) = parse_http_response($resp);
+    like($status, qr{204 No Content}, 'fragmented OPTIONS gets HTTP 204');
+
+    $relay->stop;
+};
+
 done_testing;
