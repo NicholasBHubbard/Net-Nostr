@@ -390,74 +390,109 @@ sub _generate_id {
 {
     package Net::Nostr::RemoteSigning::BunkerConnection;
     use Carp qw(croak);
-    use Class::Tiny qw(remote_signer_pubkey relays secret);
+    use Class::Tiny qw(remote_signer_pubkey secret);
     sub new {
         my $class = shift;
         my $self = bless { @_ }, $class;
         my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        $known{relays} = ();
         my @unknown = grep { !exists $known{$_} } keys %$self;
         croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        $self->{relays} = [@{$self->{relays}}] if ref $self->{relays} eq 'ARRAY';
         return $self;
+    }
+    sub relays {
+        my $self = shift;
+        croak "relays is read-only" if @_;
+        return defined $self->{relays} ? [@{$self->{relays}}] : undef;
     }
 }
 
 {
     package Net::Nostr::RemoteSigning::NostrConnect;
     use Carp qw(croak);
-    use Class::Tiny qw(client_pubkey relays secret perms name url image);
+    use Class::Tiny qw(client_pubkey secret perms name url image);
     sub new {
         my $class = shift;
         my $self = bless { @_ }, $class;
         my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        $known{relays} = ();
         my @unknown = grep { !exists $known{$_} } keys %$self;
         croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        $self->{relays} = [@{$self->{relays}}] if ref $self->{relays} eq 'ARRAY';
         return $self;
+    }
+    sub relays {
+        my $self = shift;
+        croak "relays is read-only" if @_;
+        return defined $self->{relays} ? [@{$self->{relays}}] : undef;
     }
 }
 
 {
     package Net::Nostr::RemoteSigning::Nip05Metadata;
     use Carp qw(croak);
-    use Class::Tiny qw(pubkey relays nostrconnect_url);
+    use Class::Tiny qw(pubkey nostrconnect_url);
     sub new {
         my $class = shift;
         my $self = bless { @_ }, $class;
         my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        $known{relays} = ();
         my @unknown = grep { !exists $known{$_} } keys %$self;
         croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        $self->{relays} = [@{$self->{relays}}] if ref $self->{relays} eq 'ARRAY';
         return $self;
+    }
+    sub relays {
+        my $self = shift;
+        croak "relays is read-only" if @_;
+        return defined $self->{relays} ? [@{$self->{relays}}] : undef;
     }
 }
 
 {
     package Net::Nostr::RemoteSigning::Discovery;
     use Carp qw(croak);
-    use Class::Tiny qw(pubkey relays nostrconnect_url);
+    use Class::Tiny qw(pubkey nostrconnect_url);
     sub new {
         my $class = shift;
         my $self = bless { @_ }, $class;
         my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        $known{relays} = ();
         my @unknown = grep { !exists $known{$_} } keys %$self;
         croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        $self->{relays} = [@{$self->{relays}}] if ref $self->{relays} eq 'ARRAY';
         return $self;
+    }
+    sub relays {
+        my $self = shift;
+        croak "relays is read-only" if @_;
+        return defined $self->{relays} ? [@{$self->{relays}}] : undef;
     }
 }
 
 {
     package Net::Nostr::RemoteSigning::Request;
     use Carp qw(croak);
-    use Class::Tiny qw(id method params);
+    use Class::Tiny qw(id method);
     sub new {
         my $class = shift;
         my $self = bless { @_ }, $class;
         my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        $known{params} = ();
         my @unknown = grep { !exists $known{$_} } keys %$self;
         croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
         croak "id is required" unless defined $self->{id};
         croak "method is required" unless defined $self->{method};
         croak "params is required" unless defined $self->{params};
         croak "params must be an arrayref" unless ref($self->{params}) eq 'ARRAY';
+        $self->{params} = [@{$self->{params}}];
         return $self;
+    }
+    sub params {
+        my $self = shift;
+        croak "params is read-only" if @_;
+        return [@{$self->{params}}];
     }
 }
 

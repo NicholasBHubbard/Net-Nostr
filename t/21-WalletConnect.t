@@ -342,4 +342,55 @@ subtest 'WC request_event rejects bad pubkey' => sub {
     like $@, qr/pubkey must be 64-char/, 'error mentions format';
 };
 
+###############################################################################
+# Defensive copying: caller/accessor mutation must not affect internal state
+###############################################################################
+
+subtest 'WC Connection: caller mutation of relays does not affect object' => sub {
+    my @relays = ('wss://relay1.example.com');
+    my $conn = Net::Nostr::WalletConnect::Connection->new(
+        wallet_pubkey => 'a' x 64, relays => \@relays, secret => 'b' x 64,
+    );
+    push @relays, 'wss://relay2.example.com';
+    is scalar @{$conn->relays}, 1, 'relays unaffected';
+};
+
+subtest 'WC Connection: accessor mutation of relays does not affect object' => sub {
+    my $conn = Net::Nostr::WalletConnect::Connection->new(
+        wallet_pubkey => 'a' x 64,
+        relays => ['wss://relay1.example.com'],
+        secret => 'b' x 64,
+    );
+    my $got = $conn->relays;
+    push @$got, 'wss://relay2.example.com';
+    is scalar @{$conn->relays}, 1, 'relays unaffected';
+};
+
+subtest 'WC Info: accessor mutation of capabilities does not affect object' => sub {
+    my $info = Net::Nostr::WalletConnect::Info->new(
+        capabilities => [qw(pay_invoice)], encryption => [qw(nip44_v2)],
+        notification_types => [qw(payment_received)],
+    );
+    push @{$info->capabilities}, 'get_balance';
+    is scalar @{$info->capabilities}, 1, 'capabilities unaffected';
+};
+
+subtest 'WC Info: accessor mutation of encryption does not affect object' => sub {
+    my $info = Net::Nostr::WalletConnect::Info->new(
+        capabilities => [qw(pay_invoice)], encryption => [qw(nip44_v2)],
+        notification_types => [],
+    );
+    push @{$info->encryption}, 'nip04';
+    is scalar @{$info->encryption}, 1, 'encryption unaffected';
+};
+
+subtest 'WC Info: accessor mutation of notification_types does not affect object' => sub {
+    my $info = Net::Nostr::WalletConnect::Info->new(
+        capabilities => [qw(pay_invoice)], encryption => [qw(nip44_v2)],
+        notification_types => [qw(payment_received)],
+    );
+    push @{$info->notification_types}, 'payment_sent';
+    is scalar @{$info->notification_types}, 1, 'notification_types unaffected';
+};
+
 done_testing;

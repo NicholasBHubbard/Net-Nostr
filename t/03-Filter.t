@@ -517,4 +517,73 @@ subtest 'new() rejects non-string search' => sub {
     );
 };
 
+###############################################################################
+# Defensive copying: caller/accessor mutation must not affect internal state
+###############################################################################
+
+subtest 'caller mutation of ids does not affect filter' => sub {
+    my @ids = ('a' x 64);
+    my $f = Net::Nostr::Filter->new(ids => \@ids);
+    push @ids, 'b' x 64;
+    is scalar @{$f->ids}, 1, 'filter ids unaffected by caller push';
+};
+
+subtest 'accessor mutation of ids does not affect filter' => sub {
+    my $f = Net::Nostr::Filter->new(ids => ['a' x 64]);
+    my $got = $f->ids;
+    push @$got, 'b' x 64;
+    is scalar @{$f->ids}, 1, 'filter ids unaffected by accessor mutation';
+};
+
+subtest 'caller mutation of authors does not affect filter' => sub {
+    my @authors = ('a' x 64);
+    my $f = Net::Nostr::Filter->new(authors => \@authors);
+    push @authors, 'b' x 64;
+    is scalar @{$f->authors}, 1, 'filter authors unaffected';
+};
+
+subtest 'accessor mutation of authors does not affect filter' => sub {
+    my $f = Net::Nostr::Filter->new(authors => ['a' x 64]);
+    my $got = $f->authors;
+    push @$got, 'b' x 64;
+    is scalar @{$f->authors}, 1, 'filter authors unaffected';
+};
+
+subtest 'caller mutation of kinds does not affect filter' => sub {
+    my @kinds = (1);
+    my $f = Net::Nostr::Filter->new(kinds => \@kinds);
+    push @kinds, 2;
+    is scalar @{$f->kinds}, 1, 'filter kinds unaffected';
+};
+
+subtest 'accessor mutation of kinds does not affect filter' => sub {
+    my $f = Net::Nostr::Filter->new(kinds => [1]);
+    my $got = $f->kinds;
+    push @$got, 2;
+    is scalar @{$f->kinds}, 1, 'filter kinds unaffected';
+};
+
+subtest 'caller mutation of tag filter does not affect filter' => sub {
+    my @tags = ('a' x 64);
+    my $f = Net::Nostr::Filter->new('#e' => \@tags);
+    push @tags, 'b' x 64;
+    is scalar @{$f->tag_filter('e')}, 1, 'tag filter unaffected';
+};
+
+subtest 'accessor mutation of tag filter does not affect filter' => sub {
+    my $f = Net::Nostr::Filter->new('#e' => ['a' x 64]);
+    my $got = $f->tag_filter('e');
+    push @$got, 'b' x 64;
+    is scalar @{$f->tag_filter('e')}, 1, 'tag filter unaffected';
+};
+
+subtest 'to_hash returns copies of list fields' => sub {
+    my $f = Net::Nostr::Filter->new(ids => ['a' x 64], '#e' => ['b' x 64]);
+    my $h = $f->to_hash;
+    push @{$h->{ids}}, 'c' x 64;
+    push @{$h->{'#e'}}, 'd' x 64;
+    is scalar @{$f->ids}, 1, 'ids unaffected by to_hash mutation';
+    is scalar @{$f->tag_filter('e')}, 1, 'tag filter unaffected by to_hash mutation';
+};
+
 done_testing;

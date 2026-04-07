@@ -253,4 +253,50 @@ subtest 'new() rejects unknown arguments' => sub {
     );
 };
 
+###############################################################################
+# Defensive copying: caller/accessor mutation must not affect internal state
+###############################################################################
+
+subtest 'caller mutation of supported_nips does not affect object' => sub {
+    my @nips = (1, 11);
+    my $info = Net::Nostr::RelayInfo->new(supported_nips => \@nips);
+    push @nips, 42;
+    is scalar @{$info->supported_nips}, 2, 'supported_nips unaffected';
+};
+
+subtest 'accessor mutation of supported_nips does not affect object' => sub {
+    my $info = Net::Nostr::RelayInfo->new(supported_nips => [1, 11]);
+    my $got = $info->supported_nips;
+    push @$got, 42;
+    is scalar @{$info->supported_nips}, 2, 'supported_nips unaffected';
+};
+
+subtest 'caller mutation of limitation does not affect object' => sub {
+    my %lim = (max_subscriptions => 50);
+    my $info = Net::Nostr::RelayInfo->new(limitation => \%lim);
+    $lim{auth_required} = 1;
+    ok !exists $info->limitation->{auth_required}, 'limitation unaffected';
+};
+
+subtest 'accessor mutation of limitation does not affect object' => sub {
+    my $info = Net::Nostr::RelayInfo->new(limitation => { max_subscriptions => 50 });
+    my $got = $info->limitation;
+    $got->{auth_required} = 1;
+    ok !exists $info->limitation->{auth_required}, 'limitation unaffected';
+};
+
+subtest 'caller mutation of fees does not affect object' => sub {
+    my %fees = (admission => [{ amount => 1000, unit => 'msats' }]);
+    my $info = Net::Nostr::RelayInfo->new(fees => \%fees);
+    $fees{subscription} = [{ amount => 5000, unit => 'msats' }];
+    ok !exists $info->fees->{subscription}, 'fees unaffected';
+};
+
+subtest 'accessor mutation of fees does not affect object' => sub {
+    my $info = Net::Nostr::RelayInfo->new(fees => { admission => [{ amount => 1000, unit => 'msats' }] });
+    my $got = $info->fees;
+    $got->{subscription} = [{ amount => 5000, unit => 'msats' }];
+    ok !exists $info->fees->{subscription}, 'fees unaffected';
+};
+
 done_testing;

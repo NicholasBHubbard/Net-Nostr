@@ -303,44 +303,63 @@ sub _uri_decode {
 {
     package Net::Nostr::WalletConnect::Connection;
     use Carp qw(croak);
-    use Class::Tiny qw(wallet_pubkey relays secret lud16);
+    use Class::Tiny qw(wallet_pubkey secret lud16);
     sub new {
         my $class = shift;
         my $self = bless { @_ }, $class;
         my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        $known{relays} = ();
         my @unknown = grep { !exists $known{$_} } keys %$self;
         croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        $self->{relays} = [@{$self->{relays}}] if ref $self->{relays} eq 'ARRAY';
         return $self;
+    }
+    sub relays {
+        my $self = shift;
+        croak "relays is read-only" if @_;
+        return defined $self->{relays} ? [@{$self->{relays}}] : undef;
     }
 }
 
 {
     package Net::Nostr::WalletConnect::Info;
     use Carp qw(croak);
-    use Class::Tiny qw(capabilities encryption notification_types);
+    my @_ARRAY_FIELDS = qw(capabilities encryption notification_types);
+    use Class::Tiny ();
     sub new {
         my $class = shift;
         my $self = bless { @_ }, $class;
-        my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+        my %known = map { $_ => 1 } @_ARRAY_FIELDS;
         my @unknown = grep { !exists $known{$_} } keys %$self;
         croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+        for my $f (@_ARRAY_FIELDS) {
+            $self->{$f} = [@{$self->{$f}}] if ref $self->{$f} eq 'ARRAY';
+        }
         return $self;
+    }
+    for my $f (@_ARRAY_FIELDS) {
+        no strict 'refs';
+        *$f = sub {
+            my $self = shift;
+            croak "$f is read-only" if @_;
+            return defined $self->{$f} ? [@{$self->{$f}}] : undef;
+        };
     }
 
     sub supports_capability {
         my ($self, $cap) = @_;
-        return scalar grep { $_ eq $cap } @{$self->capabilities};
+        return scalar grep { $_ eq $cap } @{$self->{capabilities}};
     }
 
     sub supports_encryption {
         my ($self, $enc) = @_;
-        return scalar grep { $_ eq $enc } @{$self->encryption};
+        return scalar grep { $_ eq $enc } @{$self->{encryption}};
     }
 
     sub preferred_encryption {
         my ($self) = @_;
         return 'nip44_v2' if $self->supports_encryption('nip44_v2');
-        return $self->encryption->[0];
+        return $self->{encryption}[0];
     }
 }
 

@@ -345,4 +345,53 @@ subtest 'request_event rejects bad pubkey' => sub {
     like $@, qr/pubkey must be 64-char/, 'error mentions format';
 };
 
+###############################################################################
+# Defensive copying: caller/accessor mutation must not affect internal state
+###############################################################################
+
+subtest 'RS BunkerConnection: accessor mutation of relays does not affect object' => sub {
+    my $conn = Net::Nostr::RemoteSigning::BunkerConnection->new(
+        remote_signer_pubkey => 'a' x 64,
+        relays => ['wss://relay1.example.com'],
+    );
+    push @{$conn->relays}, 'wss://relay2.example.com';
+    is scalar @{$conn->relays}, 1, 'relays unaffected';
+};
+
+subtest 'RS NostrConnect: accessor mutation of relays does not affect object' => sub {
+    my $nc = Net::Nostr::RemoteSigning::NostrConnect->new(
+        client_pubkey => 'a' x 64,
+        relays => ['wss://relay1.example.com'],
+        secret => 'mysecret',
+    );
+    push @{$nc->relays}, 'wss://relay2.example.com';
+    is scalar @{$nc->relays}, 1, 'relays unaffected';
+};
+
+subtest 'RS Nip05Metadata: accessor mutation of relays does not affect object' => sub {
+    my $meta = Net::Nostr::RemoteSigning::Nip05Metadata->new(
+        pubkey => 'a' x 64,
+        relays => ['wss://relay1.example.com'],
+    );
+    push @{$meta->relays}, 'wss://relay2.example.com';
+    is scalar @{$meta->relays}, 1, 'relays unaffected';
+};
+
+subtest 'RS Discovery: accessor mutation of relays does not affect object' => sub {
+    my $disc = Net::Nostr::RemoteSigning::Discovery->new(
+        pubkey => 'a' x 64,
+        relays => ['wss://relay1.example.com'],
+    );
+    push @{$disc->relays}, 'wss://relay2.example.com';
+    is scalar @{$disc->relays}, 1, 'relays unaffected';
+};
+
+subtest 'RS Request: accessor mutation of params does not affect object' => sub {
+    my $req = Net::Nostr::RemoteSigning::Request->new(
+        id => 'r1', method => 'ping', params => ['arg1'],
+    );
+    push @{$req->params}, 'arg2';
+    is scalar @{$req->params}, 1, 'params unaffected';
+};
+
 done_testing;

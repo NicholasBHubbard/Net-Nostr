@@ -7,8 +7,7 @@ use JSON ();
 
 use Class::Tiny qw(
     name description banner icon pubkey self contact
-    supported_nips software version terms_of_service
-    limitation payments_url fees
+    software version terms_of_service payments_url
 );
 
 my @SCALAR_FIELDS = qw(
@@ -21,9 +20,31 @@ sub new {
     my $class = shift;
     my $self = bless { @_ }, $class;
     my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
+    @known{@STRUCT_FIELDS} = ();
     my @unknown = grep { !exists $known{$_} } keys %$self;
     croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+
+    # Defensive copies of structured fields
+    $self->{supported_nips} = [@{$self->{supported_nips}}]
+        if ref $self->{supported_nips} eq 'ARRAY';
+    $self->{limitation} = {%{$self->{limitation}}}
+        if ref $self->{limitation} eq 'HASH';
+    $self->{fees} = {%{$self->{fees}}}
+        if ref $self->{fees} eq 'HASH';
+
     return $self;
+}
+
+# Read-only accessors for structured fields that return shallow copies.
+for my $field (@STRUCT_FIELDS) {
+    no strict 'refs';
+    *$field = sub {
+        my $self = shift;
+        croak "$field is read-only" if @_;
+        my $val = $self->{$field};
+        return undef unless defined $val;
+        return ref $val eq 'ARRAY' ? [@$val] : {%$val};
+    };
 }
 
 sub to_json {

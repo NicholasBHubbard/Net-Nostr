@@ -30,7 +30,17 @@ sub _validate_non_negative_int {
         unless defined $value && $value =~ /^\d+$/;
 }
 
-use Class::Tiny qw(ids authors kinds since until limit search _tag_filters);
+use Class::Tiny qw(since until limit search _tag_filters);
+
+# Read-only accessors for list fields that return shallow copies.
+for my $field (@LIST_FIELDS) {
+    no strict 'refs';
+    *$field = sub {
+        my $self = shift;
+        croak "$field is read-only" if @_;
+        return defined $self->{$field} ? [@{$self->{$field}}] : undef;
+    };
+}
 
 sub new {
     my $class = shift;
@@ -56,21 +66,21 @@ sub new {
                 unless ref($args{$f}) eq 'ARRAY' && @{$args{$f}};
             _validate_hex64($f, $args{$f}) if $HEX64_REQUIRED{$f};
             _validate_kinds($args{$f}) if $f eq 'kinds';
-            $self->$f($args{$f});
+            $self->{$f} = [@{$args{$f}}];
         }
     }
 
     # extract #<letter> tag filters
+    my %tf;
     for my $k (keys %args) {
         if ($k =~ /^#([a-zA-Z])$/) {
             croak "$k must be a non-empty array"
                 unless ref($args{$k}) eq 'ARRAY' && @{$args{$k}};
             _validate_hex64("#$1", $args{$k}) if $HEX64_REQUIRED{$1};
-            my $tf = $self->_tag_filters // {};
-            $tf->{$1} = $args{$k};
-            $self->_tag_filters($tf);
+            $tf{$1} = [@{$args{$k}}];
         }
     }
+    $self->_tag_filters(\%tf) if %tf;
 
     return $self;
 }
@@ -78,37 +88,37 @@ sub new {
 sub tag_filter {
     my ($self, $letter) = @_;
     my $tf = $self->_tag_filters;
-    return $tf ? $tf->{$letter} : undef;
+    return ($tf && $tf->{$letter}) ? [@{$tf->{$letter}}] : undef;
 }
 
 sub matches {
     my ($self, $event) = @_;
 
-    if ($self->ids) {
+    if ($self->{ids}) {
         my $eid = $event->id;
-        return 0 unless grep { $_ eq $eid } @{ $self->ids };
+        return 0 unless grep { $_ eq $eid } @{ $self->{ids} };
     }
 
-    if ($self->authors) {
+    if ($self->{authors}) {
         my $pk = $event->pubkey;
-        return 0 unless grep { $_ eq $pk } @{ $self->authors };
+        return 0 unless grep { $_ eq $pk } @{ $self->{authors} };
     }
 
-    if ($self->kinds) {
+    if ($self->{kinds}) {
         my $k = $event->kind;
-        return 0 unless grep { $_ == $k } @{ $self->kinds };
+        return 0 unless grep { $_ == $k } @{ $self->{kinds} };
     }
 
-    if (defined $self->since) {
-        return 0 unless $event->created_at >= $self->since;
+    if (defined $self->{since}) {
+        return 0 unless $event->created_at >= $self->{since};
     }
 
-    if (defined $self->until) {
-        return 0 unless $event->created_at <= $self->until;
+    if (defined $self->{until}) {
+        return 0 unless $event->created_at <= $self->{until};
     }
 
-    if (defined $self->search && length $self->search) {
-        my $parsed = $self->parse_search_extensions($self->search);
+    if (defined $self->{search} && length $self->{search}) {
+        my $parsed = $self->parse_search_extensions($self->{search});
         my @terms = @{$parsed->{terms}};
         if (@terms) {
             my $content = lc($event->content // '');
@@ -118,9 +128,9 @@ sub matches {
         }
     }
 
-    if ($self->_tag_filters) {
-        for my $letter (keys %{ $self->_tag_filters }) {
-            my $filter_values = $self->_tag_filters->{$letter};
+    if ($self->{_tag_filters}) {
+        for my $letter (keys %{ $self->{_tag_filters} }) {
+            my $filter_values = $self->{_tag_filters}{$letter};
             my @event_tag_values;
             for my $tag (@{ $event->tags }) {
                 push @event_tag_values, $tag->[1] if $tag->[0] eq $letter;
@@ -168,14 +178,17 @@ sub to_hash {
     my ($self) = @_;
     my %h;
 
-    for my $f (@LIST_FIELDS, @SCALAR_FIELDS) {
+    for my $f (@LIST_FIELDS) {
+        $h{$f} = [@{$self->{$f}}] if defined $self->{$f};
+    }
+    for my $f (@SCALAR_FIELDS) {
         my $val = $self->$f;
         $h{$f} = $val if defined $val;
     }
 
     if ($self->_tag_filters) {
         for my $letter (keys %{ $self->_tag_filters }) {
-            $h{"#$letter"} = $self->_tag_filters->{$letter};
+            $h{"#$letter"} = [@{$self->_tag_filters->{$letter}}];
         }
     }
 
