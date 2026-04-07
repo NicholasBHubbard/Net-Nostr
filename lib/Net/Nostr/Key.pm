@@ -154,6 +154,11 @@ sub save_pubkey {
 
 sub sign_event {
     my ($self, $event) = @_;
+    croak "pubkey does not match signing key"
+        unless $event->pubkey eq $self->pubkey_hex;
+    my $expected_id = Digest::SHA::sha256_hex($event->json_serialize);
+    croak "id does not match event body"
+        unless $event->id eq $expected_id;
     my $sig_raw = $self->schnorr_sign($event->id);
     my $sig_hex = unpack 'H*', $sig_raw;
     $event->sig($sig_hex);
@@ -401,8 +406,11 @@ Saves the public key to the given file path in PEM format.
 
     my $sig_hex = $key->sign_event($event);
 
-Signs the event's ID with BIP-340 Schnorr and sets the event's C<sig>
-field. Returns the signature as a 128-character hex string.
+Verifies that C<< $event->pubkey >> matches this key and that the stored
+ID matches the event body, then signs with BIP-340 Schnorr and sets the
+event's C<sig> field. Croaks if the pubkey does not match or the ID has
+been tampered with. Any existing signature is unconditionally replaced.
+Returns the signature as a 128-character hex string.
 
     my $event = Net::Nostr::Event->new(
         pubkey => $key->pubkey_hex, kind => 1,

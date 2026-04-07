@@ -213,4 +213,40 @@ subtest 'create_event accepts tags and created_at' => sub {
     is($event->created_at, 1700000000, 'created_at preserved');
 };
 
+subtest 'sign_event rejects pubkey mismatch' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $other_key = Net::Nostr::Key->new;
+    my $event = Net::Nostr::Event->new(
+        pubkey => $other_key->pubkey_hex, kind => 1,
+        content => 'wrong key', tags => [],
+    );
+    like(dies { $key->sign_event($event) },
+        qr/pubkey does not match/,
+        'sign_event rejects event with wrong pubkey');
+};
+
+subtest 'sign_event rejects tampered id' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $event = Net::Nostr::Event->new(
+        id => 'f' x 64,
+        pubkey => $key->pubkey_hex, kind => 1,
+        content => 'tampered', tags => [],
+    );
+    like(dies { $key->sign_event($event) },
+        qr/id does not match/,
+        'sign_event rejects event with wrong id');
+};
+
+subtest 'sign_event replaces existing sig' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $event = Net::Nostr::Event->new(
+        pubkey => $key->pubkey_hex, kind => 1,
+        content => 'resign me', tags => [],
+        sig => 'a' x 128,
+    );
+    $key->sign_event($event);
+    isnt($event->sig, 'a' x 128, 'old sig replaced');
+    ok($event->validate, 'new sig validates');
+};
+
 done_testing;
