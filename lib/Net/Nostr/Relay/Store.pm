@@ -50,16 +50,22 @@ sub store {
     # pubkey index
     $self->{_by_pubkey}{$event->pubkey}{$id} = $event;
 
-    # replaceable index
+    # replaceable index: only update if this event is newer (or no current entry)
     if ($event->is_replaceable) {
         my $key = $event->pubkey . ':' . $event->kind;
-        $self->{_by_pubkey_kind}{$key} = $event;
+        my $current = $self->{_by_pubkey_kind}{$key};
+        if (!$current || _is_newer($event, $current)) {
+            $self->{_by_pubkey_kind}{$key} = $event;
+        }
     }
 
-    # addressable index
+    # addressable index: only update if this event is newer (or no current entry)
     if ($event->is_addressable) {
         my $key = $event->pubkey . ':' . $event->kind . ':' . $event->d_tag;
-        $self->{_by_pubkey_kind_dtag}{$key} = $event;
+        my $current = $self->{_by_pubkey_kind_dtag}{$key};
+        if (!$current || _is_newer($event, $current)) {
+            $self->{_by_pubkey_kind_dtag}{$key} = $event;
+        }
     }
 
     # tag index
@@ -110,20 +116,26 @@ sub delete_by_id {
     # pubkey index
     delete $self->{_by_pubkey}{$event->pubkey}{$id};
 
-    # replaceable index
+    # replaceable index: promote next best candidate if we removed the current entry
     if ($event->is_replaceable) {
         my $key = $event->pubkey . ':' . $event->kind;
-        delete $self->{_by_pubkey_kind}{$key}
-            if $self->{_by_pubkey_kind}{$key}
-            && $self->{_by_pubkey_kind}{$key}->id eq $id;
+        if ($self->{_by_pubkey_kind}{$key}
+            && $self->{_by_pubkey_kind}{$key}->id eq $id) {
+            delete $self->{_by_pubkey_kind}{$key};
+            my $best = $self->_find_best_replaceable($event->pubkey, $event->kind);
+            $self->{_by_pubkey_kind}{$key} = $best if $best;
+        }
     }
 
-    # addressable index
+    # addressable index: promote next best candidate if we removed the current entry
     if ($event->is_addressable) {
         my $key = $event->pubkey . ':' . $event->kind . ':' . $event->d_tag;
-        delete $self->{_by_pubkey_kind_dtag}{$key}
-            if $self->{_by_pubkey_kind_dtag}{$key}
-            && $self->{_by_pubkey_kind_dtag}{$key}->id eq $id;
+        if ($self->{_by_pubkey_kind_dtag}{$key}
+            && $self->{_by_pubkey_kind_dtag}{$key}->id eq $id) {
+            delete $self->{_by_pubkey_kind_dtag}{$key};
+            my $best = $self->_find_best_addressable($event->pubkey, $event->kind, $event->d_tag);
+            $self->{_by_pubkey_kind_dtag}{$key} = $best if $best;
+        }
     }
 
     # tag index
@@ -337,6 +349,37 @@ sub _candidates_for {
     return $self->{_ordered};
 }
 
+sub _find_best_replaceable {
+    my ($self, $pubkey, $kind) = @_;
+    my $pk_idx = $self->{_by_pubkey}{$pubkey} // {};
+    my $best;
+    for my $event (values %$pk_idx) {
+        next unless $event->kind == $kind && $event->is_replaceable;
+        $best = $event if !$best || _is_newer($event, $best);
+    }
+    return $best;
+}
+
+sub _find_best_addressable {
+    my ($self, $pubkey, $kind, $d_tag) = @_;
+    my $pk_idx = $self->{_by_pubkey}{$pubkey} // {};
+    my $best;
+    for my $event (values %$pk_idx) {
+        next unless $event->kind == $kind && $event->is_addressable;
+        next unless $event->d_tag eq $d_tag;
+        $best = $event if !$best || _is_newer($event, $best);
+    }
+    return $best;
+}
+
+sub _is_newer {
+    my ($new, $existing) = @_;
+    return 1 if $new->created_at > $existing->created_at;
+    return 1 if $new->created_at == $existing->created_at
+             && $new->id lt $existing->id;
+    return 0;
+}
+
 sub _sort_events {
     my ($self, $events) = @_;
     return [sort {
@@ -413,6 +456,12 @@ Stores an event. Returns 1 on success, 0 if the event is a duplicate (same
 id already stored). Updates all indexes. If C<max_events> is set and the
 store exceeds capacity after insertion, the oldest event is evicted.
 
+For replaceable events (kind 0, 3, 10000-19999), the C<find_replaceable>
+index always points to the newest event by C<created_at>, with lowest C<id>
+as tiebreak. Storing an older replaceable event adds it to the store but
+does not overwrite the index entry. The same applies to addressable events
+(kind 30000-39999) via C<find_addressable>.
+
     $store->store($event);  # 1
     $store->store($event);  # 0 (duplicate)
 
@@ -426,22 +475,30 @@ Returns the event with the given id, or C<undef> if not found.
 
     my $event = $store->find_replaceable($pubkey, $kind);
 
-Returns the stored replaceable event for the given pubkey and kind, or
-C<undef> if none exists. Replaceable kinds are 0, 3, and 10000-19999.
+Returns the newest stored replaceable event for the given pubkey and kind,
+or C<undef> if none exists. When the store holds multiple versions (e.g.
+an older event not yet cleaned up by the relay), this always returns the
+one with the highest C<created_at> (lowest C<id> as tiebreak).
+Replaceable kinds are 0, 3, and 10000-19999.
 
 =head2 find_addressable
 
     my $event = $store->find_addressable($pubkey, $kind, $d_tag);
 
-Returns the stored addressable event for the given pubkey, kind, and d tag,
-or C<undef> if none exists. Addressable kinds are 30000-39999.
+Returns the newest stored addressable event for the given pubkey, kind,
+and d tag, or C<undef> if none exists. When the store holds multiple
+versions, this always returns the one with the highest C<created_at>
+(lowest C<id> as tiebreak). Addressable kinds are 30000-39999.
 
 =head2 delete_by_id
 
     my $removed = $store->delete_by_id($event_id);
 
 Removes the event with the given id from all indexes. Returns the removed
-event, or C<undef> if not found.
+event, or C<undef> if not found. If the removed event was the current entry
+in the replaceable or addressable index, the next best candidate (by
+C<created_at> DESC, C<id> ASC) is promoted. If no candidates remain, the
+index entry is cleared.
 
 =head2 delete_matching
 

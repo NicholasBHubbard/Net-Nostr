@@ -752,4 +752,128 @@ subtest 'replaceable index updated on delete + re-store' => sub {
     is $store->find_replaceable($PK1, 0)->id, $e2->id, 'new replaceable stored';
 };
 
+###############################################################################
+# store() enforces "newest wins" for replaceable/addressable indexes
+###############################################################################
+
+subtest 'store older replaceable does not overwrite newer in index' => sub {
+    my $store = Net::Nostr::Relay::Store->new;
+
+    my $newer = make_event(pubkey => $PK1, kind => 0, content => 'new', created_at => 2000);
+    my $older = make_event(pubkey => $PK1, kind => 0, content => 'old', created_at => 1000);
+
+    $store->store($newer);
+    $store->store($older);  # both stored, but index should still point to newer
+
+    is $store->event_count, 2, 'both events stored';
+    is $store->find_replaceable($PK1, 0)->id, $newer->id,
+        'replaceable index points to newest event';
+};
+
+subtest 'store older addressable does not overwrite newer in index' => sub {
+    my $store = Net::Nostr::Relay::Store->new;
+
+    my $newer = make_event(
+        pubkey => $PK1, kind => 30023, content => 'new',
+        created_at => 2000, tags => [['d', 'slug']],
+    );
+    my $older = make_event(
+        pubkey => $PK1, kind => 30023, content => 'old',
+        created_at => 1000, tags => [['d', 'slug']],
+    );
+
+    $store->store($newer);
+    $store->store($older);
+
+    is $store->event_count, 2, 'both events stored';
+    is $store->find_addressable($PK1, 30023, 'slug')->id, $newer->id,
+        'addressable index points to newest event';
+};
+
+subtest 'store newer replaceable does overwrite older in index' => sub {
+    my $store = Net::Nostr::Relay::Store->new;
+
+    my $older = make_event(pubkey => $PK1, kind => 0, content => 'old', created_at => 1000);
+    my $newer = make_event(pubkey => $PK1, kind => 0, content => 'new', created_at => 2000);
+
+    $store->store($older);
+    is $store->find_replaceable($PK1, 0)->id, $older->id, 'older is current';
+
+    $store->store($newer);
+    is $store->find_replaceable($PK1, 0)->id, $newer->id,
+        'replaceable index updated to newer event';
+};
+
+subtest 'store same-timestamp replaceable uses id tiebreak' => sub {
+    my $store = Net::Nostr::Relay::Store->new;
+
+    my $e1 = make_event(
+        pubkey => $PK1, kind => 0, content => 'first',
+        created_at => 1000, tags => [['nonce', 'a']],
+    );
+    my $e2 = make_event(
+        pubkey => $PK1, kind => 0, content => 'second',
+        created_at => 1000, tags => [['nonce', 'b']],
+    );
+
+    $store->store($e1);
+    $store->store($e2);
+
+    # NIP-01: lowest id wins tiebreak for replaceable
+    my $expected = ($e1->id lt $e2->id) ? $e1 : $e2;
+    is $store->find_replaceable($PK1, 0)->id, $expected->id,
+        'tiebreak: lowest id wins for replaceable index';
+};
+
+###############################################################################
+# delete_by_id promotes next best candidate in special indexes
+###############################################################################
+
+subtest 'delete replaceable promotes next best candidate' => sub {
+    my $store = Net::Nostr::Relay::Store->new;
+
+    my $older = make_event(pubkey => $PK1, kind => 0, content => 'old', created_at => 1000);
+    my $newer = make_event(pubkey => $PK1, kind => 0, content => 'new', created_at => 2000);
+
+    $store->store($older);
+    $store->store($newer);
+    is $store->find_replaceable($PK1, 0)->id, $newer->id, 'index points to newest';
+
+    $store->delete_by_id($newer->id);
+    my $promoted = $store->find_replaceable($PK1, 0);
+    ok defined $promoted, 'index not empty after deleting newest';
+    is $promoted->id, $older->id, 'older event promoted to index';
+};
+
+subtest 'delete addressable promotes next best candidate' => sub {
+    my $store = Net::Nostr::Relay::Store->new;
+
+    my $older = make_event(
+        pubkey => $PK1, kind => 30023, content => 'old',
+        created_at => 1000, tags => [['d', 'slug']],
+    );
+    my $newer = make_event(
+        pubkey => $PK1, kind => 30023, content => 'new',
+        created_at => 2000, tags => [['d', 'slug']],
+    );
+
+    $store->store($older);
+    $store->store($newer);
+    is $store->find_addressable($PK1, 30023, 'slug')->id, $newer->id, 'index points to newest';
+
+    $store->delete_by_id($newer->id);
+    my $promoted = $store->find_addressable($PK1, 30023, 'slug');
+    ok defined $promoted, 'index not empty after deleting newest';
+    is $promoted->id, $older->id, 'older event promoted to index';
+};
+
+subtest 'delete only replaceable clears index completely' => sub {
+    my $store = Net::Nostr::Relay::Store->new;
+
+    my $e = make_event(pubkey => $PK1, kind => 0, content => 'solo', created_at => 1000);
+    $store->store($e);
+    $store->delete_by_id($e->id);
+    is $store->find_replaceable($PK1, 0), undef, 'index empty when no candidates remain';
+};
+
 done_testing;
