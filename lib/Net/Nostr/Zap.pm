@@ -9,6 +9,7 @@ use Bitcoin::Crypto::Bech32 qw(
     encode_bech32
     translate_5to8 translate_8to5
 );
+use Crypt::PK::ECC;
 use Crypt::PK::ECC::Schnorr;
 use Exporter 'import';
 

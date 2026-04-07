@@ -6,6 +6,7 @@ use Carp qw(croak);
 use JSON ();
 use Digest::SHA qw(sha256_hex);
 use Storable ();
+use Crypt::PK::ECC;
 use Crypt::PK::ECC::Schnorr;
 
 # Pre-declare read-only accessors so Class::Tiny registers them as

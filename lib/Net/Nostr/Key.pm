@@ -5,6 +5,7 @@ use strictures 2;
 use Carp qw(croak);
 use Crypt::PK::ECC;
 use Crypt::PK::ECC::Schnorr;
+use Digest::SHA qw(sha256_hex);
 use Net::Nostr::Event;
 
 use Class::Tiny qw(_cryptpkecc);
@@ -161,7 +162,7 @@ sub sign_event {
     my ($self, $event) = @_;
     croak "pubkey does not match signing key"
         unless $event->pubkey eq $self->pubkey_hex;
-    my $expected_id = Digest::SHA::sha256_hex($event->json_serialize);
+    my $expected_id = sha256_hex($event->json_serialize);
     croak "id does not match event body"
         unless $event->id eq $expected_id;
     my $sig_raw = $self->schnorr_sign($event->id);
