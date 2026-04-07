@@ -18,14 +18,18 @@ use Socket qw(MSG_PEEK);
 
 use Net::Nostr::RelayInfo;
 
+use Net::Nostr::Relay::Store;
+
 use Class::Tiny qw(
     _server
     connections
     subscriptions
-    events
+    store
     _guard
     verify_signatures
     max_connections_per_ip
+    max_events
+    event_rate_limit
     relay_url
     relay_info
     _conn_count_by_ip
@@ -34,6 +38,7 @@ use Class::Tiny qw(
     _authenticated
     _nip11_watchers
     min_pow_difficulty
+    _rate_state
 );
 
 sub new {
@@ -43,8 +48,40 @@ sub new {
     my @unknown = grep { !exists $known{$_} } keys %$self;
     croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
     $self->verify_signatures(1) unless defined $self->verify_signatures;
+
+    # Validate event_rate_limit format
+    if (defined $self->event_rate_limit) {
+        croak "event_rate_limit must be 'count/seconds' (e.g. '10/60')"
+            unless $self->event_rate_limit =~ m{^(\d+)/(\d+)$} && $1 > 0 && $2 > 0;
+    }
+
+    # Initialize store: use provided store, or build default
+    if (!$self->store) {
+        my %store_args;
+        $store_args{max_events} = $self->max_events if defined $self->max_events;
+        $self->store(Net::Nostr::Relay::Store->new(%store_args));
+    }
+
+    $self->_rate_state({});
     $self->_server(AnyEvent::WebSocket::Server->new());
     return $self;
+}
+
+sub events {
+    my ($self, @args) = @_;
+    if (@args) {
+        # Setter: clear store and re-populate (backward compat)
+        $self->store->clear;
+        my $events = $args[0] // [];
+        $self->store->store($_) for @$events;
+        return $events;
+    }
+    return $self->store->all_events;
+}
+
+sub inject_event {
+    my ($self, $event) = @_;
+    $self->store->store($event);
 }
 
 sub start {
@@ -171,6 +208,7 @@ sub _stop_cleanup {
     $self->_challenges({});
     $self->_authenticated({});
     $self->_nip11_watchers({});
+    $self->_rate_state({});
 }
 
 sub broadcast {
@@ -197,11 +235,21 @@ sub _on_connection {
 
     $self->connections($self->connections // {});
     $self->subscriptions($self->subscriptions // {});
-    $self->events($self->events // []);
     $self->_challenges($self->_challenges // {});
     $self->_authenticated($self->_authenticated // {});
 
     $self->connections->{$conn_id} = $conn;
+
+    # Initialize rate limiting state for this connection
+    if (defined $self->event_rate_limit) {
+        my ($count, $seconds) = $self->event_rate_limit =~ m{^(\d+)/(\d+)$};
+        $self->_rate_state->{$conn_id} = {
+            tokens => $count,
+            max_tokens => $count,
+            last_refill => time(),
+            refill_seconds => $seconds,
+        };
+    }
 
     # Send AUTH challenge
     my $challenge = unpack('H*', random_bytes(32));
@@ -272,6 +320,7 @@ sub _on_connection {
         delete $self->subscriptions->{$conn_id};
         delete $self->_challenges->{$conn_id};
         delete $self->_authenticated->{$conn_id};
+        delete $self->_rate_state->{$conn_id};
         $self->_conn_count_by_ip->{$peer_host}-- if defined $peer_host;
     });
 }
@@ -328,6 +377,25 @@ sub _is_newer {
     return 0;
 }
 
+sub _check_rate_limit {
+    my ($self, $conn_id) = @_;
+    return 1 unless defined $self->event_rate_limit;
+    my $state = $self->_rate_state->{$conn_id} or return 1;
+
+    my $now = time();
+    my $elapsed = $now - $state->{last_refill};
+    if ($elapsed >= $state->{refill_seconds}) {
+        $state->{tokens} = $state->{max_tokens};
+        $state->{last_refill} = $now;
+    }
+
+    if ($state->{tokens} > 0) {
+        $state->{tokens}--;
+        return 1;
+    }
+    return 0;
+}
+
 sub _handle_event {
     my ($self, $conn_id, $event) = @_;
     my $conn = $self->connections->{$conn_id};
@@ -335,6 +403,12 @@ sub _handle_event {
     my $error = $self->_validate_event($event);
     if ($error) {
         $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => ($event->id // ''), accepted => 0, message => $error)->serialize);
+        return;
+    }
+
+    # Rate limiting check
+    unless ($self->_check_rate_limit($conn_id)) {
+        $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'rate-limited: slow down')->serialize);
         return;
     }
 
@@ -366,11 +440,9 @@ sub _handle_event {
     }
 
     # duplicate detection
-    for my $existing (@{$self->events}) {
-        if ($existing->id eq $event->id) {
-            $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => 'duplicate: already have this event')->serialize);
-            return;
-        }
+    if ($self->store->get_by_id($event->id)) {
+        $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => 'duplicate: already have this event')->serialize);
+        return;
     }
 
     # ephemeral events: broadcast but don't store
@@ -382,33 +454,26 @@ sub _handle_event {
 
     # replaceable events: keep only latest per pubkey+kind
     if ($event->is_replaceable) {
-        for my $i (0 .. $#{$self->events}) {
-            my $existing = $self->events->[$i];
-            if ($existing->pubkey eq $event->pubkey && $existing->kind == $event->kind) {
-                if (_is_newer($event, $existing)) {
-                    splice @{$self->events}, $i, 1;
-                } else {
-                    $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => 'duplicate: have a newer version')->serialize);
-                    return;
-                }
-                last;
+        my $existing = $self->store->find_replaceable($event->pubkey, $event->kind);
+        if ($existing) {
+            if (_is_newer($event, $existing)) {
+                $self->store->delete_by_id($existing->id);
+            } else {
+                $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => 'duplicate: have a newer version')->serialize);
+                return;
             }
         }
     }
 
     # addressable events: keep only latest per pubkey+kind+d_tag
     if ($event->is_addressable) {
-        my $d = $event->d_tag;
-        for my $i (0 .. $#{$self->events}) {
-            my $existing = $self->events->[$i];
-            if ($existing->pubkey eq $event->pubkey && $existing->kind == $event->kind && $existing->d_tag eq $d) {
-                if (_is_newer($event, $existing)) {
-                    splice @{$self->events}, $i, 1;
-                } else {
-                    $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => 'duplicate: have a newer version')->serialize);
-                    return;
-                }
-                last;
+        my $existing = $self->store->find_addressable($event->pubkey, $event->kind, $event->d_tag);
+        if ($existing) {
+            if (_is_newer($event, $existing)) {
+                $self->store->delete_by_id($existing->id);
+            } else {
+                $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => 'duplicate: have a newer version')->serialize);
+                return;
             }
         }
     }
@@ -418,7 +483,7 @@ sub _handle_event {
         $self->_handle_deletion($event);
     }
 
-    push @{$self->events}, $event;
+    $self->store->store($event);
     $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 1, message => '')->serialize);
     $self->broadcast($event);
 }
@@ -426,39 +491,12 @@ sub _handle_event {
 sub _handle_deletion {
     my ($self, $del_event) = @_;
     my $del = Net::Nostr::Deletion->from_event($del_event);
-    my $del_pubkey = $del_event->pubkey;
-    my $del_ts = $del_event->created_at;
-
-    my @kept;
-    for my $stored (@{$self->events}) {
-        # Never delete other kind 5 events
-        if ($stored->kind == 5) {
-            push @kept, $stored;
-            next;
-        }
-        # Check e tags: delete if pubkey matches and event is referenced
-        my $dominated = 0;
-        if ($stored->pubkey eq $del_pubkey) {
-            for my $id (@{$del->event_ids}) {
-                if ($stored->id eq $id) {
-                    $dominated = 1;
-                    last;
-                }
-            }
-            # Check a tags: delete addressable events up to deletion timestamp
-            if (!$dominated && $stored->is_addressable) {
-                my $addr = $stored->kind . ':' . $stored->pubkey . ':' . $stored->d_tag;
-                for my $del_addr (@{$del->addresses}) {
-                    if ($addr eq $del_addr && $stored->created_at <= $del_ts) {
-                        $dominated = 1;
-                        last;
-                    }
-                }
-            }
-        }
-        push @kept, $stored unless $dominated;
-    }
-    $self->events(\@kept);
+    $self->store->delete_matching(
+        $del_event->pubkey,
+        $del->event_ids,
+        $del->addresses,
+        $del_event->created_at,
+    );
 }
 
 sub _handle_auth {
@@ -527,38 +565,9 @@ sub _handle_req {
     $self->subscriptions->{$conn_id} //= {};
     $self->subscriptions->{$conn_id}{$sub_id} = \@filters;
 
-    # NIP-01: limit applies per filter, not globally.
-    # Evaluate each filter independently, apply its own limit,
-    # then union/dedupe across filters.
-    my %seen;
-    for my $filter (@filters) {
-        my @matched;
-        for my $event (@{$self->events}) {
-            next if $event->is_expired;
-            push @matched, $event if $filter->matches($event);
-        }
+    my $results = $self->store->query(\@filters);
 
-        # sort by created_at DESC, then id ASC for ties
-        @matched = sort {
-            $b->created_at <=> $a->created_at || $a->id cmp $b->id
-        } @matched;
-
-        # apply this filter's limit
-        if (defined $filter->limit) {
-            splice @matched, $filter->limit if $filter->limit < @matched;
-        }
-
-        for my $event (@matched) {
-            $seen{$event->id} //= $event;
-        }
-    }
-
-    # deterministic emission order: created_at DESC, id ASC for ties
-    my @results = sort {
-        $b->created_at <=> $a->created_at || $a->id cmp $b->id
-    } values %seen;
-
-    for my $event (@results) {
+    for my $event (@$results) {
         $conn->send(Net::Nostr::Message->new(type => 'EVENT', subscription_id => $sub_id, event => $event)->serialize);
     }
 
@@ -569,11 +578,7 @@ sub _handle_count {
     my ($self, $conn_id, $sub_id, @filters) = @_;
     my $conn = $self->connections->{$conn_id};
 
-    my $count = 0;
-    for my $event (@{$self->events}) {
-        next if $event->is_expired;
-        $count++ if Net::Nostr::Filter->matches_any($event, @filters);
-    }
+    my $count = $self->store->count(\@filters);
 
     $conn->send(Net::Nostr::Message->new(
         type => 'COUNT', subscription_id => $sub_id, count => $count,
@@ -617,9 +622,12 @@ Net::Nostr::Relay - Nostr WebSocket relay server
 
 =head1 DESCRIPTION
 
-An in-process Nostr relay. Accepts WebSocket connections, stores events in
-memory, manages subscriptions, and broadcasts new events to matching
-subscribers. Events do not persist across restarts.
+An in-process Nostr relay. Accepts WebSocket connections, stores events
+using an indexed in-memory backend (or a pluggable custom store), manages
+subscriptions, and broadcasts new events to matching subscribers. Supports
+configurable event capacity with FIFO eviction and per-connection rate
+limiting. Events do not persist across restarts unless a persistent storage
+backend is provided.
 
 Implements:
 
@@ -665,6 +673,9 @@ Supports all NIP-01 event semantics:
     my $relay = Net::Nostr::Relay->new(relay_url => 'wss://relay.example.com/');
     my $relay = Net::Nostr::Relay->new(relay_info => $info);
     my $relay = Net::Nostr::Relay->new(min_pow_difficulty => 16);
+    my $relay = Net::Nostr::Relay->new(max_events => 10000);
+    my $relay = Net::Nostr::Relay->new(event_rate_limit => '10/60');
+    my $relay = Net::Nostr::Relay->new(store => $custom_store);
 
 Creates a new relay instance. Options:
 
@@ -704,6 +715,30 @@ Default: C<undef> (NIP-11 disabled).
             version        => '1.0.0',
         ),
     );
+
+=item C<store> - A pluggable storage backend object. Must implement the same
+interface as L<Net::Nostr::Relay::Store> (duck-typed). When provided,
+C<max_events> is ignored (configure it on the store directly). Default: a new
+L<Net::Nostr::Relay::Store> instance.
+
+    use Net::Nostr::Relay::Store;
+
+    my $store = Net::Nostr::Relay::Store->new(max_events => 5000);
+    my $relay = Net::Nostr::Relay->new(store => $store);
+
+=item C<max_events> - Maximum number of events to retain in the default
+in-memory store. Oldest events are evicted when the limit is exceeded.
+Must be a positive integer. Default: C<undef> (unlimited). Ignored when
+a custom C<store> is provided.
+
+    my $relay = Net::Nostr::Relay->new(max_events => 10000);
+
+=item C<event_rate_limit> - Per-connection event submission rate limit in
+the format C<"count/seconds"> (e.g. C<"10/60"> for 10 events per 60 seconds).
+When exceeded, events are rejected with an C<OK false> response and a
+C<rate-limited:> prefix. Default: C<undef> (unlimited).
+
+    my $relay = Net::Nostr::Relay->new(event_rate_limit => '10/60');
 
 Croaks on unknown arguments.
 
@@ -763,14 +798,53 @@ Returns the hashref of active connections.
 Returns the hashref of active subscriptions, keyed by connection ID
 then subscription ID.
 
+=head2 store
+
+    my $store = $relay->store;
+
+Returns the storage backend object (L<Net::Nostr::Relay::Store> by default).
+
 =head2 events
 
     my $events = $relay->events;  # arrayref of Net::Nostr::Event
 
-Returns the arrayref of stored events. This list is kept in memory only
-and reflects replaceable/addressable semantics (only the latest version
+Returns a snapshot (array copy) of stored events, sorted by C<created_at>
+DESC then C<id> ASC. Mutating the returned arrayref does not affect the
+store. Reflects replaceable/addressable semantics (only the latest version
 of each replaceable or addressable event is retained). Ephemeral events
-are never stored here.
+are never stored.
+
+Can also be used as a setter for backward compatibility:
+
+    $relay->events([]);                   # clear all events
+    $relay->events([$event1, $event2]);   # replace with given events
+
+=head2 inject_event
+
+    $relay->inject_event($event);
+
+Stores an event directly into the store without validation or broadcasting.
+Useful for tests and programmatic seeding of relay state.
+
+    use TestFixtures qw(make_event);
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->inject_event(make_event(kind => 1, content => 'hello'));
+
+=head2 max_events
+
+    my $max = $relay->max_events;
+
+Returns the configured maximum event capacity, or C<undef> if unlimited
+(the default). This value is passed to the default store on construction.
+
+=head2 event_rate_limit
+
+    my $limit = $relay->event_rate_limit;  # e.g. '10/60' or undef
+
+Returns the per-connection event rate limit string, or C<undef> if
+unlimited (the default).
+
+    my $relay = Net::Nostr::Relay->new(event_rate_limit => '10/60');
 
 =head2 verify_signatures
 
@@ -838,6 +912,7 @@ Keys are connection IDs, values are hashrefs of pubkey hex strings.
 =head1 SEE ALSO
 
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
-L<Net::Nostr>, L<Net::Nostr::Client>, L<Net::Nostr::Event>, L<Net::Nostr::RelayInfo>
+L<Net::Nostr>, L<Net::Nostr::Client>, L<Net::Nostr::Event>,
+L<Net::Nostr::Relay::Store>, L<Net::Nostr::RelayInfo>
 
 =cut

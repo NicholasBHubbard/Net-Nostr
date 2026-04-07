@@ -197,7 +197,7 @@ subtest 'relay does not return expired events in queries' => sub {
         content => 'expired now', sig => 'a' x 128,
         tags => [['expiration', '1000000000']],
     );
-    push @{$relay->events // do { $relay->events([]); $relay->events }}, $expired;
+    $relay->inject_event($expired);
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;

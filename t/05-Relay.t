@@ -1023,4 +1023,473 @@ subtest 'new() rejects unknown arguments' => sub {
     );
 };
 
+###############################################################################
+# Store integration
+###############################################################################
+
+subtest 'new() accepts store option' => sub {
+    use Net::Nostr::Relay::Store;
+    my $store = Net::Nostr::Relay::Store->new;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0, store => $store);
+    isa_ok($relay->store, 'Net::Nostr::Relay::Store');
+};
+
+subtest 'new() accepts max_events option' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0, max_events => 100);
+    is $relay->store->max_events, 100, 'max_events passed to store';
+};
+
+subtest 'new() creates default store when none given' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    isa_ok($relay->store, 'Net::Nostr::Relay::Store');
+};
+
+###############################################################################
+# inject_event
+###############################################################################
+
+subtest 'inject_event stores event visible via events accessor' => sub {
+    use lib 't/lib';
+    require TestFixtures;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    my $e = TestFixtures::make_event(kind => 1, content => 'injected', created_at => 1000);
+    $relay->inject_event($e);
+    my $events = $relay->events;
+    is scalar @$events, 1, 'one event stored';
+    is $events->[0]->content, 'injected', 'correct event';
+};
+
+subtest 'inject_event does not broadcast' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my @live_events;
+    my $sub_cv = AnyEvent->condvar;
+    my $sub_timeout = AnyEvent->timer(after => 5, cb => sub { $sub_cv->croak("timeout") });
+    my $ref1 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($parsed->[0] eq 'EOSE') {
+                $sub_cv->send();
+            } elsif ($parsed->[0] eq 'EVENT') {
+                push @live_events, $parsed;
+            }
+        });
+        my $filter = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'live', filters => [$filter])->serialize);
+    });
+    $sub_cv->recv;
+
+    # inject_event should NOT broadcast
+    require TestFixtures;
+    my $e = TestFixtures::make_event(kind => 1, content => 'silent', created_at => 5000);
+    $relay->inject_event($e);
+
+    my $cv = AnyEvent->condvar;
+    my $timer; $timer = AnyEvent->timer(after => 0.3, cb => sub {
+        undef $timer;
+        $cv->send;
+    });
+    $cv->recv;
+
+    is scalar @live_events, 0, 'inject_event did not broadcast';
+
+    # But the event is queryable
+    my @query_msgs;
+    my $query_cv = AnyEvent->condvar;
+    my $query_timeout = AnyEvent->timer(after => 5, cb => sub { $query_cv->croak("timeout") });
+    my $ref2 = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @query_msgs, $parsed;
+            $query_cv->send() if $parsed->[0] eq 'EOSE';
+        });
+        my $filter = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'q', filters => [$filter])->serialize);
+    });
+    $query_cv->recv;
+
+    my @events = grep { $_->[0] eq 'EVENT' } @query_msgs;
+    is scalar @events, 1, 'injected event is queryable';
+
+    $relay->stop;
+};
+
+subtest 'events accessor returns snapshot' => sub {
+    require TestFixtures;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->inject_event(TestFixtures::make_event(kind => 1, content => 'a', created_at => 1000));
+
+    my $events = $relay->events;
+    push @$events, 'garbage';
+    is scalar @{$relay->events}, 1, 'mutation of returned array did not affect store';
+};
+
+###############################################################################
+# Store delegation: prove protocol operations use the provided Store
+###############################################################################
+
+subtest 'EVENT via protocol stores into provided Store object' => sub {
+    my $store = Net::Nostr::Relay::Store->new;
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0, store => $store);
+    $relay->start('127.0.0.1', $port);
+
+    is $store->event_count, 0, 'store starts empty';
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send() if $parsed->[0] eq 'OK';
+        });
+        my $e = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'delegation-proof',
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e)->serialize);
+    });
+    $cv->recv;
+
+    is $store->event_count, 1, 'protocol EVENT went into provided store';
+    is $store->all_events->[0]->content, 'delegation-proof', 'correct event in store';
+
+    $relay->stop;
+};
+
+subtest 'REQ via protocol queries the provided Store object' => sub {
+    my $store = Net::Nostr::Relay::Store->new;
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0, store => $store);
+
+    # pre-populate the store directly — if REQ returns it, the relay used our store
+    require TestFixtures;
+    my $e = TestFixtures::make_event(kind => 1, content => 'from-store', created_at => 1000);
+    $store->store($e);
+
+    $relay->start('127.0.0.1', $port);
+
+    my @events;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($parsed->[0] eq 'EVENT') {
+                push @events, $parsed->[2];
+            }
+            $cv->send() if $parsed->[0] eq 'EOSE';
+        });
+        my $filter = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'q', filters => [$filter])->serialize);
+    });
+    $cv->recv;
+
+    is scalar @events, 1, 'REQ returned event from provided store';
+    is $events[0]{content}, 'from-store', 'correct content from store';
+
+    $relay->stop;
+};
+
+subtest 'COUNT via protocol counts from the provided Store object' => sub {
+    my $store = Net::Nostr::Relay::Store->new;
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0, store => $store);
+
+    require TestFixtures;
+    $store->store(TestFixtures::make_event(kind => 1, content => "e$_", created_at => $_ * 1000))
+        for 1..3;
+
+    $relay->start('127.0.0.1', $port);
+
+    my $count_result;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($parsed->[0] eq 'COUNT') {
+                $count_result = $parsed->[2]{count};
+                $cv->send();
+            }
+        });
+        my $filter = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message->new(type => 'COUNT', subscription_id => 'c', filters => [$filter])->serialize);
+    });
+    $cv->recv;
+
+    is $count_result, 3, 'COUNT returned count from provided store';
+
+    $relay->stop;
+};
+
+subtest 'deletion via protocol removes from the provided Store object' => sub {
+    my $store = Net::Nostr::Relay::Store->new;
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0, store => $store);
+    $relay->start('127.0.0.1', $port);
+
+    # publish an event, then delete it — check the store directly
+    my $cv1 = AnyEvent->condvar;
+    my $timeout1 = AnyEvent->timer(after => 5, cb => sub { $cv1->croak("timeout") });
+    my $event_id;
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        my $ok_count = 0;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($parsed->[0] eq 'OK') {
+                $ok_count++;
+                $cv1->send() if $ok_count == 2;
+            }
+        });
+
+        # publish
+        my $e = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'delete-me',
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+        $event_id = $e->id;
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e)->serialize);
+
+        # delete it
+        my $del = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 5, content => '',
+            sig => 'b' x 128, created_at => 2000,
+            tags => [['e', $e->id]],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $del)->serialize);
+    });
+    $cv1->recv;
+
+    is $store->get_by_id($event_id), undef, 'deleted event gone from provided store';
+    # kind 5 event should still be there
+    is $store->event_count, 1, 'only deletion event remains in store';
+
+    $relay->stop;
+};
+
+###############################################################################
+# max_events eviction through protocol
+###############################################################################
+
+subtest 'max_events evicts oldest via protocol flow' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0, max_events => 2);
+    $relay->start('127.0.0.1', $port);
+
+    my @oks;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @oks, $parsed if $parsed->[0] eq 'OK';
+            $cv->send() if @oks == 3;
+        });
+
+        for my $i (1..3) {
+            my $e = Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 1, content => "e$i",
+                sig => 'b' x 128, created_at => $i * 1000, tags => [],
+            );
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e)->serialize);
+        }
+    });
+    $cv->recv;
+
+    my $events = $relay->events;
+    is scalar @$events, 2, 'only 2 events retained (max_events=2)';
+    my @contents = map { $_->content } @$events;
+    ok !(grep { $_ eq 'e1' } @contents), 'oldest event (e1) was evicted';
+
+    $relay->stop;
+};
+
+###############################################################################
+# Rate limiting
+###############################################################################
+
+###############################################################################
+# event_rate_limit constructor validation
+###############################################################################
+
+subtest 'event_rate_limit rejects bad formats' => sub {
+    like(
+        dies { Net::Nostr::Relay->new(verify_signatures => 0, event_rate_limit => 'abc') },
+        qr/event_rate_limit must be/,
+        'non-numeric rejected'
+    );
+    like(
+        dies { Net::Nostr::Relay->new(verify_signatures => 0, event_rate_limit => '0/10') },
+        qr/event_rate_limit must be/,
+        'zero count rejected'
+    );
+    like(
+        dies { Net::Nostr::Relay->new(verify_signatures => 0, event_rate_limit => '10/0') },
+        qr/event_rate_limit must be/,
+        'zero seconds rejected'
+    );
+    like(
+        dies { Net::Nostr::Relay->new(verify_signatures => 0, event_rate_limit => '10') },
+        qr/event_rate_limit must be/,
+        'missing slash rejected'
+    );
+    like(
+        dies { Net::Nostr::Relay->new(verify_signatures => 0, event_rate_limit => '-1/5') },
+        qr/event_rate_limit must be/,
+        'negative count rejected'
+    );
+    like(
+        dies { Net::Nostr::Relay->new(verify_signatures => 0, event_rate_limit => '10/60/extra') },
+        qr/event_rate_limit must be/,
+        'extra slash rejected'
+    );
+};
+
+###############################################################################
+# Rate limiting
+###############################################################################
+
+subtest 'event_rate_limit rejects when exceeded' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        event_rate_limit  => '2/10',  # 2 events per 10 seconds
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my @responses;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @responses, $parsed if $parsed->[0] eq 'OK';
+            $cv->send() if @responses == 3;
+        });
+
+        # send 3 events rapidly — third should be rate-limited
+        for my $i (1..3) {
+            my $e = Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 1, content => "rate-$i",
+                sig => 'b' x 128, created_at => $i * 1000, tags => [],
+            );
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e)->serialize);
+        }
+    });
+    $cv->recv;
+
+    # first 2 should be accepted
+    is $responses[0][2], JSON::true, 'first event accepted';
+    is $responses[1][2], JSON::true, 'second event accepted';
+    # third should be rate-limited
+    is $responses[2][2], JSON::false, 'third event rejected';
+    like $responses[2][3], qr/^rate-limited:/, 'rejection has rate-limited: prefix';
+
+    $relay->stop;
+};
+
+subtest 'rate limiting is per-connection' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        event_rate_limit  => '1/60',  # 1 event per 60 seconds
+    );
+    $relay->start('127.0.0.1', $port);
+
+    # Connection A exhausts its limit
+    my @oks_a;
+    my $cv_a = AnyEvent->condvar;
+    my $timeout_a = AnyEvent->timer(after => 5, cb => sub { $cv_a->croak("timeout") });
+    my $ref_a = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @oks_a, $parsed if $parsed->[0] eq 'OK';
+            $cv_a->send() if @oks_a == 2;
+        });
+        for my $i (1..2) {
+            my $e = Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 1, content => "a-$i",
+                sig => 'b' x 128, created_at => $i * 1000, tags => [],
+            );
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e)->serialize);
+        }
+    });
+    $cv_a->recv;
+
+    is $oks_a[0][2], JSON::true, 'conn A first event accepted';
+    is $oks_a[1][2], JSON::false, 'conn A second event rejected (limit 1)';
+
+    # Connection B should have its own fresh bucket
+    my @oks_b;
+    my $cv_b = AnyEvent->condvar;
+    my $timeout_b = AnyEvent->timer(after => 5, cb => sub { $cv_b->croak("timeout") });
+    my $ref_b = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @oks_b, $parsed if $parsed->[0] eq 'OK';
+            $cv_b->send() if @oks_b == 1;
+        });
+        my $e = Net::Nostr::Event->new(
+            pubkey => 'c' x 64, kind => 1, content => 'b-1',
+            sig => 'b' x 128, created_at => 10000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e)->serialize);
+    });
+    $cv_b->recv;
+
+    is $oks_b[0][2], JSON::true, 'conn B first event accepted (independent limit)';
+
+    $relay->stop;
+};
+
+subtest 'events setter backward compat clears and repopulates' => sub {
+    require TestFixtures;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->inject_event(TestFixtures::make_event(kind => 1, content => 'a', created_at => 1000));
+    $relay->inject_event(TestFixtures::make_event(kind => 1, content => 'b', created_at => 2000));
+    is scalar @{$relay->events}, 2, '2 events before setter';
+
+    # clear via setter
+    $relay->events([]);
+    is scalar @{$relay->events}, 0, 'setter with empty array clears';
+
+    # repopulate via setter
+    my $e = TestFixtures::make_event(kind => 1, content => 'c', created_at => 3000);
+    $relay->events([$e]);
+    is scalar @{$relay->events}, 1, 'setter repopulates';
+    is $relay->events->[0]->content, 'c', 'correct event after setter';
+};
+
+subtest 'inject_event returns 0 for duplicate' => sub {
+    require TestFixtures;
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    my $e = TestFixtures::make_event(kind => 1, content => 'x', created_at => 1000);
+    is $relay->inject_event($e), 1, 'first inject returns 1';
+    is $relay->inject_event($e), 0, 'duplicate inject returns 0';
+    is scalar @{$relay->events}, 1, 'still only 1 event';
+};
+
 done_testing;

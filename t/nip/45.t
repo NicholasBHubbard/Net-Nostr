@@ -230,19 +230,19 @@ subtest 'relay counts matching events' => sub {
     # Store some events
     $relay->events([]);
     for my $i (1 .. 3) {
-        push @{$relay->events}, make_event(
+        $relay->inject_event(make_event(
             pubkey => $alice_pk, kind => 1,
             content => "note $i", sig => 'a' x 128,
-        );
+        ));
     }
-    push @{$relay->events}, make_event(
+    $relay->inject_event(make_event(
         pubkey => $alice_pk, kind => 7,
         content => '+', sig => 'a' x 128,
-    );
-    push @{$relay->events}, make_event(
+    ));
+    $relay->inject_event(make_event(
         pubkey => $bob_pk, kind => 1,
         content => 'bob note', sig => 'a' x 128,
-    );
+    ));
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;
@@ -277,18 +277,18 @@ subtest 'multiple filters OR-ed into single count' => sub {
 
     # 2 kind-1, 1 kind-7
     $relay->events([]);
-    push @{$relay->events}, make_event(
+    $relay->inject_event(make_event(
         pubkey => $alice_pk, kind => 1,
         content => 'note1', sig => 'a' x 128,
-    );
-    push @{$relay->events}, make_event(
+    ));
+    $relay->inject_event(make_event(
         pubkey => $alice_pk, kind => 1,
         content => 'note2', sig => 'a' x 128,
-    );
-    push @{$relay->events}, make_event(
+    ));
+    $relay->inject_event(make_event(
         pubkey => $alice_pk, kind => 7,
         content => '+', sig => 'a' x 128,
-    );
+    ));
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;
@@ -323,10 +323,10 @@ subtest 'multiple filters do not double-count' => sub {
     $relay->start('127.0.0.1', $port);
 
     $relay->events([]);
-    push @{$relay->events}, make_event(
+    $relay->inject_event(make_event(
         pubkey => $alice_pk, kind => 1,
         content => 'note', sig => 'a' x 128,
-    );
+    ));
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;
@@ -365,15 +365,15 @@ subtest 'COUNT skips expired events' => sub {
     $relay->start('127.0.0.1', $port);
 
     $relay->events([]);
-    push @{$relay->events}, make_event(
+    $relay->inject_event(make_event(
         pubkey => $alice_pk, kind => 1,
         content => 'valid', sig => 'a' x 128,
-    );
-    push @{$relay->events}, make_event(
+    ));
+    $relay->inject_event(make_event(
         pubkey => $alice_pk, kind => 1,
         content => 'expired', sig => 'a' x 128,
         tags => [['expiration', '1000000000']],
-    );
+    ));
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;
@@ -408,21 +408,21 @@ subtest 'COUNT with tag filters' => sub {
 
     my $target_id = 'c' x 64;
     $relay->events([]);
-    push @{$relay->events}, make_event(
+    $relay->inject_event(make_event(
         pubkey => $alice_pk, kind => 7,
         content => '+', sig => 'a' x 128,
         tags => [['e', $target_id]],
-    );
-    push @{$relay->events}, make_event(
+    ));
+    $relay->inject_event(make_event(
         pubkey => $bob_pk, kind => 7,
         content => '+', sig => 'a' x 128,
         tags => [['e', $target_id]],
-    );
-    push @{$relay->events}, make_event(
+    ));
+    $relay->inject_event(make_event(
         pubkey => $alice_pk, kind => 7,
         content => '+', sig => 'a' x 128,
         tags => [['e', 'd' x 64]],
-    );
+    ));
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;
@@ -470,7 +470,7 @@ subtest 'COUNT does not create a live subscription' => sub {
             pubkey => $alice_pk, kind => 1,
             content => 'later', sig => 'a' x 128,
         );
-        push @{$relay->events}, $event;
+        $relay->inject_event($event);
         $relay->broadcast($event);
     });
     $client->on(event => sub {
@@ -534,18 +534,18 @@ subtest 'COUNT follower count with #p tag filter' => sub {
     # 3 follow-list events (kind 3) that follow target
     $relay->events([]);
     for my $pk ($alice_pk, $bob_pk, 'd' x 64) {
-        push @{$relay->events}, make_event(
+        $relay->inject_event(make_event(
             pubkey => $pk, kind => 3,
             content => '', sig => 'a' x 128,
             tags => [['p', $target_pk]],
-        );
+        ));
     }
     # One kind-3 that does NOT follow target
-    push @{$relay->events}, make_event(
+    $relay->inject_event(make_event(
         pubkey => 'e' x 64, kind => 3,
         content => '', sig => 'a' x 128,
         tags => [['p', 'f' x 64]],
-    );
+    ));
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;

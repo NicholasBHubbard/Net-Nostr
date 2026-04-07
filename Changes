@@ -1,5 +1,19 @@
 0.003000   TBD
 
+  - New: Net::Nostr::Relay::Store - indexed in-memory event storage backend
+    with O(1) duplicate detection, replaceable/addressable lookups, and
+    index-accelerated queries by kind, author, id, and tag
+  - New: Relay now uses pluggable storage via the store constructor option.
+    Third-party backends (SQLite, LMDB) can implement the same duck-typed
+    interface. Default: indexed in-memory store
+  - New: Relay max_events option for configurable event capacity with
+    FIFO eviction of oldest events when the limit is exceeded
+  - New: Relay event_rate_limit option for per-connection rate limiting
+    (e.g. '10/60' for 10 events per 60 seconds)
+  - New: Relay inject_event method for storing events without validation
+    or broadcasting (useful for tests and programmatic seeding)
+  - Relay events accessor now returns a snapshot (array copy). Mutating
+    the returned arrayref no longer affects the relay's internal state
   - BREAKING: Net::Nostr::Event is now immutable after construction. Body
     fields (id, pubkey, created_at, kind, tags, content) are read-only.
     Only sig remains writable. add_pubkey_ref and add_event_ref removed.
