@@ -306,4 +306,40 @@ subtest 'WC Notification constructor rejects missing notification' => sub {
     like $@, qr/notification is required/, 'error mentions notification';
 };
 
+###############################################################################
+# Builder pubkey validation
+###############################################################################
+
+subtest 'WC request_event requires pubkey' => sub {
+    ok !eval { Net::Nostr::WalletConnect->request_event(
+        method => 'pay_invoice', params => { invoice => 'lnbc50n1...' },
+        wallet_pubkey => $wallet_pubkey,
+    ) }, 'croaks without pubkey';
+    like $@, qr/requires 'pubkey'/, 'error mentions pubkey';
+};
+
+subtest 'WC response_event requires pubkey' => sub {
+    ok !eval { Net::Nostr::WalletConnect->response_event(
+        result_type => 'pay_invoice', result => { preimage => 'abc' },
+    ) }, 'croaks without pubkey';
+    like $@, qr/requires 'pubkey'/, 'error mentions pubkey';
+};
+
+subtest 'WC notification_event requires pubkey' => sub {
+    ok !eval { Net::Nostr::WalletConnect->notification_event(
+        notification_type => 'payment_received',
+        notification => { amount => 50000 },
+    ) }, 'croaks without pubkey';
+    like $@, qr/requires 'pubkey'/, 'error mentions pubkey';
+};
+
+subtest 'WC request_event rejects bad pubkey' => sub {
+    ok !eval { Net::Nostr::WalletConnect->request_event(
+        method => 'pay_invoice', params => { invoice => 'lnbc50n1...' },
+        wallet_pubkey => $wallet_pubkey,
+        pubkey => 'bad',
+    ) }, 'croaks on bad pubkey';
+    like $@, qr/pubkey must be 64-char/, 'error mentions format';
+};
+
 done_testing;

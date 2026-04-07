@@ -310,4 +310,39 @@ subtest 'Response constructor rejects missing id' => sub {
     like $@, qr/id is required/, 'error mentions id';
 };
 
+###############################################################################
+# Builder pubkey validation
+###############################################################################
+
+subtest 'request_event requires pubkey' => sub {
+    ok !eval { Net::Nostr::RemoteSigning->request_event(
+        method => 'ping', params => [],
+        remote_signer_pubkey => $remote_signer_pubkey,
+    ) }, 'croaks without pubkey';
+    like $@, qr/requires 'pubkey'/, 'error mentions pubkey';
+};
+
+subtest 'response_event requires pubkey' => sub {
+    ok !eval { Net::Nostr::RemoteSigning->response_event(
+        id => 'r1', result => 'pong',
+    ) }, 'croaks without pubkey';
+    like $@, qr/requires 'pubkey'/, 'error mentions pubkey';
+};
+
+subtest 'discovery_event requires pubkey' => sub {
+    ok !eval { Net::Nostr::RemoteSigning->discovery_event(
+        relays => ['wss://relay.example.com'],
+    ) }, 'croaks without pubkey';
+    like $@, qr/requires 'pubkey'/, 'error mentions pubkey';
+};
+
+subtest 'request_event rejects bad pubkey' => sub {
+    ok !eval { Net::Nostr::RemoteSigning->request_event(
+        method => 'ping', params => [],
+        remote_signer_pubkey => $remote_signer_pubkey,
+        pubkey => 'bad',
+    ) }, 'croaks on bad pubkey';
+    like $@, qr/pubkey must be 64-char/, 'error mentions format';
+};
+
 done_testing;

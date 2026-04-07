@@ -141,9 +141,12 @@ sub request_event {
     push @tags, ['encryption', $args{encryption}] if defined $args{encryption};
     push @tags, ['expiration', '' . $args{expiration}] if defined $args{expiration};
 
+    croak "request_event requires 'pubkey'" unless defined $args{pubkey};
+    croak "pubkey must be 64-char lowercase hex" unless $args{pubkey} =~ $HEX64;
+
     return Net::Nostr::Event->new(
         kind    => 23194,
-        pubkey  => $args{pubkey} // '',
+        pubkey  => $args{pubkey},
         content => $content,
         tags    => \@tags,
     );
@@ -181,9 +184,12 @@ sub response_event {
     push @tags, ['p', $args{client_pubkey}] if defined $args{client_pubkey};
     push @tags, ['e', $args{request_id}]    if defined $args{request_id};
 
+    croak "response_event requires 'pubkey'" unless defined $args{pubkey};
+    croak "pubkey must be 64-char lowercase hex" unless $args{pubkey} =~ $HEX64;
+
     return Net::Nostr::Event->new(
         kind    => 23195,
-        pubkey  => $args{pubkey} // '',
+        pubkey  => $args{pubkey},
         content => $content,
         tags    => \@tags,
     );
@@ -221,9 +227,12 @@ sub notification_event {
     # Kind 23196 for NIP-04 backwards compatibility, 23197 for NIP-44
     my $kind = (defined $args{encryption} && $args{encryption} eq 'nip04') ? 23196 : 23197;
 
+    croak "notification_event requires 'pubkey'" unless defined $args{pubkey};
+    croak "pubkey must be 64-char lowercase hex" unless $args{pubkey} =~ $HEX64;
+
     return Net::Nostr::Event->new(
         kind    => $kind,
-        pubkey  => $args{pubkey} // '',
+        pubkey  => $args{pubkey},
         content => $content,
         tags    => \@tags,
     );
@@ -543,7 +552,8 @@ C<params> is missing.
 Creates a kind 23194 request L<Net::Nostr::Event> with the JSON payload
 as unencrypted content (the caller should encrypt before publishing).
 Includes a C<p> tag with the wallet service pubkey, and optionally
-C<encryption> and C<expiration> tags.
+C<encryption> and C<expiration> tags. Croaks if C<pubkey> is missing or
+not 64-char lowercase hex.
 
 =head2 parse_response
 
@@ -564,6 +574,7 @@ Croaks if C<result_type> is missing.
     );
 
 Creates a kind 23195 response L<Net::Nostr::Event> with C<p> and C<e> tags.
+Croaks if C<pubkey> is missing or not 64-char lowercase hex.
 
 =head2 parse_notification
 
@@ -585,7 +596,8 @@ object. Croaks if C<notification_type> or C<notification> is missing.
 Creates a notification L<Net::Nostr::Event> with a C<p> tag. Uses kind 23197
 by default (NIP-44 encryption). Pass C<< encryption => 'nip04' >> to create
 a kind 23196 event for NIP-04 backwards compatibility. Wallet services
-supporting both should publish both kinds for each notification.
+supporting both should publish both kinds for each notification. Croaks if
+C<pubkey> is missing or not 64-char lowercase hex.
 
 =head2 validate_metadata
 

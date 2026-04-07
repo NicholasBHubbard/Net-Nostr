@@ -149,9 +149,12 @@ sub request_event {
         params => $args{params},
     );
 
+    croak "request_event requires 'pubkey'" unless defined $args{pubkey};
+    croak "pubkey must be 64-char lowercase hex" unless $args{pubkey} =~ $HEX64;
+
     return Net::Nostr::Event->new(
         kind    => 24133,
-        pubkey  => $args{pubkey} // '',
+        pubkey  => $args{pubkey},
         content => $content,
         tags    => [['p', $args{remote_signer_pubkey}]],
     );
@@ -191,9 +194,12 @@ sub response_event {
         push @tags, ['p', $args{client_pubkey}];
     }
 
+    croak "response_event requires 'pubkey'" unless defined $args{pubkey};
+    croak "pubkey must be 64-char lowercase hex" unless $args{pubkey} =~ $HEX64;
+
     return Net::Nostr::Event->new(
         kind    => 24133,
-        pubkey  => $args{pubkey} // '',
+        pubkey  => $args{pubkey},
         content => $content,
         tags    => \@tags,
     );
@@ -344,9 +350,12 @@ sub discovery_event {
     push @tags, ['nostrconnect_url', $args{nostrconnect_url}]
         if defined $args{nostrconnect_url};
 
+    croak "discovery_event requires 'pubkey'" unless defined $args{pubkey};
+    croak "pubkey must be 64-char lowercase hex" unless $args{pubkey} =~ $HEX64;
+
     return Net::Nostr::Event->new(
         kind    => 31990,
-        pubkey  => $args{pubkey} // '',
+        pubkey  => $args{pubkey},
         content => '',
         tags    => \@tags,
     );
@@ -638,7 +647,8 @@ missing.
     );
 
 Creates a kind 24133 request L<Net::Nostr::Event> with the JSON payload as
-unencrypted content and a C<p> tag with the remote signer's pubkey.
+unencrypted content and a C<p> tag with the remote signer's pubkey. Croaks
+if C<pubkey> is missing or not 64-char lowercase hex.
 
 =head2 response
 
@@ -659,7 +669,8 @@ Builds a JSON-encoded response payload. Croaks if C<id> is missing.
     );
 
 Creates a kind 24133 response L<Net::Nostr::Event> with a C<p> tag pointing
-to the client's pubkey.
+to the client's pubkey. Croaks if C<pubkey> is missing or not 64-char
+lowercase hex.
 
 =head2 parse_request
 
@@ -736,6 +747,7 @@ Croaks if the event is not kind 31990 or lacks a C<k> tag with value C<24133>.
 
 Creates a NIP-89 kind 31990 discovery L<Net::Nostr::Event> with a C<k> tag
 of C<24133>. Optionally includes C<relay> and C<nostrconnect_url> tags.
+Croaks if C<pubkey> is missing or not 64-char lowercase hex.
 
 =head1 OBJECTS
 
