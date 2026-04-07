@@ -138,7 +138,9 @@ sub privkey_nsec {
 sub save_privkey {
     my ($self, $path) = @_;
     croak "no private key loaded" unless $self->privkey_loaded;
-    open my $fh, '>', $path or croak "cannot open $path: $!";
+    require Fcntl;
+    sysopen my $fh, $path, Fcntl::O_WRONLY() | Fcntl::O_CREAT() | Fcntl::O_TRUNC(), 0600
+        or croak "cannot open $path: $!";
     binmode $fh;
     print $fh $self->privkey_pem;
     close $fh;
@@ -382,8 +384,8 @@ Returns the private key in PEM-encoded format.
 
     $key->save_privkey('my_key.pem');
 
-Saves the private key to the given file path in PEM format. Croaks if
-no private key is loaded.
+Saves the private key to the given file path in PEM format with file
+mode C<0600> (owner read/write only). Croaks if no private key is loaded.
 
     my $key = Net::Nostr::Key->new;
     $key->save_privkey('my_key.pem');

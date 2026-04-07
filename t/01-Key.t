@@ -126,12 +126,14 @@ subtest 'load private key from DER file' => sub {
 
 subtest 'save_privkey writes PEM file and round-trips' => sub {
     my $key = Net::Nostr::Key->new;
-    my $tmp = File::Temp->new(SUFFIX => '.pem');
-    my $path = $tmp->filename;
-    close $tmp;
+    my $dir = File::Temp->newdir;
+    my $path = "$dir/privkey.pem";
 
     $key->save_privkey($path);
     ok(-f $path, 'file created');
+
+    my $mode = (stat $path)[2] & 07777;
+    is($mode, 0600, 'file created with mode 0600');
 
     my $loaded = Net::Nostr::Key->new(privkey => $path);
     ok($loaded->privkey_loaded, 'private key loaded from saved file');
