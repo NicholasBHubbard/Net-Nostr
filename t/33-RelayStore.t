@@ -9,7 +9,7 @@ use TestFixtures qw(make_event);
 
 use Net::Nostr::Event;
 use Net::Nostr::Filter;
-use Net::Nostr::Relay::Store;
+use Net::Nostr::RelayStore;
 
 my $PK1 = 'a' x 64;
 my $PK2 = 'b' x 64;
@@ -20,19 +20,19 @@ my $PK3 = 'c' x 64;
 ###############################################################################
 
 subtest 'new() creates empty store' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     is $store->event_count, 0, 'empty store has 0 events';
     is $store->all_events, [], 'all_events returns empty arrayref';
 };
 
 subtest 'new() accepts max_events' => sub {
-    my $store = Net::Nostr::Relay::Store->new(max_events => 100);
+    my $store = Net::Nostr::RelayStore->new(max_events => 100);
     is $store->max_events, 100, 'max_events preserved';
 };
 
 subtest 'new() rejects unknown arguments' => sub {
     like(
-        dies { Net::Nostr::Relay::Store->new(bogus => 1) },
+        dies { Net::Nostr::RelayStore->new(bogus => 1) },
         qr/unknown.+bogus/i,
         'unknown argument rejected'
     );
@@ -40,17 +40,17 @@ subtest 'new() rejects unknown arguments' => sub {
 
 subtest 'new() rejects non-positive max_events' => sub {
     like(
-        dies { Net::Nostr::Relay::Store->new(max_events => 0) },
+        dies { Net::Nostr::RelayStore->new(max_events => 0) },
         qr/max_events must be a positive integer/,
         'zero rejected'
     );
     like(
-        dies { Net::Nostr::Relay::Store->new(max_events => -1) },
+        dies { Net::Nostr::RelayStore->new(max_events => -1) },
         qr/max_events must be a positive integer/,
         'negative rejected'
     );
     like(
-        dies { Net::Nostr::Relay::Store->new(max_events => 'abc') },
+        dies { Net::Nostr::RelayStore->new(max_events => 'abc') },
         qr/max_events must be a positive integer/,
         'non-numeric rejected'
     );
@@ -61,7 +61,7 @@ subtest 'new() rejects non-positive max_events' => sub {
 ###############################################################################
 
 subtest 'store and get_by_id' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e = make_event(kind => 1, content => 'hello', created_at => 1000);
 
     is $store->store($e), 1, 'store returns 1 on success';
@@ -74,12 +74,12 @@ subtest 'store and get_by_id' => sub {
 };
 
 subtest 'get_by_id returns undef for unknown id' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     is $store->get_by_id('f' x 64), undef, 'unknown id returns undef';
 };
 
 subtest 'store rejects duplicates' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e = make_event(kind => 1, content => 'hello', created_at => 1000);
 
     is $store->store($e), 1, 'first store succeeds';
@@ -92,7 +92,7 @@ subtest 'store rejects duplicates' => sub {
 ###############################################################################
 
 subtest 'find_replaceable' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     # kind 0 is replaceable
     my $e = make_event(pubkey => $PK1, kind => 0, content => 'profile', created_at => 1000);
@@ -107,7 +107,7 @@ subtest 'find_replaceable' => sub {
 };
 
 subtest 'find_addressable' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     # kind 30023 is addressable
     my $e = make_event(
@@ -129,7 +129,7 @@ subtest 'find_addressable' => sub {
 ###############################################################################
 
 subtest 'delete_by_id removes event from all indexes' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     my $e = make_event(
         pubkey => $PK1, kind => 1, content => 'deleteme',
@@ -157,12 +157,12 @@ subtest 'delete_by_id removes event from all indexes' => sub {
 };
 
 subtest 'delete_by_id returns undef for unknown id' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     is $store->delete_by_id('f' x 64), undef, 'unknown id returns undef';
 };
 
 subtest 'delete_by_id cleans replaceable index' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e = make_event(pubkey => $PK1, kind => 0, content => 'profile', created_at => 1000);
     $store->store($e);
     $store->delete_by_id($e->id);
@@ -170,7 +170,7 @@ subtest 'delete_by_id cleans replaceable index' => sub {
 };
 
 subtest 'delete_by_id cleans addressable index' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e = make_event(
         pubkey => $PK1, kind => 30023, content => '',
         created_at => 1000, tags => [['d', 'slug']],
@@ -185,7 +185,7 @@ subtest 'delete_by_id cleans addressable index' => sub {
 ###############################################################################
 
 subtest 'delete_matching by event id' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e1 = make_event(pubkey => $PK1, kind => 1, content => 'keep', created_at => 1000);
     my $e2 = make_event(pubkey => $PK1, kind => 1, content => 'delete', created_at => 2000);
     $store->store($e1);
@@ -199,7 +199,7 @@ subtest 'delete_matching by event id' => sub {
 };
 
 subtest 'delete_matching by address' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e = make_event(
         pubkey => $PK1, kind => 30023, content => '',
         created_at => 1000, tags => [['d', 'slug']],
@@ -213,7 +213,7 @@ subtest 'delete_matching by address' => sub {
 };
 
 subtest 'delete_matching respects before_ts for addresses' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e = make_event(
         pubkey => $PK1, kind => 30023, content => '',
         created_at => 5000, tags => [['d', 'slug']],
@@ -228,7 +228,7 @@ subtest 'delete_matching respects before_ts for addresses' => sub {
 };
 
 subtest 'delete_matching skips kind 5 events' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $del_event = make_event(
         pubkey => $PK1, kind => 5, content => '',
         created_at => 1000, tags => [],
@@ -241,7 +241,7 @@ subtest 'delete_matching skips kind 5 events' => sub {
 };
 
 subtest 'delete_matching ignores wrong pubkey' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e = make_event(pubkey => $PK1, kind => 1, content => 'mine', created_at => 1000);
     $store->store($e);
 
@@ -255,13 +255,13 @@ subtest 'delete_matching ignores wrong pubkey' => sub {
 ###############################################################################
 
 subtest 'query with empty store' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $results = $store->query([Net::Nostr::Filter->new(kinds => [1])]);
     is $results, [], 'empty result';
 };
 
 subtest 'query with empty filter matches all' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e1 = make_event(kind => 1, content => 'a', created_at => 1000);
     my $e2 = make_event(kind => 2, content => 'b', created_at => 2000);
     $store->store($e1);
@@ -272,7 +272,7 @@ subtest 'query with empty filter matches all' => sub {
 };
 
 subtest 'query by kind' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e1 = make_event(kind => 1, content => 'a', created_at => 1000);
     my $e2 = make_event(kind => 7, content => 'b', created_at => 2000);
     $store->store($e1);
@@ -284,7 +284,7 @@ subtest 'query by kind' => sub {
 };
 
 subtest 'query by author' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e1 = make_event(pubkey => $PK1, kind => 1, content => 'a', created_at => 1000);
     my $e2 = make_event(pubkey => $PK2, kind => 1, content => 'b', created_at => 2000);
     $store->store($e1);
@@ -296,7 +296,7 @@ subtest 'query by author' => sub {
 };
 
 subtest 'query by id' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e1 = make_event(kind => 1, content => 'a', created_at => 1000);
     my $e2 = make_event(kind => 1, content => 'b', created_at => 2000);
     $store->store($e1);
@@ -308,7 +308,7 @@ subtest 'query by id' => sub {
 };
 
 subtest 'query by tag filter' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e1 = make_event(kind => 1, content => 'a', created_at => 1000, tags => [['t', 'nostr']]);
     my $e2 = make_event(kind => 1, content => 'b', created_at => 2000, tags => [['t', 'bitcoin']]);
     $store->store($e1);
@@ -320,7 +320,7 @@ subtest 'query by tag filter' => sub {
 };
 
 subtest 'query sort order: created_at DESC, id ASC' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e1 = make_event(kind => 1, content => 'oldest', created_at => 1000);
     my $e2 = make_event(kind => 1, content => 'middle', created_at => 2000);
     my $e3 = make_event(kind => 1, content => 'newest', created_at => 3000);
@@ -335,7 +335,7 @@ subtest 'query sort order: created_at DESC, id ASC' => sub {
 };
 
 subtest 'query per-filter limit' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     for my $i (1..5) {
         $store->store(make_event(kind => 1, content => "e$i", created_at => $i * 1000));
     }
@@ -348,7 +348,7 @@ subtest 'query per-filter limit' => sub {
 };
 
 subtest 'query multiple filters deduplicates' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e = make_event(pubkey => $PK1, kind => 1, content => 'x', created_at => 1000);
     $store->store($e);
 
@@ -361,7 +361,7 @@ subtest 'query multiple filters deduplicates' => sub {
 };
 
 subtest 'query skips expired events' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $expired = make_event(
         kind => 1, content => 'expired', created_at => 1000,
         tags => [['expiration', '1']],  # expired long ago
@@ -376,7 +376,7 @@ subtest 'query skips expired events' => sub {
 };
 
 subtest 'query with since/until' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     for my $i (1..5) {
         $store->store(make_event(kind => 1, content => "e$i", created_at => $i * 1000));
     }
@@ -390,7 +390,7 @@ subtest 'query with since/until' => sub {
 ###############################################################################
 
 subtest 'count matches' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     for my $i (1..5) {
         $store->store(make_event(kind => 1, content => "e$i", created_at => $i * 1000));
     }
@@ -402,7 +402,7 @@ subtest 'count matches' => sub {
 };
 
 subtest 'count skips expired' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     $store->store(make_event(
         kind => 1, content => 'expired', created_at => 1000,
         tags => [['expiration', '1']],
@@ -413,7 +413,7 @@ subtest 'count skips expired' => sub {
 };
 
 subtest 'count deduplicates across filters' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     $store->store(make_event(pubkey => $PK1, kind => 1, content => 'x', created_at => 1000));
 
     is $store->count([
@@ -427,7 +427,7 @@ subtest 'count deduplicates across filters' => sub {
 ###############################################################################
 
 subtest 'all_events returns snapshot in sort order' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e1 = make_event(kind => 1, content => 'old', created_at => 1000);
     my $e2 = make_event(kind => 1, content => 'new', created_at => 2000);
     $store->store($e1);
@@ -444,7 +444,7 @@ subtest 'all_events returns snapshot in sort order' => sub {
 };
 
 subtest 'clear empties everything' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     $store->store(make_event(kind => 1, content => 'a', created_at => 1000));
     $store->store(make_event(kind => 1, content => 'b', created_at => 2000));
     is $store->event_count, 2, 'pre-clear';
@@ -459,7 +459,7 @@ subtest 'clear empties everything' => sub {
 ###############################################################################
 
 subtest 'max_events evicts oldest when exceeded' => sub {
-    my $store = Net::Nostr::Relay::Store->new(max_events => 3);
+    my $store = Net::Nostr::RelayStore->new(max_events => 3);
 
     for my $i (1..3) {
         $store->store(make_event(kind => 1, content => "e$i", created_at => $i * 1000));
@@ -482,7 +482,7 @@ subtest 'max_events evicts oldest when exceeded' => sub {
 };
 
 subtest 'max_events eviction cleans all indexes' => sub {
-    my $store = Net::Nostr::Relay::Store->new(max_events => 1);
+    my $store = Net::Nostr::RelayStore->new(max_events => 1);
 
     my $e1 = make_event(
         pubkey => $PK1, kind => 1, content => 'first', created_at => 1000,
@@ -509,7 +509,7 @@ subtest 'max_events eviction cleans all indexes' => sub {
 ###############################################################################
 
 subtest 'query by authors + kinds uses intersection' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e1 = make_event(pubkey => $PK1, kind => 1, content => 'pk1-k1', created_at => 1000);
     my $e2 = make_event(pubkey => $PK1, kind => 7, content => 'pk1-k7', created_at => 2000);
     my $e3 = make_event(pubkey => $PK2, kind => 1, content => 'pk2-k1', created_at => 3000);
@@ -532,7 +532,7 @@ subtest 'query by authors + kinds uses intersection' => sub {
 ###############################################################################
 
 subtest 'find_addressable with empty d_tag' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e = make_event(
         pubkey => $PK1, kind => 30023, content => 'no-dtag',
         created_at => 1000, tags => [['d', '']],
@@ -559,7 +559,7 @@ subtest 'find_addressable with empty d_tag' => sub {
 ###############################################################################
 
 subtest 'event with multiple tags of same letter indexed correctly' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e = make_event(
         kind => 1, content => 'multi-p', created_at => 1000,
         tags => [['p', $PK1], ['p', $PK2], ['p', $PK3]],
@@ -579,7 +579,7 @@ subtest 'event with multiple tags of same letter indexed correctly' => sub {
 ###############################################################################
 
 subtest 'delete_matching with both ids and addresses' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e1 = make_event(pubkey => $PK1, kind => 1, content => 'by-id', created_at => 1000);
     my $e2 = make_event(
         pubkey => $PK1, kind => 30023, content => 'by-addr',
@@ -602,7 +602,7 @@ subtest 'delete_matching with both ids and addresses' => sub {
 ###############################################################################
 
 subtest 'max_events eviction cleans replaceable index' => sub {
-    my $store = Net::Nostr::Relay::Store->new(max_events => 1);
+    my $store = Net::Nostr::RelayStore->new(max_events => 1);
 
     my $e1 = make_event(pubkey => $PK1, kind => 0, content => 'profile', created_at => 1000);
     $store->store($e1);
@@ -616,7 +616,7 @@ subtest 'max_events eviction cleans replaceable index' => sub {
 };
 
 subtest 'max_events eviction cleans addressable index' => sub {
-    my $store = Net::Nostr::Relay::Store->new(max_events => 1);
+    my $store = Net::Nostr::RelayStore->new(max_events => 1);
 
     my $e1 = make_event(
         pubkey => $PK1, kind => 30023, content => 'article',
@@ -636,7 +636,7 @@ subtest 'max_events eviction cleans addressable index' => sub {
 ###############################################################################
 
 subtest 'sort tiebreak: same created_at orders by id ASC' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     # create events with same timestamp but different ids
     my @events;
     for my $c ('a'..'e') {
@@ -661,7 +661,7 @@ subtest 'sort tiebreak: same created_at orders by id ASC' => sub {
 ###############################################################################
 
 subtest 'query with limit 0 returns nothing' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     $store->store(make_event(kind => 1, content => 'a', created_at => 1000));
 
     my $results = $store->query([Net::Nostr::Filter->new(kinds => [1], limit => 0)]);
@@ -673,7 +673,7 @@ subtest 'query with limit 0 returns nothing' => sub {
 ###############################################################################
 
 subtest 'store works correctly after clear' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $e1 = make_event(
         pubkey => $PK1, kind => 0, content => 'first', created_at => 1000,
         tags => [['t', 'tag1']],
@@ -714,7 +714,7 @@ subtest 'store works correctly after clear' => sub {
 ###############################################################################
 
 subtest 'store, delete, store cycle maintains consistency' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     my $e1 = make_event(pubkey => $PK1, kind => 1, content => 'a', created_at => 1000);
     my $e2 = make_event(pubkey => $PK1, kind => 1, content => 'b', created_at => 2000);
@@ -738,7 +738,7 @@ subtest 'store, delete, store cycle maintains consistency' => sub {
 };
 
 subtest 'replaceable index updated on delete + re-store' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     my $e1 = make_event(pubkey => $PK1, kind => 0, content => 'old profile', created_at => 1000);
     $store->store($e1);
@@ -757,7 +757,7 @@ subtest 'replaceable index updated on delete + re-store' => sub {
 ###############################################################################
 
 subtest 'store older replaceable does not overwrite newer in index' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     my $newer = make_event(pubkey => $PK1, kind => 0, content => 'new', created_at => 2000);
     my $older = make_event(pubkey => $PK1, kind => 0, content => 'old', created_at => 1000);
@@ -771,7 +771,7 @@ subtest 'store older replaceable does not overwrite newer in index' => sub {
 };
 
 subtest 'store older addressable does not overwrite newer in index' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     my $newer = make_event(
         pubkey => $PK1, kind => 30023, content => 'new',
@@ -791,7 +791,7 @@ subtest 'store older addressable does not overwrite newer in index' => sub {
 };
 
 subtest 'store newer replaceable does overwrite older in index' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     my $older = make_event(pubkey => $PK1, kind => 0, content => 'old', created_at => 1000);
     my $newer = make_event(pubkey => $PK1, kind => 0, content => 'new', created_at => 2000);
@@ -805,7 +805,7 @@ subtest 'store newer replaceable does overwrite older in index' => sub {
 };
 
 subtest 'store same-timestamp replaceable uses id tiebreak' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     my $e1 = make_event(
         pubkey => $PK1, kind => 0, content => 'first',
@@ -830,7 +830,7 @@ subtest 'store same-timestamp replaceable uses id tiebreak' => sub {
 ###############################################################################
 
 subtest 'delete replaceable promotes next best candidate' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     my $older = make_event(pubkey => $PK1, kind => 0, content => 'old', created_at => 1000);
     my $newer = make_event(pubkey => $PK1, kind => 0, content => 'new', created_at => 2000);
@@ -846,7 +846,7 @@ subtest 'delete replaceable promotes next best candidate' => sub {
 };
 
 subtest 'delete addressable promotes next best candidate' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     my $older = make_event(
         pubkey => $PK1, kind => 30023, content => 'old',
@@ -868,7 +868,7 @@ subtest 'delete addressable promotes next best candidate' => sub {
 };
 
 subtest 'delete only replaceable clears index completely' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
 
     my $e = make_event(pubkey => $PK1, kind => 0, content => 'solo', created_at => 1000);
     $store->store($e);

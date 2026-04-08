@@ -18,7 +18,7 @@ use Socket qw(MSG_PEEK);
 
 use Net::Nostr::RelayInfo;
 
-use Net::Nostr::Relay::Store;
+use Net::Nostr::RelayStore;
 
 use Class::Tiny qw(
     _server
@@ -59,7 +59,7 @@ sub new {
     if (!$self->store) {
         my %store_args;
         $store_args{max_events} = $self->max_events if defined $self->max_events;
-        $self->store(Net::Nostr::Relay::Store->new(%store_args));
+        $self->store(Net::Nostr::RelayStore->new(%store_args));
     }
 
     $self->_rate_state({});
@@ -729,13 +729,13 @@ Default: C<undef> (NIP-11 disabled).
     );
 
 =item C<store> - A pluggable storage backend object. Must implement the same
-interface as L<Net::Nostr::Relay::Store> (duck-typed). When provided,
+interface as L<Net::Nostr::RelayStore> (duck-typed). When provided,
 C<max_events> is ignored (configure it on the store directly). Default: a new
-L<Net::Nostr::Relay::Store> instance.
+L<Net::Nostr::RelayStore> instance.
 
-    use Net::Nostr::Relay::Store;
+    use Net::Nostr::RelayStore;
 
-    my $store = Net::Nostr::Relay::Store->new(max_events => 5000);
+    my $store = Net::Nostr::RelayStore->new(max_events => 5000);
     my $relay = Net::Nostr::Relay->new(store => $store);
 
 =item C<max_events> - Maximum number of events to retain in the default
@@ -818,7 +818,7 @@ then subscription ID.
 
     my $store = $relay->store;
 
-Returns the storage backend object (L<Net::Nostr::Relay::Store> by default).
+Returns the storage backend object (L<Net::Nostr::RelayStore> by default).
 
 =head2 events
 
@@ -932,6 +932,6 @@ Keys are connection IDs, values are hashrefs of pubkey hex strings.
 
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
 L<Net::Nostr>, L<Net::Nostr::Client>, L<Net::Nostr::Event>,
-L<Net::Nostr::Relay::Store>, L<Net::Nostr::RelayInfo>
+L<Net::Nostr::RelayStore>, L<Net::Nostr::RelayInfo>
 
 =cut

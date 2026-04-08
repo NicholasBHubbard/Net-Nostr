@@ -1,4 +1,4 @@
-package Net::Nostr::Relay::Store;
+package Net::Nostr::RelayStore;
 
 use strictures 2;
 
@@ -394,13 +394,13 @@ __END__
 
 =head1 NAME
 
-Net::Nostr::Relay::Store - Indexed in-memory event storage for Nostr relays
+Net::Nostr::RelayStore - Indexed in-memory event storage for Nostr relays
 
 =head1 SYNOPSIS
 
-    use Net::Nostr::Relay::Store;
+    use Net::Nostr::RelayStore;
 
-    my $store = Net::Nostr::Relay::Store->new(max_events => 10000);
+    my $store = Net::Nostr::RelayStore->new(max_events => 10000);
 
     $store->store($event);                          # returns 1 (new) or 0 (duplicate)
     my $event = $store->get_by_id($id);             # or undef
@@ -431,8 +431,8 @@ via the C<store> constructor option.
 
 =head2 new
 
-    my $store = Net::Nostr::Relay::Store->new;
-    my $store = Net::Nostr::Relay::Store->new(max_events => 5000);
+    my $store = Net::Nostr::RelayStore->new;
+    my $store = Net::Nostr::RelayStore->new(max_events => 5000);
 
 Strict constructor. Creates a new empty store. All arguments are optional.
 Croaks on unknown arguments or invalid C<max_events> values.

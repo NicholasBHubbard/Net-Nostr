@@ -1028,10 +1028,10 @@ subtest 'new() rejects unknown arguments' => sub {
 ###############################################################################
 
 subtest 'new() accepts store option' => sub {
-    use Net::Nostr::Relay::Store;
-    my $store = Net::Nostr::Relay::Store->new;
+    use Net::Nostr::RelayStore;
+    my $store = Net::Nostr::RelayStore->new;
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0, store => $store);
-    isa_ok($relay->store, 'Net::Nostr::Relay::Store');
+    isa_ok($relay->store, 'Net::Nostr::RelayStore');
 };
 
 subtest 'new() accepts max_events option' => sub {
@@ -1041,7 +1041,7 @@ subtest 'new() accepts max_events option' => sub {
 
 subtest 'new() creates default store when none given' => sub {
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
-    isa_ok($relay->store, 'Net::Nostr::Relay::Store');
+    isa_ok($relay->store, 'Net::Nostr::RelayStore');
 };
 
 ###############################################################################
@@ -1135,7 +1135,7 @@ subtest 'events accessor returns snapshot' => sub {
 ###############################################################################
 
 subtest 'EVENT via protocol stores into provided Store object' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $port = free_port();
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0, store => $store);
     $relay->start('127.0.0.1', $port);
@@ -1166,7 +1166,7 @@ subtest 'EVENT via protocol stores into provided Store object' => sub {
 };
 
 subtest 'REQ via protocol queries the provided Store object' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $port = free_port();
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0, store => $store);
 
@@ -1202,7 +1202,7 @@ subtest 'REQ via protocol queries the provided Store object' => sub {
 };
 
 subtest 'COUNT via protocol counts from the provided Store object' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $port = free_port();
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0, store => $store);
 
@@ -1236,7 +1236,7 @@ subtest 'COUNT via protocol counts from the provided Store object' => sub {
 };
 
 subtest 'deletion via protocol removes from the provided Store object' => sub {
-    my $store = Net::Nostr::Relay::Store->new;
+    my $store = Net::Nostr::RelayStore->new;
     my $port = free_port();
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0, store => $store);
     $relay->start('127.0.0.1', $port);
