@@ -1012,4 +1012,70 @@ subtest 'delete_by_id: store and delete interleaved maintains order' => sub {
     is $all->[1]->id, $e3->id, 'next by created_at';
 };
 
+###############################################################################
+# Issue 4: delete_matching must handle a-tag references to replaceable events
+###############################################################################
+
+subtest 'delete_matching: a-tag deletion of replaceable event' => sub {
+    my $store = Net::Nostr::RelayStore->new;
+
+    # Kind 10000 is replaceable (10000-19999 range)
+    my $e = make_event(
+        pubkey => $PK1, kind => 10000, content => 'replaceable',
+        created_at => 1000, tags => [['d', '']],
+    );
+    $store->store($e);
+    is $store->event_count, 1, 'event stored';
+
+    # a-tag format for replaceable: "kind:pubkey:" (empty d-tag component)
+    my $count = $store->delete_matching($PK1, [], ["10000:${PK1}:"], 2000);
+    is $count, 1, 'replaceable event deleted via a-tag';
+    is $store->event_count, 0, 'store empty after deletion';
+};
+
+subtest 'delete_matching: a-tag deletion of kind 0 replaceable event' => sub {
+    my $store = Net::Nostr::RelayStore->new;
+
+    my $e = make_event(
+        pubkey => $PK1, kind => 0, content => '{"name":"test"}',
+        created_at => 1000,
+    );
+    $store->store($e);
+    is $store->event_count, 1, 'kind 0 event stored';
+
+    my $count = $store->delete_matching($PK1, [], ["0:${PK1}:"], 2000);
+    is $count, 1, 'kind 0 replaceable event deleted via a-tag';
+    is $store->event_count, 0, 'store empty';
+};
+
+subtest 'delete_matching: a-tag deletion of replaceable respects before_ts' => sub {
+    my $store = Net::Nostr::RelayStore->new;
+
+    my $e = make_event(
+        pubkey => $PK1, kind => 10000, content => 'newer',
+        created_at => 3000,
+    );
+    $store->store($e);
+
+    # Deletion request created_at 2000 — event at 3000 should NOT be deleted
+    my $count = $store->delete_matching($PK1, [], ["10000:${PK1}:"], 2000);
+    is $count, 0, 'replaceable event newer than deletion not deleted';
+    is $store->event_count, 1, 'event still in store';
+};
+
+subtest 'delete_matching: a-tag deletion of replaceable respects pubkey' => sub {
+    my $store = Net::Nostr::RelayStore->new;
+
+    my $e = make_event(
+        pubkey => $PK1, kind => 10000, content => 'mine',
+        created_at => 1000,
+    );
+    $store->store($e);
+
+    # PK2 tries to delete PK1's event
+    my $count = $store->delete_matching($PK2, [], ["10000:${PK1}:"], 2000);
+    is $count, 0, 'cannot delete another pubkey replaceable event';
+    is $store->event_count, 1, 'event still in store';
+};
+
 done_testing;

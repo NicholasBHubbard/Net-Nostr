@@ -89,9 +89,17 @@ sub applies_to {
         return 1 if $target_event->id eq $id;
     }
 
-    # Check a tags for addressable events
+    # Check a tags for addressable events (kind:pubkey:d_tag)
     if ($target_event->is_addressable) {
         my $target_addr = $target_event->kind . ':' . $target_event->pubkey . ':' . $target_event->d_tag;
+        for my $addr (@{$self->_addresses}) {
+            return 1 if $addr eq $target_addr;
+        }
+    }
+
+    # Check a tags for replaceable events (kind:pubkey:)
+    if ($target_event->is_replaceable) {
+        my $target_addr = $target_event->kind . ':' . $target_event->pubkey . ':';
         for my $addr (@{$self->_addresses}) {
             return 1 if $addr eq $target_addr;
         }
@@ -117,6 +125,7 @@ Net::Nostr::Deletion - NIP-09 event deletion requests
     $del->add_event($event_id, kind => 1);
     $del->add_event($other_id, kind => 1);
     $del->add_address("30023:$pubkey:my-article", kind => 30023);
+    $del->add_address("10000:$pubkey:", kind => 10000);  # replaceable
 
     my $event = $del->to_event(pubkey => $my_pubkey);
     $key->sign_event($event);
@@ -178,9 +187,11 @@ be included as a C<k> tag. Returns C<$self> for chaining.
 =head2 add_address
 
     $del->add_address("30023:$pubkey:my-article", kind => 30023);
+    $del->add_address("10000:$pubkey:", kind => 10000);  # replaceable
 
-Adds an addressable event coordinate (C<a> tag) to the deletion request.
-C<kind> is required. Returns C<$self> for chaining.
+Adds an event coordinate (C<a> tag) to the deletion request. The coordinate
+may be addressable (C<kind:pubkey:d_tag>) or replaceable (C<kind:pubkey:>
+with empty d_tag). C<kind> is required. Returns C<$self> for chaining.
 
 =head2 event_ids
 
@@ -192,7 +203,8 @@ Returns the list of event IDs referenced by C<e> tags.
 
     my $addrs = $del->addresses;  # arrayref
 
-Returns the list of addressable event coordinates referenced by C<a> tags.
+Returns the list of event coordinates referenced by C<a> tags (both
+addressable and replaceable).
 
 =head2 reason
 
@@ -223,7 +235,8 @@ Checks that:
 =item * The target event's pubkey matches the deletion request's pubkey
 
 =item * The target event's ID is referenced by an C<e> tag, or its
-addressable coordinate is referenced by an C<a> tag
+addressable coordinate (C<kind:pubkey:d_tag>) or replaceable coordinate
+(C<kind:pubkey:>) is referenced by an C<a> tag
 
 =back
 

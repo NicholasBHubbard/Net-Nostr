@@ -2729,4 +2729,114 @@ subtest 'graceful_stop: default timeout is 5 seconds when unset' => sub {
     # graceful_stop uses 5 when undef — just verify the accessor
 };
 
+###############################################################################
+# Issue 1: Mixed-filter subscriptions must use _sub_no_kind
+###############################################################################
+
+subtest 'broadcast: mixed-filter sub (kind + no-kind) receives all matching events' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $pk = 'a' x 64;
+
+    # Subscribe with two filters: one with kinds, one without (author-only).
+    # A kind 7 event from $pk should match the author-only filter.
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 8, cb => sub { $cv->croak("timeout") });
+
+    my @received;
+    my $eose_count = 0;
+
+    my $ws = AnyEvent::WebSocket::Client->new;
+    my $conn_ref;
+    $ws->connect("ws://127.0.0.1:$port")->cb(sub {
+        my $conn = eval { shift->recv } or return;
+        $conn_ref = $conn;
+
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($parsed->[0] eq 'EOSE') {
+                $eose_count++;
+                # After EOSE, publish a kind 7 event — should match the author-only filter
+                my $t; $t = AnyEvent->timer(after => 0.1, cb => sub {
+                    undef $t;
+                    my $event = Net::Nostr::Event->new(
+                        pubkey => $pk, kind => 7, content => '+',
+                        sig => 'b' x 128, created_at => 2000, tags => [],
+                    );
+                    $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+                });
+            } elsif ($parsed->[0] eq 'EVENT' && $parsed->[1] eq 'mixed') {
+                push @received, $parsed->[2];
+                $cv->send;
+            } elsif ($parsed->[0] eq 'OK') {
+                # got OK for our published event
+            }
+        });
+
+        # REQ with mixed filters: {kinds:[1]} OR {authors:[pk]}
+        my $t; $t = AnyEvent->timer(after => 0.15, cb => sub {
+            undef $t;
+            my $req = $JSON->encode(['REQ', 'mixed',
+                { kinds => [1] },
+                { authors => [$pk] },
+            ]);
+            $conn->send($req);
+        });
+    });
+
+    $cv->recv;
+
+    is(scalar @received, 1, 'kind 7 event received via author-only filter in mixed sub');
+    is($received[0]{kind}, 7, 'correct kind');
+
+    $relay->stop;
+};
+
+###############################################################################
+# Issue 3: Idle timer circular reference (weaken test)
+###############################################################################
+
+subtest 'idle_timeout: cleanup after disconnect removes timer state' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0, idle_timeout => 300);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    my $ws = AnyEvent::WebSocket::Client->new;
+    $ws->connect("ws://127.0.0.1:$port")->cb(sub {
+        my $conn = eval { shift->recv } or return;
+        # Verify timer state was created
+        my $t; $t = AnyEvent->timer(after => 0.15, cb => sub {
+            undef $t;
+            my $reset_count = scalar keys %{$relay->{_reset_idle} || {}};
+            my $timer_count = scalar keys %{$relay->_idle_timers || {}};
+            # Close the connection
+            $conn->close;
+            # Give server time to process the disconnect
+            my $t2; $t2 = AnyEvent->timer(after => 0.3, cb => sub {
+                undef $t2;
+                $cv->send([$reset_count, $timer_count]);
+            });
+        });
+    });
+
+    my $before = $cv->recv;
+    is($before->[0], 1, 'had _reset_idle entry while connected');
+    is($before->[1], 1, 'had _idle_timers entry while connected');
+
+    # After disconnect + delay, state should be cleaned up
+    my $reset_idle = $relay->{_reset_idle} || {};
+    is(scalar keys %$reset_idle, 0, 'no _reset_idle entries after disconnect');
+
+    my $idle_timers = $relay->_idle_timers || {};
+    is(scalar keys %$idle_timers, 0, 'no _idle_timers entries after disconnect');
+
+    $relay->stop;
+};
+
 done_testing;

@@ -195,12 +195,21 @@ sub delete_matching {
         $count++;
     }
 
-    # delete by address (kind:pubkey:d_tag)
+    # delete by address (kind:pubkey:d_tag or kind:pubkey: for replaceable)
     for my $addr (@$addresses) {
         my ($kind, $addr_pubkey, $d_tag) = split /:/, $addr, 3;
         next unless defined $d_tag;
-        my $key = "$addr_pubkey:$kind:$d_tag";
-        my $event = $self->{_by_pubkey_kind_dtag}{$key};
+
+        my $event;
+        if (length $d_tag) {
+            # Addressable event (kind 30000-39999)
+            my $key = "$addr_pubkey:$kind:$d_tag";
+            $event = $self->{_by_pubkey_kind_dtag}{$key};
+        } else {
+            # Replaceable event (kind 0, 3, 10000-19999) — empty d_tag
+            my $key = "$addr_pubkey:$kind";
+            $event = $self->{_by_pubkey_kind}{$key};
+        }
         next unless $event;
         next unless $event->pubkey eq $pubkey;
         next if $event->kind == 5;
@@ -535,7 +544,8 @@ index entry is cleared.
     my $count = $store->delete_matching($pubkey, \@ids, \@addresses, $before_ts);
 
 NIP-09 bulk deletion. Deletes events owned by C<$pubkey> by event id or by
-addressable coordinate (C<"kind:pubkey:d_tag">). Both id-based and
+coordinate. Addresses may be addressable (C<"kind:pubkey:d_tag">) or
+replaceable (C<"kind:pubkey:"> with empty d_tag). Both id-based and
 address-based deletions skip events belonging to a different pubkey.
 Address-based deletion additionally only removes events with
 C<created_at E<lt>= $before_ts>. Kind 5 (deletion) events are never deleted.
@@ -543,6 +553,7 @@ Returns the number of events deleted.
 
     $store->delete_matching($pk, [$event_id], [], 9999);
     $store->delete_matching($pk, [], ["30023:$pk:slug"], $deletion_ts);
+    $store->delete_matching($pk, [], ["10000:$pk:"], $deletion_ts);  # replaceable
 
 =head2 query
 

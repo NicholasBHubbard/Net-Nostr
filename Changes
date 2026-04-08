@@ -18,6 +18,16 @@
   - Performance: Relay broadcast uses an inverted subscription index by
     kind, reducing fanout from O(connections * subscriptions) to
     O(matching_subscriptions) for kind-filtered subscriptions.
+  - Fix: Relay broadcast index now correctly handles mixed-filter
+    subscriptions (filters with and without kinds in the same REQ).
+    Previously, a subscription with both kind-filtered and kind-less
+    filters would miss events matching only the kind-less filter.
+  - Fix: NIP-09 a-tag deletion now works for replaceable events
+    (kind 0, 3, 10000-19999) in addition to addressable events.
+    Deletion::applies_to and RelayStore::delete_matching updated.
+  - Fix: Client _setup_handlers now uses weakened self-reference to
+    prevent circular reference memory leak when Client objects are
+    dropped without calling disconnect
   - New: Net::Nostr::DVM (NIP-90) - data vending machine with job
     requests (kind 5000-5999), job results (kind 6000-6999), job
     feedback (kind 7000), encrypted params, job chaining, and

@@ -346,7 +346,7 @@ sub _on_connection {
 
     # Idle timeout: disconnect clients that send no messages
     if (defined $self->idle_timeout) {
-        my $reset_idle; $reset_idle = sub {
+        my $reset_idle = sub {
             $self->_idle_timers->{$conn_id} = AnyEvent->timer(
                 after => $self->idle_timeout,
                 cb => sub {
@@ -811,16 +811,17 @@ sub _add_to_sub_index {
     my ($self, $conn_id, $sub_id, $filters) = @_;
     my $key = "$conn_id\0$sub_id";
     my $entry = [$conn_id, $sub_id];
-    my $has_kind_filter = 0;
+    my $all_have_kinds = 1;
     for my $f (@$filters) {
         if ($f->kinds) {
-            $has_kind_filter = 1;
             for my $k (@{$f->kinds}) {
                 $self->_sub_by_kind->{$k}{$key} = $entry;
             }
+        } else {
+            $all_have_kinds = 0;
         }
     }
-    unless ($has_kind_filter) {
+    unless ($all_have_kinds) {
         $self->_sub_no_kind->{$key} = $entry;
     }
 }

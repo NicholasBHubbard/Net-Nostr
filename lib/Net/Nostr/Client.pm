@@ -3,6 +3,7 @@ package Net::Nostr::Client;
 use strictures 2;
 
 use Carp qw(croak);
+use Scalar::Util qw(weaken);
 use AnyEvent;
 use AnyEvent::WebSocket::Client;
 use Net::Nostr::Message;
@@ -130,8 +131,10 @@ sub _emit {
 
 sub _setup_handlers {
     my ($self) = @_;
+    weaken(my $weak_self = $self);
     $self->_conn->on(each_message => sub {
         my ($conn, $message) = @_;
+        my $self = $weak_self or return;
         my $msg = eval { Net::Nostr::Message->parse($message->body) };
         return warn "bad message from relay: $@\n" if $@;
 
@@ -154,6 +157,7 @@ sub _setup_handlers {
     });
 
     $self->_conn->on(finish => sub {
+        my $self = $weak_self or return;
         $self->_conn(undef);
     });
 }
