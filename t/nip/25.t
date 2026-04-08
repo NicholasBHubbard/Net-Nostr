@@ -4,6 +4,7 @@ use lib 't/lib';
 use TestFixtures qw(make_event);
 use JSON ();
 
+use Net::Nostr::Event;
 use Net::Nostr::Reaction;
 
 my $JSON = JSON->new->utf8;

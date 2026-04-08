@@ -13,6 +13,7 @@ use lib 't/lib';
 use TestFixtures qw(%FIATJAF_EVENT);
 
 use Net::Nostr;
+use Net::Nostr::Client;
 use Net::Nostr::Key;
 use Net::Nostr::Event;
 use Net::Nostr::Filter;
