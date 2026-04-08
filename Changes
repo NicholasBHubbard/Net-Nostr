@@ -1,5 +1,6 @@
 1.000000   TBD
 
+  - New: Net::Nostr::RelayAdmin (NIP-86) - relay management API client
   - New: Net::Nostr::HttpAuth (NIP-98) - HTTP auth using nostr events
   - New: Net::Nostr::KeyEncrypt (NIP-49) - private key encryption with
     scrypt key derivation and XChaCha20-Poly1305 AEAD encryption

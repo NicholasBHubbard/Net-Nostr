@@ -140,6 +140,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-72|https://github.com/nostr-protocol/nips/blob/master/72.md> - Moderated Communities
 
+=item L<NIP-86|https://github.com/nostr-protocol/nips/blob/master/86.md> - Relay Management API
+
 =item L<NIP-98|https://github.com/nostr-protocol/nips/blob/master/98.md> - HTTP auth
 
 =item L<NIP-99|https://github.com/nostr-protocol/nips/blob/master/99.md> - Classified Listings
@@ -214,6 +216,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Reaction> - NIP-25 reactions
 
 =item L<Net::Nostr::Relay> - WebSocket relay server implementing NIP-01
+
+=item L<Net::Nostr::RelayAdmin> - NIP-86 relay management API
 
 =item L<Net::Nostr::RelayInfo> - NIP-11 relay information document
 
