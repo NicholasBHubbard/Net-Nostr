@@ -124,6 +124,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-57|https://github.com/nostr-protocol/nips/blob/master/57.md> - Lightning Zaps
 
+=item L<NIP-58|https://github.com/nostr-protocol/nips/blob/master/58.md> - Badges
+
 =item L<NIP-59|https://github.com/nostr-protocol/nips/blob/master/59.md> - Gift wrap
 
 =item L<NIP-15|https://github.com/nostr-protocol/nips/blob/master/15.md> - Nostr Marketplace
@@ -170,6 +172,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::AppData> - NIP-78 arbitrary custom app data
 
 =item L<Net::Nostr::AppHandler> - NIP-89 recommended application handlers
+
+=item L<Net::Nostr::Badge> - NIP-58 badges
 
 =item L<Net::Nostr::Article> - NIP-23 long-form content
 

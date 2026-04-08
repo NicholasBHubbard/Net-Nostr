@@ -1,5 +1,7 @@
 1.000000   TBD
 
+  - New: Net::Nostr::Badge (NIP-58) - badge definitions (kind 30009),
+    awards (kind 8), profile badges (kind 10008), and badge sets (kind 30008)
   - New: NIP-70 protected events — relay rejects events with ["-"] tag
     unless the author is authenticated via NIP-42; Event->is_protected
   - New: Net::Nostr::AppData (NIP-78) - kind 30078 addressable events for

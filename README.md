@@ -51,6 +51,7 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) - Lists
 - [NIP-56](https://github.com/nostr-protocol/nips/blob/master/56.md) - Reporting
 - [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) - Lightning Zaps
+- [NIP-58](https://github.com/nostr-protocol/nips/blob/master/58.md) - Badges
 - [NIP-59](https://github.com/nostr-protocol/nips/blob/master/59.md) - Gift wrap
 - [NIP-60](https://github.com/nostr-protocol/nips/blob/master/60.md) - Cashu wallets
 - [NIP-61](https://github.com/nostr-protocol/nips/blob/master/61.md) - Nutzaps
