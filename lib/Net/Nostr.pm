@@ -140,6 +140,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-72|https://github.com/nostr-protocol/nips/blob/master/72.md> - Moderated Communities
 
+=item L<NIP-98|https://github.com/nostr-protocol/nips/blob/master/98.md> - HTTP auth
+
 =item L<NIP-99|https://github.com/nostr-protocol/nips/blob/master/99.md> - Classified Listings
 
 =item L<NIP-B7|https://github.com/nostr-protocol/nips/blob/master/B7.md> - Blossom media
@@ -188,6 +190,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Git> - NIP-34 git collaboration
 
 =item L<Net::Nostr::Group> - NIP-29 relay-based groups
+
+=item L<Net::Nostr::HttpAuth> - NIP-98 HTTP auth
 
 =item L<Net::Nostr::Identifier> - NIP-05 DNS-based internet identifiers
 

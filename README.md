@@ -58,6 +58,7 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-72](https://github.com/nostr-protocol/nips/blob/master/72.md) - Moderated Communities
 - [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) - Recommended Application Handlers
 - [NIP-92](https://github.com/nostr-protocol/nips/blob/master/92.md) - Media Attachments
+- [NIP-98](https://github.com/nostr-protocol/nips/blob/master/98.md) - HTTP auth
 - [NIP-99](https://github.com/nostr-protocol/nips/blob/master/99.md) - Classified Listings
 - [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) - Blossom media
 
