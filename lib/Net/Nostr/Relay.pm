@@ -22,8 +22,8 @@ use Net::Nostr::RelayStore;
 
 use Class::Tiny qw(
     _server
-    connections
-    subscriptions
+    _connections
+    _subscriptions
     store
     _guard
     verify_signatures
@@ -55,6 +55,17 @@ use Class::Tiny qw(
     _sub_by_kind
     _sub_no_kind
 );
+
+sub connections {
+    my ($self) = @_;
+    return { %{$self->_connections || {}} };
+}
+
+sub subscriptions {
+    my ($self) = @_;
+    my $internal = $self->_subscriptions || {};
+    return { map { $_ => { %{$internal->{$_}} } } keys %$internal };
+}
 
 sub new {
     my $class = shift;
@@ -245,7 +256,7 @@ sub graceful_stop {
         type => 'NOTICE',
         message => 'shutting down',
     )->serialize;
-    for my $conn (values %{$self->connections || {}}) {
+    for my $conn (values %{$self->_connections || {}}) {
         eval { $conn->send($notice) };
     }
 
@@ -260,17 +271,18 @@ sub graceful_stop {
 
 sub authenticated_pubkeys {
     my ($self) = @_;
-    return { %{$self->_authenticated || {}} };
+    my $internal = $self->_authenticated || {};
+    return { map { $_ => { %{$internal->{$_}} } } keys %$internal };
 }
 
 sub _stop_cleanup {
     my ($self) = @_;
     $self->_guard(undef);
-    for my $conn (values %{$self->connections || {}}) {
+    for my $conn (values %{$self->_connections || {}}) {
         $conn->close;
     }
-    $self->connections({});
-    $self->subscriptions({});
+    $self->_connections({});
+    $self->_subscriptions({});
     $self->_conn_count_by_ip({});
     $self->_challenges({});
     $self->_authenticated({});
@@ -303,10 +315,10 @@ sub broadcast {
         $candidates{$key} = $no_kind->{$key};
     }
 
-    my $subs = $self->subscriptions || {};
+    my $subs = $self->_subscriptions || {};
     for my $entry (values %candidates) {
         my ($conn_id, $sub_id) = @$entry;
-        my $conn = $self->connections->{$conn_id} or next;
+        my $conn = $self->_connections->{$conn_id} or next;
         my $filters = $subs->{$conn_id}{$sub_id} or next;
         if (Net::Nostr::Filter->matches_any($event, @$filters)) {
             $conn->send(Net::Nostr::Message->new(type => 'EVENT', subscription_id => $sub_id, event => $event)->serialize);
@@ -320,12 +332,12 @@ sub _on_connection {
     my ($self, $conn, $peer_host) = @_;
     my $conn_id = ++$CONN_ID;
 
-    $self->connections($self->connections // {});
-    $self->subscriptions($self->subscriptions // {});
+    $self->_connections($self->_connections // {});
+    $self->_subscriptions($self->_subscriptions // {});
     $self->_challenges($self->_challenges // {});
     $self->_authenticated($self->_authenticated // {});
 
-    $self->connections->{$conn_id} = $conn;
+    $self->_connections->{$conn_id} = $conn;
 
     # Initialize rate limiting state for this connection
     if (defined $self->event_rate_limit) {
@@ -350,7 +362,7 @@ sub _on_connection {
             $self->_idle_timers->{$conn_id} = AnyEvent->timer(
                 after => $self->idle_timeout,
                 cb => sub {
-                    my $c = $self->connections->{$conn_id};
+                    my $c = $self->_connections->{$conn_id};
                     $c->close if $c;
                 },
             );
@@ -434,8 +446,8 @@ sub _on_connection {
 
     $conn->on(finish => sub {
         $self->_remove_all_sub_indexes($conn_id);
-        delete $self->connections->{$conn_id};
-        delete $self->subscriptions->{$conn_id};
+        delete $self->_connections->{$conn_id};
+        delete $self->_subscriptions->{$conn_id};
         delete $self->_challenges->{$conn_id};
         delete $self->_authenticated->{$conn_id};
         delete $self->_rate_state->{$conn_id};
@@ -518,7 +530,7 @@ sub _check_rate_limit {
 
 sub _handle_event {
     my ($self, $conn_id, $event) = @_;
-    my $conn = $self->connections->{$conn_id};
+    my $conn = $self->_connections->{$conn_id};
 
     my $error = $self->_validate_event($event);
     if ($error) {
@@ -668,7 +680,7 @@ sub _handle_deletion {
 
 sub _handle_auth {
     my ($self, $conn_id, $event) = @_;
-    my $conn = $self->connections->{$conn_id};
+    my $conn = $self->_connections->{$conn_id};
 
     # Validate the event structure first
     my $error = $self->_validate_event($event);
@@ -727,7 +739,7 @@ sub _handle_auth {
 
 sub _handle_req {
     my ($self, $conn_id, $sub_id, @filters) = @_;
-    my $conn = $self->connections->{$conn_id};
+    my $conn = $self->_connections->{$conn_id};
 
     # Max filters per REQ
     if (defined $self->max_filters && @filters > $self->max_filters) {
@@ -740,7 +752,7 @@ sub _handle_req {
 
     # Max subscriptions per connection (new subs only, replacing is free)
     if (defined $self->max_subscriptions) {
-        my $existing = $self->subscriptions->{$conn_id} // {};
+        my $existing = $self->_subscriptions->{$conn_id} // {};
         if (!exists $existing->{$sub_id}
             && scalar(keys %$existing) >= $self->max_subscriptions) {
             $conn->send(Net::Nostr::Message->new(
@@ -763,11 +775,11 @@ sub _handle_req {
         }
     }
 
-    $self->subscriptions->{$conn_id} //= {};
+    $self->_subscriptions->{$conn_id} //= {};
     # Remove old index entries if replacing an existing subscription
-    my $old_filters = $self->subscriptions->{$conn_id}{$sub_id};
+    my $old_filters = $self->_subscriptions->{$conn_id}{$sub_id};
     $self->_remove_from_sub_index($conn_id, $sub_id, $old_filters) if $old_filters;
-    $self->subscriptions->{$conn_id}{$sub_id} = \@filters;
+    $self->_subscriptions->{$conn_id}{$sub_id} = \@filters;
     $self->_add_to_sub_index($conn_id, $sub_id, \@filters);
 
     my $results = $self->store->query(\@filters);
@@ -781,7 +793,7 @@ sub _handle_req {
 
 sub _handle_count {
     my ($self, $conn_id, $sub_id, @filters) = @_;
-    my $conn = $self->connections->{$conn_id};
+    my $conn = $self->_connections->{$conn_id};
 
     if (defined $self->max_filters && @filters > $self->max_filters) {
         $conn->send(Net::Nostr::Message->new(
@@ -800,10 +812,10 @@ sub _handle_count {
 
 sub _handle_close {
     my ($self, $conn_id, $sub_id) = @_;
-    if ($self->subscriptions->{$conn_id}) {
-        my $filters = $self->subscriptions->{$conn_id}{$sub_id};
+    if ($self->_subscriptions->{$conn_id}) {
+        my $filters = $self->_subscriptions->{$conn_id}{$sub_id};
         $self->_remove_from_sub_index($conn_id, $sub_id, $filters) if $filters;
-        delete $self->subscriptions->{$conn_id}{$sub_id};
+        delete $self->_subscriptions->{$conn_id}{$sub_id};
     }
 }
 
@@ -843,7 +855,7 @@ sub _remove_from_sub_index {
 
 sub _remove_all_sub_indexes {
     my ($self, $conn_id) = @_;
-    my $conn_subs = $self->subscriptions->{$conn_id} || {};
+    my $conn_subs = $self->_subscriptions->{$conn_id} || {};
     for my $sub_id (keys %$conn_subs) {
         $self->_remove_from_sub_index($conn_id, $sub_id, $conn_subs->{$sub_id});
     }
@@ -1158,16 +1170,20 @@ publish via the normal EVENT protocol flow for both.
 
 =head2 connections
 
-    my $conns = $relay->connections;  # hashref
+    my $conns = $relay->connections;  # hashref (snapshot)
 
-Returns the hashref of active connections.
+Returns a shallow copy of the active connections hash. Mutating the
+returned hashref does not affect the relay's internal state. Keys are
+connection IDs, values are L<AnyEvent::WebSocket::Connection> objects.
 
 =head2 subscriptions
 
-    my $subs = $relay->subscriptions;  # hashref
+    my $subs = $relay->subscriptions;  # hashref (snapshot)
 
-Returns the hashref of active subscriptions, keyed by connection ID
-then subscription ID.
+Returns a two-level copy of the active subscriptions hash. Mutating
+the returned hashref (or its inner hashes) does not affect the relay's
+internal state. Keys are connection IDs, inner keys are subscription
+IDs, values are arrayrefs of L<Net::Nostr::Filter> objects.
 
 =head2 store
 
@@ -1343,9 +1359,10 @@ Returns the graceful shutdown drain period in seconds, or C<undef> if not set.
 
 =head2 authenticated_pubkeys
 
-    my $auth = $relay->authenticated_pubkeys;
+    my $auth = $relay->authenticated_pubkeys;  # deep snapshot
 
-Returns a hashref of authenticated pubkeys per connection (NIP-42).
+Returns a deep copy of authenticated pubkeys per connection (NIP-42).
+Mutating the returned hashref does not affect the relay's internal state.
 Keys are connection IDs, values are hashrefs of pubkey hex strings.
 
     my $auth = $relay->authenticated_pubkeys;

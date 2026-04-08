@@ -740,6 +740,96 @@ subtest 'POD: connections and subscriptions accessors' => sub {
 };
 
 ###############################################################################
+# Encapsulation: returned state is a snapshot, not a live reference
+###############################################################################
+
+subtest 'connections returns a snapshot, not the internal hash' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {});
+        my $t; $t = AnyEvent->timer(after => 0.1, cb => sub { undef $t; $cv->send });
+    });
+    $cv->recv;
+
+    my $conns = $relay->connections;
+    ok(scalar keys %$conns >= 1, 'has connections');
+
+    # Mutate the returned hash — should not affect the relay
+    %$conns = ();
+    my $conns2 = $relay->connections;
+    ok(scalar keys %$conns2 >= 1, 'relay connections unaffected by mutation');
+
+    $relay->stop;
+};
+
+subtest 'subscriptions returns a snapshot, not the internal hash' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send if $parsed->[0] eq 'EOSE';
+        });
+        my $filter = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message->new(type => 'REQ', subscription_id => 'snap-test', filters => [$filter])->serialize);
+    });
+    $cv->recv;
+
+    my $subs = $relay->subscriptions;
+    my $outer_keys = scalar keys %$subs;
+    ok($outer_keys >= 1, 'has subscriptions');
+
+    # Mutate the returned outer hash — should not affect the relay
+    %$subs = ();
+    my $subs2 = $relay->subscriptions;
+    is(scalar keys %$subs2, $outer_keys, 'relay subscriptions unaffected by outer mutation');
+
+    # Mutate a returned inner hash — should not affect the relay
+    my ($conn_id) = keys %$subs2;
+    my $inner = $subs2->{$conn_id};
+    delete $inner->{'snap-test'};
+    my $subs3 = $relay->subscriptions;
+    ok(exists $subs3->{$conn_id}{'snap-test'}, 'relay subscriptions unaffected by inner mutation');
+
+    $relay->stop;
+};
+
+subtest 'authenticated_pubkeys returns a deep snapshot' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    # Manually seed internal auth state for testing
+    $relay->{_authenticated} = { 'conn1' => { 'a' x 64 => 1 } };
+
+    my $auth = $relay->authenticated_pubkeys;
+    is(ref $auth, 'HASH', 'returns hashref');
+    ok(exists $auth->{'conn1'}, 'has conn1');
+    ok(exists $auth->{'conn1'}{'a' x 64}, 'has pubkey');
+
+    # Mutate outer hash
+    delete $auth->{'conn1'};
+    my $auth2 = $relay->authenticated_pubkeys;
+    ok(exists $auth2->{'conn1'}, 'outer mutation does not affect relay');
+
+    # Mutate inner hash
+    delete $auth2->{'conn1'}{'a' x 64};
+    my $auth3 = $relay->authenticated_pubkeys;
+    ok(exists $auth3->{'conn1'}{'a' x 64}, 'inner mutation does not affect relay');
+};
+
+###############################################################################
 # AUTH (NIP-42)
 ###############################################################################
 

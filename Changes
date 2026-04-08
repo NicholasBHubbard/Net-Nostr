@@ -1,5 +1,9 @@
 1.000000   TBD
 
+  - BREAKING: Relay connections(), subscriptions(), and
+    authenticated_pubkeys() now return snapshots (copies) instead of
+    live internal references. Mutating the returned hashrefs no longer
+    affects relay state.
   - New: Relay production hardening with configurable resource limits:
     max_subscriptions, max_filters, max_content_length, max_event_tags,
     max_limit, default_limit, created_at_lower_limit, created_at_upper_limit,
