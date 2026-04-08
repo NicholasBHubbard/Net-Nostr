@@ -1,5 +1,7 @@
 1.000000   TBD
 
+  - New: Net::Nostr::KeyEncrypt (NIP-49) - private key encryption with
+    scrypt key derivation and XChaCha20-Poly1305 AEAD encryption
   - New: Net::Nostr::Mention (NIP-27) - extract, replace, and build
     nostr: mentions in event content
   - New: Net::Nostr::Relay::Store - indexed in-memory event storage backend

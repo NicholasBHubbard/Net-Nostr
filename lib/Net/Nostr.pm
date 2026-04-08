@@ -112,6 +112,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-47|https://github.com/nostr-protocol/nips/blob/master/47.md> - Nostr Wallet Connect
 
+=item L<NIP-49|https://github.com/nostr-protocol/nips/blob/master/49.md> - Private key encryption
+
 =item L<NIP-50|https://github.com/nostr-protocol/nips/blob/master/50.md> - Search capability
 
 =item L<NIP-44|https://github.com/nostr-protocol/nips/blob/master/44.md> - Encrypted payloads (versioned)
@@ -190,6 +192,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Identifier> - NIP-05 DNS-based internet identifiers
 
 =item L<Net::Nostr::Key> - Secp256k1 keypair management and BIP-340 Schnorr signatures
+
+=item L<Net::Nostr::KeyEncrypt> - NIP-49 private key encryption
 
 =item L<Net::Nostr::Label> - NIP-32 labeling
 

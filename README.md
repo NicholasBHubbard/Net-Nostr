@@ -46,6 +46,7 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-45](https://github.com/nostr-protocol/nips/blob/master/45.md) - Event counts
 - [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) - Nostr Remote Signing
 - [NIP-47](https://github.com/nostr-protocol/nips/blob/master/47.md) - Nostr Wallet Connect
+- [NIP-49](https://github.com/nostr-protocol/nips/blob/master/49.md) - Private key encryption
 - [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) - Search capability
 - [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) - Lists
 - [NIP-56](https://github.com/nostr-protocol/nips/blob/master/56.md) - Reporting
