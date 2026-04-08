@@ -434,6 +434,15 @@ sub _handle_event {
         return;
     }
 
+    # NIP-70: default behavior MUST reject events with ["-"] tag
+    if ($event->is_protected) {
+        my $authed = $self->_authenticated->{$conn_id} || {};
+        unless ($authed->{$event->pubkey}) {
+            $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'auth-required: this event may only be published by its author')->serialize);
+            return;
+        }
+    }
+
     # Relays MUST exclude kind 22242 events from being broadcasted (NIP-42)
     if ($event->kind == 22242) {
         $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: auth events should use AUTH message')->serialize);
@@ -647,6 +656,8 @@ Implements:
 =item * L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md> - Authentication of clients to relays
 
 =item * L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md> - Event counts (HyperLogLog not supported)
+
+=item * L<NIP-70|https://github.com/nostr-protocol/nips/blob/master/70.md> - Protected events
 
 =back
 

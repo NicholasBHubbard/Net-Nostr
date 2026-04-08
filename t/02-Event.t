@@ -264,6 +264,20 @@ subtest 'POD: is_expired with custom time' => sub {
     ok !$event->is_expired(1500000000), 'not expired when now < expiration';
 };
 
+subtest 'POD: is_protected' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'secret',
+        tags => [['-']],
+    );
+    ok $event->is_protected, 'event with ["-"] tag is protected';
+
+    my $normal = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'public',
+        tags => [['t', 'test']],
+    );
+    ok !$normal->is_protected, 'event without ["-"] tag is not protected';
+};
+
 subtest 'verify_sig()' => sub {
     my $key = Net::Nostr::Key->new;
     my $event = Net::Nostr::Event->new(

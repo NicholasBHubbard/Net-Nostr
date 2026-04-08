@@ -1,5 +1,7 @@
 1.000000   TBD
 
+  - New: NIP-70 protected events — relay rejects events with ["-"] tag
+    unless the author is authenticated via NIP-42; Event->is_protected
   - New: Net::Nostr::AppData (NIP-78) - kind 30078 addressable events for
     arbitrary custom app data storage (remoteStorage-like capabilities)
   - New: Net::Nostr::RelayMonitor (NIP-66) - kind 30166 relay discovery

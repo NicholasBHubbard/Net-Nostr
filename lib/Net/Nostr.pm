@@ -136,6 +136,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-66|https://github.com/nostr-protocol/nips/blob/master/66.md> - Relay Discovery and Liveness Monitoring
 
+=item L<NIP-70|https://github.com/nostr-protocol/nips/blob/master/70.md> - Protected Events
+
 =item L<NIP-78|https://github.com/nostr-protocol/nips/blob/master/78.md> - Arbitrary Custom App Data
 
 =item L<NIP-89|https://github.com/nostr-protocol/nips/blob/master/89.md> - Recommended Application Handlers
@@ -229,7 +231,7 @@ Use NIP-44 for encryption instead.
 
 =item L<Net::Nostr::Reaction> - NIP-25 reactions
 
-=item L<Net::Nostr::Relay> - WebSocket relay server implementing NIP-01
+=item L<Net::Nostr::Relay> - WebSocket relay server
 
 =item L<Net::Nostr::RelayAdmin> - NIP-86 relay management API
 

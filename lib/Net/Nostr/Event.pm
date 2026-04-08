@@ -245,6 +245,14 @@ sub is_expired {
     return $now > $exp;
 }
 
+sub is_protected {
+    my ($self) = @_;
+    for my $tag (@{$self->{tags}}) {
+        return 1 if $tag->[0] eq '-' && @$tag == 1;
+    }
+    return 0;
+}
+
 sub content_warning {
     my ($self) = @_;
     for my $tag (@{$self->tags}) {
@@ -635,6 +643,15 @@ Returns true if the event kind is ephemeral (broadcast but never stored).
 
 Returns true if the event kind is addressable (only latest per
 pubkey+kind+d_tag is kept).
+
+=head2 is_protected
+
+    $event->is_protected;  # true if ["-"] tag is present
+
+Returns true if the event contains a C<["-"]> tag (NIP-70). Protected
+events can only be published to relays by their author. Relays MUST
+reject protected events unless the client has authenticated (NIP-42) as
+the event's pubkey.
 
 =head2 validate
 
