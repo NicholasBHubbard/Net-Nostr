@@ -91,6 +91,9 @@ sub validate_auth_event {
     my $method = $opts{method} // croak "method is required";
     my $time_window = $opts{time_window} // 60;
 
+    # 0. Verify event ID and signature (NIP-01 requirement)
+    $event->validate;
+
     # 1. Kind MUST be 27235
     croak "kind must be 27235" unless $event->kind == 27235;
 
@@ -259,6 +262,11 @@ contains invalid base64 or JSON.
 Performs the server-side validation checks specified by NIP-98:
 
 =over 4
+
+=item 0. The event ID and Schnorr signature are cryptographically
+verified via L<Net::Nostr::Event/validate>. This ensures the event
+was actually signed by the claimed pubkey and has not been tampered
+with.
 
 =item 1. The C<kind> MUST be C<27235>.
 

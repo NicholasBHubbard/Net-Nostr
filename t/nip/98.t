@@ -8,6 +8,7 @@ use Digest::SHA qw(sha256_hex);
 use lib 't/lib';
 use TestFixtures qw(make_event make_key_from_hex);
 
+use Net::Nostr::Event;
 use Net::Nostr::HttpAuth qw(
     create_auth_event
     create_auth_header
@@ -15,7 +16,21 @@ use Net::Nostr::HttpAuth qw(
     validate_auth_event
 );
 
-my $HEX64 = qr/\A[0-9a-f]{64}\z/;
+my $TEST_KEY = make_key_from_hex('01' x 32);
+
+# Helper: create a signed kind 27235 event for validation tests
+sub make_signed_auth {
+    my (%args) = @_;
+    my $event = Net::Nostr::Event->new(
+        pubkey     => $TEST_KEY->pubkey_hex,
+        kind       => $args{kind} // 27235,
+        content    => $args{content} // '',
+        tags       => $args{tags} // [],
+        created_at => $args{created_at} // time(),
+    );
+    $TEST_KEY->sign_event($event);
+    return $event;
+}
 
 ###############################################################################
 # NIP-98 spec JSON example
@@ -251,7 +266,7 @@ subtest 'parse_auth_header: invalid base64' => sub {
 ###############################################################################
 
 subtest 'validate: kind MUST be 27235' => sub {
-    my $event = make_event(kind => 1, content => '', tags => [
+    my $event = make_signed_auth(kind => 1, tags => [
         ['u', 'https://example.com'],
         ['method', 'GET'],
     ]);
@@ -263,10 +278,10 @@ subtest 'validate: kind MUST be 27235' => sub {
 };
 
 subtest 'validate: created_at MUST be within time window' => sub {
-    my $event = make_event(kind => 27235, content => '', tags => [
+    my $event = make_signed_auth(created_at => time() - 120, tags => [
         ['u', 'https://example.com'],
         ['method', 'GET'],
-    ], created_at => time() - 120);
+    ]);
 
     like(
         dies { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
@@ -276,10 +291,10 @@ subtest 'validate: created_at MUST be within time window' => sub {
 };
 
 subtest 'validate: created_at within custom time window' => sub {
-    my $event = make_event(kind => 27235, content => '', tags => [
+    my $event = make_signed_auth(created_at => time() - 90, tags => [
         ['u', 'https://example.com'],
         ['method', 'GET'],
-    ], created_at => time() - 90);
+    ]);
 
     # Should fail with default 60s window
     like(
@@ -297,10 +312,10 @@ subtest 'validate: created_at within custom time window' => sub {
 };
 
 subtest 'validate: future timestamp rejected' => sub {
-    my $event = make_event(kind => 27235, content => '', tags => [
+    my $event = make_signed_auth(created_at => time() + 120, tags => [
         ['u', 'https://example.com'],
         ['method', 'GET'],
-    ], created_at => time() + 120);
+    ]);
 
     like(
         dies { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
@@ -310,7 +325,7 @@ subtest 'validate: future timestamp rejected' => sub {
 };
 
 subtest 'validate: u tag MUST match absolute URL exactly' => sub {
-    my $event = make_event(kind => 27235, content => '', created_at => time(), tags => [
+    my $event = make_signed_auth(tags => [
         ['u', 'https://example.com/api'],
         ['method', 'GET'],
     ]);
@@ -323,7 +338,7 @@ subtest 'validate: u tag MUST match absolute URL exactly' => sub {
 
 subtest 'validate: u tag matches with query parameters' => sub {
     my $url = 'https://example.com/search?q=nostr&limit=10';
-    my $event = make_event(kind => 27235, content => '', created_at => time(), tags => [
+    my $event = make_signed_auth(tags => [
         ['u', $url],
         ['method', 'GET'],
     ]);
@@ -335,7 +350,7 @@ subtest 'validate: u tag matches with query parameters' => sub {
 };
 
 subtest 'validate: method tag MUST match HTTP method' => sub {
-    my $event = make_event(kind => 27235, content => '', created_at => time(), tags => [
+    my $event = make_signed_auth(tags => [
         ['u', 'https://example.com'],
         ['method', 'GET'],
     ]);
@@ -347,7 +362,7 @@ subtest 'validate: method tag MUST match HTTP method' => sub {
 };
 
 subtest 'validate: missing u tag' => sub {
-    my $event = make_event(kind => 27235, content => '', created_at => time(), tags => [
+    my $event = make_signed_auth(tags => [
         ['method', 'GET'],
     ]);
     like(
@@ -358,7 +373,7 @@ subtest 'validate: missing u tag' => sub {
 };
 
 subtest 'validate: missing method tag' => sub {
-    my $event = make_event(kind => 27235, content => '', created_at => time(), tags => [
+    my $event = make_signed_auth(tags => [
         ['u', 'https://example.com'],
     ]);
     like(
@@ -370,7 +385,7 @@ subtest 'validate: missing method tag' => sub {
 
 subtest 'validate: payload tag checked when present' => sub {
     my $body = '{"data":"test"}';
-    my $event = make_event(kind => 27235, content => '', created_at => time(), tags => [
+    my $event = make_signed_auth(tags => [
         ['u', 'https://example.com'],
         ['method', 'POST'],
         ['payload', sha256_hex($body)],
@@ -392,12 +407,12 @@ subtest 'validate: payload tag checked when present' => sub {
 };
 
 subtest 'validate: payload tag ignored when no body provided' => sub {
-    my $event = make_event(kind => 27235, content => '', created_at => time(), tags => [
+    my $event = make_signed_auth(tags => [
         ['u', 'https://example.com'],
         ['method', 'POST'],
         ['payload', 'aa' x 32],
     ]);
-    # Server doesn't provide payload to check — should pass
+    # Server doesn't provide payload to check -- should pass
     is(
         dies { validate_auth_event($event, url => 'https://example.com', method => 'POST') },
         undef,
@@ -406,7 +421,7 @@ subtest 'validate: payload tag ignored when no body provided' => sub {
 };
 
 subtest 'validate: valid event passes' => sub {
-    my $event = make_event(kind => 27235, content => '', created_at => time(), tags => [
+    my $event = make_signed_auth(tags => [
         ['u', 'https://example.com/api/v1/data'],
         ['method', 'GET'],
     ]);
@@ -455,6 +470,59 @@ subtest 'validate: missing method' => sub {
 };
 
 ###############################################################################
+# validate_auth_event: cryptographic verification (NIP-01 requirement)
+###############################################################################
+
+subtest 'validate: event signature MUST be verified' => sub {
+    # Unsigned event should fail validation even with correct tags
+    my $event = make_event(kind => 27235, content => '', created_at => time(), tags => [
+        ['u', 'https://example.com'],
+        ['method', 'GET'],
+    ]);
+    like(
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
+        qr/sig|signature/i,
+        'unsigned event rejected'
+    );
+};
+
+subtest 'validate: tampered event ID rejected' => sub {
+    my $key = make_key_from_hex('01' x 32);
+    my $header = create_auth_header(
+        key    => $key,
+        url    => 'https://example.com',
+        method => 'GET',
+    );
+    my $event = parse_auth_header($header);
+
+    # Tamper with the ID
+    $event->{id} = 'ff' x 32;
+    like(
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
+        qr/id|hash/i,
+        'tampered event ID rejected'
+    );
+};
+
+subtest 'validate: tampered signature rejected' => sub {
+    my $key = make_key_from_hex('01' x 32);
+    my $header = create_auth_header(
+        key    => $key,
+        url    => 'https://example.com',
+        method => 'GET',
+    );
+    my $event = parse_auth_header($header);
+
+    # Tamper with the signature
+    $event->{sig} = 'ff' x 64;
+    like(
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
+        qr/sig|signature/i,
+        'tampered signature rejected'
+    );
+};
+
+###############################################################################
 # round-trip: create header, parse, validate
 ###############################################################################
 
@@ -498,7 +566,7 @@ subtest 'create_auth_event: content is empty string' => sub {
 ###############################################################################
 
 subtest 'validate: method comparison is exact' => sub {
-    my $event = make_event(kind => 27235, content => '', created_at => time(), tags => [
+    my $event = make_signed_auth(tags => [
         ['u', 'https://example.com'],
         ['method', 'GET'],
     ]);
