@@ -1,5 +1,7 @@
 1.000000   TBD
 
+  - New: Net::Nostr::AppData (NIP-78) - kind 30078 addressable events for
+    arbitrary custom app data storage (remoteStorage-like capabilities)
   - New: Net::Nostr::RelayMonitor (NIP-66) - kind 30166 relay discovery
     events and kind 10166 monitor announcement events for relay discovery
     and liveness monitoring

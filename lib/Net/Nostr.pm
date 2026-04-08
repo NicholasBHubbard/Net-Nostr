@@ -136,6 +136,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-66|https://github.com/nostr-protocol/nips/blob/master/66.md> - Relay Discovery and Liveness Monitoring
 
+=item L<NIP-78|https://github.com/nostr-protocol/nips/blob/master/78.md> - Arbitrary Custom App Data
+
 =item L<NIP-89|https://github.com/nostr-protocol/nips/blob/master/89.md> - Recommended Application Handlers
 
 =item L<NIP-92|https://github.com/nostr-protocol/nips/blob/master/92.md> - Media Attachments
@@ -162,6 +164,8 @@ Use NIP-44 for encryption instead.
 =head1 MODULES
 
 =over 4
+
+=item L<Net::Nostr::AppData> - NIP-78 arbitrary custom app data
 
 =item L<Net::Nostr::AppHandler> - NIP-89 recommended application handlers
 

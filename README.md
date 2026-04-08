@@ -56,6 +56,7 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-61](https://github.com/nostr-protocol/nips/blob/master/61.md) - Nutzaps
 - [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) - Relay list metadata
 - [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) - Relay Discovery and Liveness Monitoring
+- [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) - Arbitrary Custom App Data
 - [NIP-72](https://github.com/nostr-protocol/nips/blob/master/72.md) - Moderated Communities
 - [NIP-77](https://github.com/nostr-protocol/nips/blob/master/77.md) - Negentropy Syncing
 - [NIP-86](https://github.com/nostr-protocol/nips/blob/master/86.md) - Relay Management API
