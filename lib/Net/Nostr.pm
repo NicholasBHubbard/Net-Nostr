@@ -92,6 +92,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-22|https://github.com/nostr-protocol/nips/blob/master/22.md> - Comment
 
+=item L<NIP-24|https://github.com/nostr-protocol/nips/blob/master/24.md> - Extra metadata fields and tags
+
 =item L<NIP-28|https://github.com/nostr-protocol/nips/blob/master/28.md> - Public chat
 
 =item L<NIP-29|https://github.com/nostr-protocol/nips/blob/master/29.md> - Relay-based groups
@@ -224,6 +226,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::List> - NIP-51 lists and sets
 
 =item L<Net::Nostr::Marketplace> - NIP-15 Nostr Marketplace
+
+=item L<Net::Nostr::Metadata> - NIP-24 extra metadata fields and tags
 
 =item L<Net::Nostr::MediaAttachment> - NIP-92 media attachments
 

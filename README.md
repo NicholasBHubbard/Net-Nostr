@@ -33,6 +33,7 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-21](https://github.com/nostr-protocol/nips/blob/master/21.md) - `nostr:` URI scheme
 - [NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md) - Comment
 - [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) - Long-form content
+- [NIP-24](https://github.com/nostr-protocol/nips/blob/master/24.md) - Extra metadata fields and tags
 - [NIP-27](https://github.com/nostr-protocol/nips/blob/master/27.md) - Text note references
 - [NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md) - Reactions
 - [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) - Public chat

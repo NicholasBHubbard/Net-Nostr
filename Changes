@@ -1,5 +1,8 @@
 1.000000   TBD
 
+  - New: Net::Nostr::Metadata (NIP-24) - kind 0 profile metadata with
+    display_name, website, banner, bot, birthday; standard tag helpers
+    for hashtags, URLs, and titles; deprecated field migration
   - New: Net::Nostr::Badge (NIP-58) - badge definitions (kind 30009),
     awards (kind 8), profile badges (kind 10008), and badge sets (kind 30008)
   - New: NIP-70 protected events — relay rejects events with ["-"] tag
