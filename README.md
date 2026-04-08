@@ -60,6 +60,7 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-86](https://github.com/nostr-protocol/nips/blob/master/86.md) - Relay Management API
 - [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) - Recommended Application Handlers
 - [NIP-92](https://github.com/nostr-protocol/nips/blob/master/92.md) - Media Attachments
+- [NIP-94](https://github.com/nostr-protocol/nips/blob/master/94.md) - File Metadata
 - [NIP-98](https://github.com/nostr-protocol/nips/blob/master/98.md) - HTTP auth
 - [NIP-99](https://github.com/nostr-protocol/nips/blob/master/99.md) - Classified Listings
 - [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) - Blossom media

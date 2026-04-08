@@ -138,6 +138,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-92|https://github.com/nostr-protocol/nips/blob/master/92.md> - Media Attachments
 
+=item L<NIP-94|https://github.com/nostr-protocol/nips/blob/master/94.md> - File Metadata
+
 =item L<NIP-72|https://github.com/nostr-protocol/nips/blob/master/72.md> - Moderated Communities
 
 =item L<NIP-77|https://github.com/nostr-protocol/nips/blob/master/77.md> - Negentropy Syncing
@@ -184,6 +186,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Encryption> - NIP-44 versioned encrypted payloads
 
 =item L<Net::Nostr::Event> - Nostr event serialization, ID computation, and verification
+
+=item L<Net::Nostr::FileMetadata> - NIP-94 file metadata events
 
 =item L<Net::Nostr::Filter> - Filter objects for querying events
 

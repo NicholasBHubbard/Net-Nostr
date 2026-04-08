@@ -1,5 +1,8 @@
 1.000000   TBD
 
+  - New: Net::Nostr::FileMetadata (NIP-94) - kind 1063 file metadata events
+    for organizing and classifying shared files with URL, MIME type, SHA-256
+    hashes, dimensions, thumbnails, fallback sources, and more
   - New: Net::Nostr::Negentropy (NIP-77) - negentropy set reconciliation
     for efficient event syncing between clients and relays
   - New: Message types NEG-OPEN, NEG-MSG, NEG-CLOSE, NEG-ERR in
