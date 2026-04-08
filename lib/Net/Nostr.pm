@@ -130,6 +130,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-53|https://github.com/nostr-protocol/nips/blob/master/53.md> - Live Activities
 
+=item L<NIP-54|https://github.com/nostr-protocol/nips/blob/master/54.md> - Wiki
+
 =item L<NIP-56|https://github.com/nostr-protocol/nips/blob/master/56.md> - Reporting
 
 =item L<NIP-57|https://github.com/nostr-protocol/nips/blob/master/57.md> - Lightning Zaps

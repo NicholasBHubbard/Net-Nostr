@@ -1,5 +1,9 @@
 1.000000   TBD
 
+  - New: Net::Nostr::Wiki (NIP-54) - wiki articles (kind 30818) with
+    d tag normalization, merge requests (kind 818) with source markers,
+    wiki redirects (kind 30819), fork/defer markers, and wikilink
+    resolution for Djot content
   - New: Net::Nostr::LiveActivity (NIP-53) - live activities with live
     streaming events (kind 30311), chat messages (kind 1311), meeting
     spaces (kind 30312), meeting room events (kind 30313), and room

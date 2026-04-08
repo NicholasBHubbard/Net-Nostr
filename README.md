@@ -54,6 +54,7 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) - Lists
 - [NIP-52](https://github.com/nostr-protocol/nips/blob/master/52.md) - Calendar Events
 - [NIP-53](https://github.com/nostr-protocol/nips/blob/master/53.md) - Live Activities
+- [NIP-54](https://github.com/nostr-protocol/nips/blob/master/54.md) - Wiki
 - [NIP-56](https://github.com/nostr-protocol/nips/blob/master/56.md) - Reporting
 - [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) - Lightning Zaps
 - [NIP-58](https://github.com/nostr-protocol/nips/blob/master/58.md) - Badges
