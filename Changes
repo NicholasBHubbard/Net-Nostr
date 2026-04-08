@@ -1,5 +1,8 @@
 1.000000   TBD
 
+  - New: Net::Nostr::RelayMonitor (NIP-66) - kind 30166 relay discovery
+    events and kind 10166 monitor announcement events for relay discovery
+    and liveness monitoring
   - New: Net::Nostr::FileMetadata (NIP-94) - kind 1063 file metadata events
     for organizing and classifying shared files with URL, MIME type, SHA-256
     hashes, dimensions, thumbnails, fallback sources, and more

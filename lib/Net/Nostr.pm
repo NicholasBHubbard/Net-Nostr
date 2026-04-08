@@ -134,6 +134,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-65|https://github.com/nostr-protocol/nips/blob/master/65.md> - Relay list metadata
 
+=item L<NIP-66|https://github.com/nostr-protocol/nips/blob/master/66.md> - Relay Discovery and Liveness Monitoring
+
 =item L<NIP-89|https://github.com/nostr-protocol/nips/blob/master/89.md> - Recommended Application Handlers
 
 =item L<NIP-92|https://github.com/nostr-protocol/nips/blob/master/92.md> - Media Attachments
@@ -230,6 +232,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::RelayInfo> - NIP-11 relay information document
 
 =item L<Net::Nostr::RelayList> - NIP-65 relay list metadata
+
+=item L<Net::Nostr::RelayMonitor> - NIP-66 relay discovery and liveness monitoring
 
 =item L<Net::Nostr::RemoteSigning> - NIP-46 Nostr Remote Signing
 
