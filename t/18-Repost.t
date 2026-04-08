@@ -1,5 +1,5 @@
 use strictures 2;
-use Test::More;
+use Test2::V0 -no_srand => 1;
 use lib 't/lib';
 use TestFixtures qw(make_event);
 use JSON ();

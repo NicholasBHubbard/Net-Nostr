@@ -1,5 +1,5 @@
 use strictures 2;
-use Test::More;
+use Test2::V0 -no_srand => 1;
 use lib 't/lib';
 use TestFixtures qw(make_event);
 use JSON ();
@@ -62,7 +62,7 @@ subtest 'POD SYNOPSIS: custom emoji reaction (NIP-30)' => sub {
     );
     is $reaction->content, ':soapbox:', 'custom emoji content';
     my @emoji = grep { $_->[0] eq 'emoji' } @{$reaction->tags};
-    is_deeply $emoji[0], ['emoji', 'soapbox', 'https://gleasonator.com/emoji/Gleasonator/soapbox.png'], 'emoji tag';
+    is $emoji[0], ['emoji', 'soapbox', 'https://gleasonator.com/emoji/Gleasonator/soapbox.png'], 'emoji tag';
 };
 
 subtest 'POD SYNOPSIS: react_external' => sub {

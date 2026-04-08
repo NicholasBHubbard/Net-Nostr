@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 use JSON ();
 
 use Net::Nostr::Event;
@@ -66,22 +65,22 @@ subtest 'POD: validate' => sub {
 
 subtest 'POD: hashtag_tag' => sub {
     my $tag = Net::Nostr::Metadata->hashtag_tag('NoStr');
-    is_deeply($tag, ['t', 'nostr'], 'hashtag lowercased');
+    is($tag, ['t', 'nostr'], 'hashtag lowercased');
 };
 
 subtest 'POD: url_tag' => sub {
     my $tag = Net::Nostr::Metadata->url_tag('https://example.com');
-    is_deeply($tag, ['r', 'https://example.com'], 'url tag');
+    is($tag, ['r', 'https://example.com'], 'url tag');
 };
 
 subtest 'POD: title_tag' => sub {
     my $tag = Net::Nostr::Metadata->title_tag('My Event');
-    is_deeply($tag, ['title', 'My Event'], 'title tag');
+    is($tag, ['title', 'My Event'], 'title tag');
 };
 
 subtest 'POD: external_id_tag' => sub {
     my $tag = Net::Nostr::Metadata->external_id_tag('github:torvalds');
-    is_deeply($tag, ['i', 'github:torvalds'], 'external id tag');
+    is($tag, ['i', 'github:torvalds'], 'external id tag');
 };
 
 ###############################################################################
@@ -90,7 +89,7 @@ subtest 'POD: external_id_tag' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::Metadata->new(bogus => 1) },
+        dies { Net::Nostr::Metadata->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

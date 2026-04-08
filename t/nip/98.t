@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use JSON ();
 use MIME::Base64 qw(encode_base64 decode_base64);
@@ -141,7 +140,7 @@ subtest 'create_auth_event: custom created_at' => sub {
 
 subtest 'create_auth_event: missing pubkey' => sub {
     like(
-        exception { create_auth_event(url => 'https://x.com', method => 'GET') },
+        dies { create_auth_event(url => 'https://x.com', method => 'GET') },
         qr/pubkey is required/,
         'missing pubkey rejected'
     );
@@ -149,7 +148,7 @@ subtest 'create_auth_event: missing pubkey' => sub {
 
 subtest 'create_auth_event: missing url' => sub {
     like(
-        exception { create_auth_event(pubkey => 'aa' x 32, method => 'GET') },
+        dies { create_auth_event(pubkey => 'aa' x 32, method => 'GET') },
         qr/url is required/,
         'missing url rejected'
     );
@@ -157,7 +156,7 @@ subtest 'create_auth_event: missing url' => sub {
 
 subtest 'create_auth_event: missing method' => sub {
     like(
-        exception { create_auth_event(pubkey => 'aa' x 32, url => 'https://x.com') },
+        dies { create_auth_event(pubkey => 'aa' x 32, url => 'https://x.com') },
         qr/method is required/,
         'missing method rejected'
     );
@@ -220,7 +219,7 @@ subtest 'parse_auth_header: valid header' => sub {
 
 subtest 'parse_auth_header: wrong scheme' => sub {
     like(
-        exception { parse_auth_header('Bearer abc123') },
+        dies { parse_auth_header('Bearer abc123') },
         qr/expected Nostr authorization scheme/i,
         'non-Nostr scheme rejected'
     );
@@ -228,12 +227,12 @@ subtest 'parse_auth_header: wrong scheme' => sub {
 
 subtest 'parse_auth_header: missing header' => sub {
     like(
-        exception { parse_auth_header(undef) },
+        dies { parse_auth_header(undef) },
         qr/authorization header is required/i,
         'undef header rejected'
     );
     like(
-        exception { parse_auth_header('') },
+        dies { parse_auth_header('') },
         qr/authorization header is required/i,
         'empty header rejected'
     );
@@ -241,7 +240,7 @@ subtest 'parse_auth_header: missing header' => sub {
 
 subtest 'parse_auth_header: invalid base64' => sub {
     like(
-        exception { parse_auth_header('Nostr !!!invalid!!!') },
+        dies { parse_auth_header('Nostr !!!invalid!!!') },
         qr/./,
         'invalid base64 rejected'
     );
@@ -257,7 +256,7 @@ subtest 'validate: kind MUST be 27235' => sub {
         ['method', 'GET'],
     ]);
     like(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
         qr/kind must be 27235/,
         'wrong kind rejected'
     );
@@ -270,7 +269,7 @@ subtest 'validate: created_at MUST be within time window' => sub {
     ], created_at => time() - 120);
 
     like(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
         qr/created_at outside.*window/i,
         'old timestamp rejected (default 60s window)'
     );
@@ -284,14 +283,14 @@ subtest 'validate: created_at within custom time window' => sub {
 
     # Should fail with default 60s window
     like(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
         qr/created_at outside.*window/i,
         'fails with default window'
     );
 
     # Should pass with 120s window
     is(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'GET', time_window => 120) },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'GET', time_window => 120) },
         undef,
         'passes with larger window'
     );
@@ -304,7 +303,7 @@ subtest 'validate: future timestamp rejected' => sub {
     ], created_at => time() + 120);
 
     like(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
         qr/created_at outside.*window/i,
         'future timestamp rejected'
     );
@@ -316,7 +315,7 @@ subtest 'validate: u tag MUST match absolute URL exactly' => sub {
         ['method', 'GET'],
     ]);
     like(
-        exception { validate_auth_event($event, url => 'https://example.com/other', method => 'GET') },
+        dies { validate_auth_event($event, url => 'https://example.com/other', method => 'GET') },
         qr/u tag.*does not match/i,
         'URL mismatch rejected'
     );
@@ -329,7 +328,7 @@ subtest 'validate: u tag matches with query parameters' => sub {
         ['method', 'GET'],
     ]);
     is(
-        exception { validate_auth_event($event, url => $url, method => 'GET') },
+        dies { validate_auth_event($event, url => $url, method => 'GET') },
         undef,
         'exact URL with query params passes'
     );
@@ -341,7 +340,7 @@ subtest 'validate: method tag MUST match HTTP method' => sub {
         ['method', 'GET'],
     ]);
     like(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'POST') },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'POST') },
         qr/method tag.*does not match/i,
         'method mismatch rejected'
     );
@@ -352,7 +351,7 @@ subtest 'validate: missing u tag' => sub {
         ['method', 'GET'],
     ]);
     like(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
         qr/missing.*u tag/i,
         'missing u tag rejected'
     );
@@ -363,7 +362,7 @@ subtest 'validate: missing method tag' => sub {
         ['u', 'https://example.com'],
     ]);
     like(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'GET') },
         qr/missing.*method tag/i,
         'missing method tag rejected'
     );
@@ -379,14 +378,14 @@ subtest 'validate: payload tag checked when present' => sub {
 
     # Matching payload passes
     is(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'POST', payload => $body) },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'POST', payload => $body) },
         undef,
         'matching payload passes'
     );
 
     # Mismatched payload fails
     like(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'POST', payload => 'wrong body') },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'POST', payload => 'wrong body') },
         qr/payload.*does not match/i,
         'mismatched payload rejected'
     );
@@ -400,7 +399,7 @@ subtest 'validate: payload tag ignored when no body provided' => sub {
     ]);
     # Server doesn't provide payload to check — should pass
     is(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'POST') },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'POST') },
         undef,
         'payload tag not checked when server provides no body'
     );
@@ -413,7 +412,7 @@ subtest 'validate: valid event passes' => sub {
     ]);
 
     is(
-        exception { validate_auth_event($event, url => 'https://example.com/api/v1/data', method => 'GET') },
+        dies { validate_auth_event($event, url => 'https://example.com/api/v1/data', method => 'GET') },
         undef,
         'valid event passes all checks'
     );
@@ -425,7 +424,7 @@ subtest 'validate: valid event passes' => sub {
 
 subtest 'validate: missing event' => sub {
     like(
-        exception { validate_auth_event(undef, url => 'https://x.com', method => 'GET') },
+        dies { validate_auth_event(undef, url => 'https://x.com', method => 'GET') },
         qr/event is required/,
         'undef event rejected'
     );
@@ -437,7 +436,7 @@ subtest 'validate: missing url' => sub {
         ['method', 'GET'],
     ]);
     like(
-        exception { validate_auth_event($event, method => 'GET') },
+        dies { validate_auth_event($event, method => 'GET') },
         qr/url is required/,
         'missing url rejected'
     );
@@ -449,7 +448,7 @@ subtest 'validate: missing method' => sub {
         ['method', 'GET'],
     ]);
     like(
-        exception { validate_auth_event($event, url => 'https://example.com') },
+        dies { validate_auth_event($event, url => 'https://example.com') },
         qr/method is required/,
         'missing method rejected'
     );
@@ -475,7 +474,7 @@ subtest 'round-trip: create -> parse -> validate' => sub {
     is($event->kind, 27235, 'parsed kind is 27235');
 
     is(
-        exception { validate_auth_event($event, url => $url, method => 'POST', payload => $body) },
+        dies { validate_auth_event($event, url => $url, method => 'POST', payload => $body) },
         undef,
         'round-trip validates successfully'
     );
@@ -506,7 +505,7 @@ subtest 'validate: method comparison is exact' => sub {
 
     # Lowercase should fail
     like(
-        exception { validate_auth_event($event, url => 'https://example.com', method => 'get') },
+        dies { validate_auth_event($event, url => 'https://example.com', method => 'get') },
         qr/method tag.*does not match/i,
         'lowercase method does not match uppercase tag'
     );

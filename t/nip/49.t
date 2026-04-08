@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::KeyEncrypt qw(
     encrypt_private_key
@@ -129,7 +128,7 @@ subtest 'key_security_byte: 0x01 (not known insecure)' => sub {
 
 subtest 'key_security_byte: invalid value rejected' => sub {
     like(
-        exception {
+        dies {
             encrypt_private_key(
                 privkey_hex  => 'aa' x 32,
                 password     => 'test',
@@ -161,7 +160,7 @@ subtest 'version: only 0x02 accepted' => sub {
 
 subtest 'encrypt: missing privkey_hex' => sub {
     like(
-        exception { encrypt_private_key(password => 'test', log_n => 16) },
+        dies { encrypt_private_key(password => 'test', log_n => 16) },
         qr/privkey_hex is required/,
         'missing privkey_hex croaks'
     );
@@ -169,7 +168,7 @@ subtest 'encrypt: missing privkey_hex' => sub {
 
 subtest 'encrypt: invalid privkey_hex' => sub {
     like(
-        exception { encrypt_private_key(privkey_hex => 'not-hex', password => 'test', log_n => 16) },
+        dies { encrypt_private_key(privkey_hex => 'not-hex', password => 'test', log_n => 16) },
         qr/privkey_hex must be 64-char lowercase hex/,
         'bad hex rejected'
     );
@@ -177,7 +176,7 @@ subtest 'encrypt: invalid privkey_hex' => sub {
 
 subtest 'encrypt: missing password' => sub {
     like(
-        exception { encrypt_private_key(privkey_hex => 'aa' x 32, log_n => 16) },
+        dies { encrypt_private_key(privkey_hex => 'aa' x 32, log_n => 16) },
         qr/password is required/,
         'missing password croaks'
     );
@@ -185,7 +184,7 @@ subtest 'encrypt: missing password' => sub {
 
 subtest 'encrypt: empty password' => sub {
     like(
-        exception { encrypt_private_key(privkey_hex => 'aa' x 32, password => '', log_n => 16) },
+        dies { encrypt_private_key(privkey_hex => 'aa' x 32, password => '', log_n => 16) },
         qr/password is required/,
         'empty password croaks'
     );
@@ -193,7 +192,7 @@ subtest 'encrypt: empty password' => sub {
 
 subtest 'encrypt: missing log_n' => sub {
     like(
-        exception { encrypt_private_key(privkey_hex => 'aa' x 32, password => 'test') },
+        dies { encrypt_private_key(privkey_hex => 'aa' x 32, password => 'test') },
         qr/log_n is required/,
         'missing log_n croaks'
     );
@@ -201,12 +200,12 @@ subtest 'encrypt: missing log_n' => sub {
 
 subtest 'encrypt: log_n out of range' => sub {
     like(
-        exception { encrypt_private_key(privkey_hex => 'aa' x 32, password => 'test', log_n => 0) },
+        dies { encrypt_private_key(privkey_hex => 'aa' x 32, password => 'test', log_n => 0) },
         qr/log_n must be between 1 and 22/,
         'log_n=0 rejected'
     );
     like(
-        exception { encrypt_private_key(privkey_hex => 'aa' x 32, password => 'test', log_n => 23) },
+        dies { encrypt_private_key(privkey_hex => 'aa' x 32, password => 'test', log_n => 23) },
         qr/log_n must be between 1 and 22/,
         'log_n=23 rejected'
     );
@@ -219,7 +218,7 @@ subtest 'decrypt: wrong password fails' => sub {
         log_n       => 16,
     );
     like(
-        exception { decrypt_private_key($encrypted, 'wrong', log_n => 16) },
+        dies { decrypt_private_key($encrypted, 'wrong', log_n => 16) },
         qr/decryption failed/i,
         'wrong password rejected'
     );
@@ -230,7 +229,7 @@ subtest 'decrypt: invalid ncryptsec prefix' => sub {
     use Net::Nostr::Bech32 qw(encode_npub);
     my $npub = encode_npub('aa' x 32);
     like(
-        exception { decrypt_private_key($npub, 'test') },
+        dies { decrypt_private_key($npub, 'test') },
         qr/expected ncryptsec prefix/,
         'wrong bech32 prefix rejected'
     );
@@ -238,7 +237,7 @@ subtest 'decrypt: invalid ncryptsec prefix' => sub {
 
 subtest 'decrypt: garbled data' => sub {
     like(
-        exception { decrypt_private_key('ncryptsec1invaliddata', 'test') },
+        dies { decrypt_private_key('ncryptsec1invaliddata', 'test') },
         qr/./,
         'garbled data rejected'
     );
@@ -320,7 +319,7 @@ subtest 'version: non-0x02 version rejected' => sub {
     my $tampered = encode_bech32('ncryptsec', $tampered_data5, 'bech32');
 
     like(
-        exception { decrypt_private_key($tampered, 'test', log_n => 16) },
+        dies { decrypt_private_key($tampered, 'test', log_n => 16) },
         qr/unknown version/,
         'version 0x01 rejected'
     );
@@ -345,7 +344,7 @@ subtest 'AAD tamper: modified key_security_byte causes decryption failure' => su
     my $tampered = encode_bech32('ncryptsec', $tampered_data5, 'bech32');
 
     like(
-        exception { decrypt_private_key($tampered, 'test', log_n => 16) },
+        dies { decrypt_private_key($tampered, 'test', log_n => 16) },
         qr/decryption failed/i,
         'tampered AAD causes MAC failure'
     );
@@ -357,7 +356,7 @@ subtest 'AAD tamper: modified key_security_byte causes decryption failure' => su
 
 subtest 'encrypt: uppercase hex rejected' => sub {
     like(
-        exception { encrypt_private_key(privkey_hex => 'AA' x 32, password => 'test', log_n => 16) },
+        dies { encrypt_private_key(privkey_hex => 'AA' x 32, password => 'test', log_n => 16) },
         qr/privkey_hex must be 64-char lowercase hex/,
         'uppercase hex rejected'
     );
@@ -365,12 +364,12 @@ subtest 'encrypt: uppercase hex rejected' => sub {
 
 subtest 'decrypt: missing ncryptsec' => sub {
     like(
-        exception { decrypt_private_key(undef, 'test') },
+        dies { decrypt_private_key(undef, 'test') },
         qr/ncryptsec string is required/,
         'undef ncryptsec rejected'
     );
     like(
-        exception { decrypt_private_key('', 'test') },
+        dies { decrypt_private_key('', 'test') },
         qr/ncryptsec string is required/,
         'empty ncryptsec rejected'
     );
@@ -378,12 +377,12 @@ subtest 'decrypt: missing ncryptsec' => sub {
 
 subtest 'decrypt: missing password' => sub {
     like(
-        exception { decrypt_private_key('ncryptsec1abc', undef) },
+        dies { decrypt_private_key('ncryptsec1abc', undef) },
         qr/password is required/,
         'undef password rejected'
     );
     like(
-        exception { decrypt_private_key('ncryptsec1abc', '') },
+        dies { decrypt_private_key('ncryptsec1abc', '') },
         qr/password is required/,
         'empty password rejected'
     );
@@ -395,7 +394,7 @@ subtest 'decrypt: invalid payload size' => sub {
     my $data5 = translate_8to5($short_raw);
     my $bad = encode_bech32('ncryptsec', $data5, 'bech32');
     like(
-        exception { decrypt_private_key($bad, 'test') },
+        dies { decrypt_private_key($bad, 'test') },
         qr/invalid payload size/,
         'short payload rejected'
     );

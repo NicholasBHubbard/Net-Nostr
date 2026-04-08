@@ -1,5 +1,5 @@
 use strictures 2;
-use Test::More;
+use Test2::V0 -no_srand => 1;
 use JSON ();
 
 use lib 't/lib';
@@ -26,7 +26,7 @@ subtest 'wallet_event creates kind 17375' => sub {
     is $ev->kind, 17375, 'kind is 17375';
     is $ev->pubkey, $pubkey, 'pubkey set';
     is $ev->content, 'encrypted-content', 'content is pre-encrypted';
-    is_deeply $ev->tags, [], 'tags are empty (all data in encrypted content)';
+    is $ev->tags, [], 'tags are empty (all data in encrypted content)';
 };
 
 subtest 'wallet_event requires pubkey' => sub {
@@ -82,7 +82,7 @@ subtest 'parse_wallet_content parses decrypted wallet data' => sub {
     ]);
     my $wallet = Net::Nostr::Wallet->parse_wallet_content($plaintext);
     is $wallet->privkey, $privkey, 'privkey parsed';
-    is_deeply $wallet->mints, ['https://mint1', 'https://mint2'], 'mints parsed';
+    is $wallet->mints, ['https://mint1', 'https://mint2'], 'mints parsed';
 };
 
 subtest 'wallet_content round-trips through parse_wallet_content' => sub {
@@ -92,7 +92,7 @@ subtest 'wallet_content round-trips through parse_wallet_content' => sub {
     );
     my $wallet = Net::Nostr::Wallet->parse_wallet_content($plaintext);
     is $wallet->privkey, $privkey, 'privkey round-trips';
-    is_deeply $wallet->mints, ['https://mint1'], 'mints round-trip';
+    is $wallet->mints, ['https://mint1'], 'mints round-trip';
 };
 
 subtest 'kind 17375 is replaceable (10000-19999 range)' => sub {
@@ -113,7 +113,7 @@ subtest 'token_event creates kind 7375' => sub {
     is $ev->kind, 7375, 'kind is 7375';
     is $ev->pubkey, $pubkey, 'pubkey set';
     is $ev->content, 'encrypted-token', 'content is pre-encrypted';
-    is_deeply $ev->tags, [], 'tags are empty';
+    is $ev->tags, [], 'tags are empty';
 };
 
 subtest 'token_event requires pubkey and content' => sub {
@@ -155,7 +155,7 @@ subtest 'token_content with del field' => sub {
         del    => ['event-id-1', 'event-id-2'],
     );
     my $data = $json->decode($plaintext);
-    is_deeply $data->{del}, ['event-id-1', 'event-id-2'], 'del field with destroyed token IDs';
+    is $data->{del}, ['event-id-1', 'event-id-2'], 'del field with destroyed token IDs';
 };
 
 subtest 'token_content unit defaults to sat' => sub {
@@ -202,7 +202,7 @@ subtest 'parse_token_content parses decrypted token data' => sub {
     is $token->unit, 'sat', 'unit parsed';
     is scalar @{$token->proofs}, 1, 'proofs parsed';
     is $token->proofs->[0]{id}, '005c2502034d4f12', 'proof data intact';
-    is_deeply $token->del, ['old-token-id'], 'del parsed';
+    is $token->del, ['old-token-id'], 'del parsed';
 };
 
 subtest 'parse_token_content defaults unit to sat' => sub {
@@ -221,7 +221,7 @@ subtest 'parse_token_content del defaults to empty' => sub {
         proofs => [{ id => 'a', amount => 1, secret => 's', C => 'c' }],
     });
     my $token = Net::Nostr::Wallet->parse_token_content($plaintext);
-    is_deeply $token->del, [], 'del defaults to empty array';
+    is $token->del, [], 'del defaults to empty array';
 };
 
 subtest 'token_content round-trips through parse_token_content' => sub {
@@ -236,7 +236,7 @@ subtest 'token_content round-trips through parse_token_content' => sub {
     is $token->mint, 'https://mint1', 'mint round-trips';
     is $token->unit, 'usd', 'unit round-trips';
     is $token->proofs->[0]{id}, 'x', 'proof round-trips';
-    is_deeply $token->del, ['old-id'], 'del round-trips';
+    is $token->del, ['old-id'], 'del round-trips';
 };
 
 # === kind 7376: Spending History Event ===
@@ -249,7 +249,7 @@ subtest 'history_event creates kind 7376' => sub {
     is $ev->kind, 7376, 'kind is 7376';
     is $ev->pubkey, $pubkey, 'pubkey set';
     is $ev->content, 'encrypted-history', 'content is pre-encrypted';
-    is_deeply $ev->tags, [], 'no public tags when no redeemed IDs';
+    is $ev->tags, [], 'no public tags when no redeemed IDs';
 };
 
 subtest 'history_event with unencrypted redeemed e tags' => sub {
@@ -263,8 +263,8 @@ subtest 'history_event with unencrypted redeemed e tags' => sub {
     );
     my @tags = @{$ev->tags};
     is scalar @tags, 2, 'two public e tags';
-    is_deeply $tags[0], ['e', $eid1, 'wss://relay1', 'redeemed'], 'first e tag with redeemed marker';
-    is_deeply $tags[1], ['e', $eid2, '', 'redeemed'], 'second e tag with redeemed marker';
+    is $tags[0], ['e', $eid1, 'wss://relay1', 'redeemed'], 'first e tag with redeemed marker';
+    is $tags[1], ['e', $eid2, '', 'redeemed'], 'second e tag with redeemed marker';
 };
 
 subtest 'history_event requires pubkey and content' => sub {
@@ -292,7 +292,7 @@ subtest 'history_content builds plaintext' => sub {
     is $tags{direction}[0][1], 'in', 'direction tag';
     is $tags{amount}[0][1], '1', 'amount tag';
     is $tags{unit}[0][1], 'sat', 'unit tag';
-    is_deeply $tags{e}[0], ['e', 'event-id-1', '', 'created'], 'e tag with created marker';
+    is $tags{e}[0], ['e', 'event-id-1', '', 'created'], 'e tag with created marker';
 };
 
 subtest 'history_content with out direction and multiple e tags' => sub {
@@ -349,7 +349,7 @@ subtest 'parse_history_content parses decrypted history data' => sub {
     is $history->amount, '1', 'amount parsed';
     is $history->unit, 'sat', 'unit parsed';
     is scalar @{$history->e_tags}, 1, 'e_tags parsed';
-    is_deeply $history->e_tags->[0], ['token-id-1', '', 'created'], 'e_tag data';
+    is $history->e_tags->[0], ['token-id-1', '', 'created'], 'e_tag data';
 };
 
 subtest 'parse_history_content defaults unit to sat' => sub {
@@ -548,7 +548,7 @@ subtest 'from_event kind 7376 with no public e tags' => sub {
         tags    => [],
     );
     my $hist = Net::Nostr::Wallet->from_event($ev);
-    is_deeply $hist->redeemed_ids, [], 'empty redeemed_ids when no public tags';
+    is $hist->redeemed_ids, [], 'empty redeemed_ids when no public tags';
 };
 
 subtest 'from_event returns undef for unrecognized kind' => sub {
@@ -686,7 +686,7 @@ subtest 'spending workflow: Alice spends 4 sats from [1,2,4,8]' => sub {
     );
     my $rollover = Net::Nostr::Wallet->parse_token_content($rollover_token);
     is scalar @{$rollover->proofs}, 3, 'rollover has 3 unspent proofs';
-    is_deeply $rollover->del, ['event-id-1'], 'del references destroyed token';
+    is $rollover->del, ['event-id-1'], 'del references destroyed token';
 
     # Step 3: MUST delete the original token event with k:7375
     my $delete_ev = Net::Nostr::Wallet->delete_token(

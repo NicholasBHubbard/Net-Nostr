@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::ExternalId;
 
@@ -12,8 +11,8 @@ subtest 'POD: url_tags' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->url_tags(
         'https://myblog.example.com/post/2012-03-27/hello-world',
     );
-    is_deeply($i, ['i', 'https://myblog.example.com/post/2012-03-27/hello-world']);
-    is_deeply($k, ['k', 'web']);
+    is($i, ['i', 'https://myblog.example.com/post/2012-03-27/hello-world']);
+    is($k, ['k', 'web']);
 };
 
 ###############################################################################
@@ -22,7 +21,7 @@ subtest 'POD: url_tags' => sub {
 
 subtest 'POD: isbn_tags' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->isbn_tags('978-0-7653-8203-0');
-    is_deeply($i, ['i', 'isbn:9780765382030']);
+    is($i, ['i', 'isbn:9780765382030']);
 };
 
 ###############################################################################
@@ -31,7 +30,7 @@ subtest 'POD: isbn_tags' => sub {
 
 subtest 'POD: geo_tags' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->geo_tags('EZS42E44YX96');
-    is_deeply($i, ['i', 'geo:ezs42e44yx96']);
+    is($i, ['i', 'geo:ezs42e44yx96']);
 };
 
 ###############################################################################
@@ -40,7 +39,7 @@ subtest 'POD: geo_tags' => sub {
 
 subtest 'POD: country_tags' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->country_tags('ve');
-    is_deeply($i, ['i', 'iso3166:VE']);
+    is($i, ['i', 'iso3166:VE']);
 };
 
 ###############################################################################
@@ -52,7 +51,7 @@ subtest 'POD: isan_tags with hint' => sub {
         '0000-0000-401A-0000-7',
         hint => 'https://www.imdb.com/title/tt0120737',
     );
-    is_deeply($i, ['i', 'isan:0000-0000-401A-0000-7', 'https://www.imdb.com/title/tt0120737']);
+    is($i, ['i', 'isan:0000-0000-401A-0000-7', 'https://www.imdb.com/title/tt0120737']);
 };
 
 ###############################################################################
@@ -93,7 +92,7 @@ subtest 'POD: new' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::ExternalId->new(bogus => 1) },
+        dies { Net::Nostr::ExternalId->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

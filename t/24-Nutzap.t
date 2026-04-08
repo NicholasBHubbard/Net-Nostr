@@ -1,5 +1,5 @@
 use strictures 2;
-use Test::More;
+use Test2::V0 -no_srand => 1;
 
 use lib 't/lib';
 use TestFixtures qw(make_event);
@@ -175,10 +175,10 @@ subtest 'new() POD example' => sub {
     is $info->mint_url, 'https://mint1';
     is $info->unit, 'sat';
     is $info->recipient, $hex_pubkey;
-    is_deeply $info->proofs, [];
-    is_deeply $info->relays, [];
-    is_deeply $info->mints, [];
-    is_deeply $info->nutzap_ids, [];
+    is $info->proofs, [];
+    is $info->relays, [];
+    is $info->mints, [];
+    is $info->nutzap_ids, [];
 };
 
 subtest 'new() rejects unknown arguments' => sub {

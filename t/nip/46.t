@@ -1,5 +1,5 @@
 use strictures 2;
-use Test::More;
+use Test2::V0 -no_srand => 1;
 use lib 't/lib';
 use TestFixtures qw(make_event);
 use JSON ();
@@ -22,14 +22,14 @@ subtest 'parse_bunker_uri: basic' => sub {
     my $uri = "bunker://${remote_signer_pubkey}?relay=wss%3A%2F%2Frelay1.example.com&secret=mysecret";
     my $conn = Net::Nostr::RemoteSigning->parse_bunker_uri($uri);
     is $conn->remote_signer_pubkey, $remote_signer_pubkey, 'remote_signer_pubkey';
-    is_deeply $conn->relays, [$relay1], 'relay';
+    is $conn->relays, [$relay1], 'relay';
     is $conn->secret, 'mysecret', 'secret';
 };
 
 subtest 'parse_bunker_uri: multiple relays' => sub {
     my $uri = "bunker://${remote_signer_pubkey}?relay=wss%3A%2F%2Frelay1.example.com&relay=wss%3A%2F%2Frelay2.example2.com&secret=s";
     my $conn = Net::Nostr::RemoteSigning->parse_bunker_uri($uri);
-    is_deeply $conn->relays, [$relay1, $relay2], 'multiple relays';
+    is $conn->relays, [$relay1, $relay2], 'multiple relays';
 };
 
 subtest 'parse_bunker_uri: optional secret' => sub {
@@ -57,7 +57,7 @@ subtest 'create_bunker_uri: round-trip' => sub {
     like $uri, qr/^bunker:\/\//, 'protocol prefix';
     my $conn = Net::Nostr::RemoteSigning->parse_bunker_uri($uri);
     is $conn->remote_signer_pubkey, $remote_signer_pubkey, 'round-trip pubkey';
-    is_deeply $conn->relays, [$relay1], 'round-trip relay';
+    is $conn->relays, [$relay1], 'round-trip relay';
     is $conn->secret, 'mysecret', 'round-trip secret';
 };
 
@@ -83,7 +83,7 @@ subtest 'parse_nostrconnect_uri: spec example' => sub {
     my $uri = "nostrconnect://${client_pubkey}?relay=wss%3A%2F%2Frelay1.example.com&perms=nip44_encrypt%2Cnip44_decrypt%2Csign_event%3A13&name=My+Client&secret=0s8j2djs&relay=wss%3A%2F%2Frelay2.example2.com";
     my $conn = Net::Nostr::RemoteSigning->parse_nostrconnect_uri($uri);
     is $conn->client_pubkey, $client_pubkey, 'client_pubkey';
-    is_deeply $conn->relays, [$relay1, $relay2], 'relays';
+    is $conn->relays, [$relay1, $relay2], 'relays';
     is $conn->secret, '0s8j2djs', 'secret';
     is $conn->perms, 'nip44_encrypt,nip44_decrypt,sign_event:13', 'perms';
     is $conn->name, 'My Client', 'name';
@@ -128,7 +128,7 @@ subtest 'create_nostrconnect_uri: round-trip' => sub {
     like $uri, qr/^nostrconnect:\/\//, 'protocol prefix';
     my $conn = Net::Nostr::RemoteSigning->parse_nostrconnect_uri($uri);
     is $conn->client_pubkey, $client_pubkey, 'round-trip pubkey';
-    is_deeply $conn->relays, [$relay1, $relay2], 'round-trip relays';
+    is $conn->relays, [$relay1, $relay2], 'round-trip relays';
     is $conn->secret, '0s8j2djs', 'round-trip secret';
     is $conn->perms, 'nip44_encrypt,sign_event:13', 'round-trip perms';
     is $conn->name, 'My Client', 'round-trip name';
@@ -224,7 +224,7 @@ subtest 'request: ping' => sub {
     );
     my $data = JSON->new->utf8->decode($payload);
     is $data->{method}, 'ping', 'method';
-    is_deeply $data->{params}, [], 'empty params';
+    is $data->{params}, [], 'empty params';
 };
 
 # Spec: get_public_key - []
@@ -300,7 +300,7 @@ subtest 'request: switch_relays' => sub {
     );
     my $data = JSON->new->utf8->decode($payload);
     is $data->{method}, 'switch_relays', 'method';
-    is_deeply $data->{params}, [], 'empty params';
+    is $data->{params}, [], 'empty params';
 };
 
 # ==========================================================================
@@ -337,7 +337,7 @@ subtest 'request_event: content is valid JSON request' => sub {
     my $data = JSON->new->utf8->decode($event->content);
     is $data->{id}, 'req-2', 'id in content';
     is $data->{method}, 'ping', 'method in content';
-    is_deeply $data->{params}, [], 'params in content';
+    is $data->{params}, [], 'params in content';
 };
 
 # ==========================================================================
@@ -441,7 +441,7 @@ subtest 'response: switch_relays with relays' => sub {
     my $payload = Net::Nostr::RemoteSigning->response(id => 'sr1', result => $relays_json);
     my $data = JSON->new->utf8->decode($payload);
     my $relays = JSON->new->utf8->decode($data->{result});
-    is_deeply $relays, [$relay1, $relay2], 'relay list';
+    is $relays, [$relay1, $relay2], 'relay list';
 };
 
 subtest 'response: switch_relays null' => sub {
@@ -506,7 +506,7 @@ subtest 'parse_request: parses JSON payload' => sub {
     my $req = Net::Nostr::RemoteSigning->parse_request($json);
     is $req->id, 'req-1', 'id';
     is $req->method, 'sign_event', 'method';
-    is_deeply $req->params, ['{}'], 'params';
+    is $req->params, ['{}'], 'params';
 };
 
 subtest 'parse_response: parses success response' => sub {
@@ -810,7 +810,7 @@ subtest 'parse_nostrconnect_uri: croaks on invalid hex pubkey' => sub {
 subtest 'parse_switch_relays: parses relay list' => sub {
     my $relays_json = JSON->new->utf8->encode([$relay1, $relay2]);
     my $relays = Net::Nostr::RemoteSigning->parse_switch_relays($relays_json);
-    is_deeply $relays, [$relay1, $relay2], 'parsed relay list';
+    is $relays, [$relay1, $relay2], 'parsed relay list';
 };
 
 subtest 'parse_switch_relays: returns undef for null' => sub {
@@ -841,7 +841,7 @@ subtest 'parse_nip05_metadata: full response' => sub {
     });
     my $meta = Net::Nostr::RemoteSigning->parse_nip05_metadata($json);
     is $meta->pubkey, $remote_signer_pubkey, 'pubkey from names._';
-    is_deeply $meta->relays, [$relay1, $relay2], 'relays';
+    is $meta->relays, [$relay1, $relay2], 'relays';
     is $meta->nostrconnect_url, 'https://signer.example.com/<nostrconnect>', 'nostrconnect_url';
 };
 
@@ -851,7 +851,7 @@ subtest 'parse_nip05_metadata: without nip46 field' => sub {
     });
     my $meta = Net::Nostr::RemoteSigning->parse_nip05_metadata($json);
     is $meta->pubkey, $remote_signer_pubkey, 'pubkey';
-    is_deeply $meta->relays, [], 'empty relays';
+    is $meta->relays, [], 'empty relays';
     ok !defined $meta->nostrconnect_url, 'no nostrconnect_url';
 };
 
@@ -882,7 +882,7 @@ subtest 'parse_discovery_event: parses kind 31990' => sub {
     );
     my $disc = Net::Nostr::RemoteSigning->parse_discovery_event($event);
     is $disc->pubkey, $remote_signer_pubkey, 'pubkey';
-    is_deeply $disc->relays, [$relay1, $relay2], 'relays';
+    is $disc->relays, [$relay1, $relay2], 'relays';
     is $disc->nostrconnect_url, 'https://signer.example.com/<nostrconnect>', 'nostrconnect_url';
 };
 
@@ -895,7 +895,7 @@ subtest 'parse_discovery_event: without optional tags' => sub {
     );
     my $disc = Net::Nostr::RemoteSigning->parse_discovery_event($event);
     is $disc->pubkey, $remote_signer_pubkey, 'pubkey';
-    is_deeply $disc->relays, [], 'empty relays';
+    is $disc->relays, [], 'empty relays';
     ok !defined $disc->nostrconnect_url, 'no nostrconnect_url';
 };
 

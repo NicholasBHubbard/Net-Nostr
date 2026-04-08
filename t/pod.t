@@ -2,7 +2,7 @@
 
 use strictures 2;
 
-use Test::More;
+use Test2::V0 -no_srand => 1;
 use Test::Pod;
 use Test::Pod::Coverage;
 

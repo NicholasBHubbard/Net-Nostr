@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Event;
 use Net::Nostr::AppData;
@@ -42,7 +41,7 @@ subtest 'd tag can be any arbitrary string' => sub {
 
 subtest 'd_tag is required' => sub {
     like(
-        exception { Net::Nostr::AppData->to_event(pubkey => $PK) },
+        dies { Net::Nostr::AppData->to_event(pubkey => $PK) },
         qr/d_tag/i,
         'd_tag required'
     );
@@ -92,8 +91,8 @@ subtest 'extra tags passed through' => sub {
     my @tags = @{$event->tags};
     # d tag + 2 extra
     is(scalar @tags, 3, '3 tags total');
-    is_deeply($tags[1], ['x', 'custom'], 'first extra tag');
-    is_deeply($tags[2], ['y', '1', '2'], 'second extra tag');
+    is($tags[1], ['x', 'custom'], 'first extra tag');
+    is($tags[2], ['y', '1', '2'], 'second extra tag');
 };
 
 ###############################################################################
@@ -112,7 +111,7 @@ subtest 'from_event round-trip' => sub {
     ok($ad, 'from_event returns object');
     is($ad->d_tag, 'myapp-settings', 'd_tag round-trips');
     is($ad->content, '{"theme":"dark"}', 'content round-trips');
-    is_deeply($ad->extra_tags, [['version', '2']], 'extra_tags round-trips');
+    is($ad->extra_tags, [['version', '2']], 'extra_tags round-trips');
 };
 
 subtest 'from_event minimal' => sub {
@@ -123,7 +122,7 @@ subtest 'from_event minimal' => sub {
     my $ad = Net::Nostr::AppData->from_event($event);
     is($ad->d_tag, 'minimal', 'd_tag');
     is($ad->content, '', 'content empty');
-    is_deeply($ad->extra_tags, [], 'no extra tags');
+    is($ad->extra_tags, [], 'no extra tags');
 };
 
 subtest 'from_event returns undef for wrong kind' => sub {
@@ -151,7 +150,7 @@ subtest 'validate rejects wrong kind' => sub {
         tags => [['d', 'myapp']],
     );
     like(
-        exception { Net::Nostr::AppData->validate($event) },
+        dies { Net::Nostr::AppData->validate($event) },
         qr/kind/i,
         'rejects wrong kind'
     );
@@ -162,7 +161,7 @@ subtest 'validate rejects missing d tag' => sub {
         pubkey => $PK, kind => 30078, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::AppData->validate($event) },
+        dies { Net::Nostr::AppData->validate($event) },
         qr/'d' tag/i,
         'rejects missing d tag'
     );
@@ -212,7 +211,7 @@ subtest 'use case: personal private data as database' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::AppData->new(bogus => 1) },
+        dies { Net::Nostr::AppData->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

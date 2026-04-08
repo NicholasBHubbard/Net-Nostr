@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Event;
 use Net::Nostr::Badge;
@@ -34,7 +33,7 @@ subtest 'badge definition: d tag is unique identifier' => sub {
 
 subtest 'badge definition: identifier is required' => sub {
     like(
-        exception { Net::Nostr::Badge->definition(pubkey => $PK) },
+        dies { Net::Nostr::Badge->definition(pubkey => $PK) },
         qr/identifier/i,
         'identifier required'
     );
@@ -184,11 +183,11 @@ subtest 'spec example: badge definition' => sub {
     is($event->kind, 30009, 'kind 30009');
     is($event->d_tag, 'bravery', 'd tag');
     my @tags = @{$event->tags};
-    is_deeply($tags[0], ['d', 'bravery'], 'd tag');
-    is_deeply($tags[1], ['name', 'Medal of Bravery'], 'name tag');
-    is_deeply($tags[2], ['description', 'Awarded to users demonstrating bravery'], 'description tag');
-    is_deeply($tags[3], ['image', 'https://nostr.academy/awards/bravery.png', '1024x1024'], 'image tag');
-    is_deeply($tags[4], ['thumb', 'https://nostr.academy/awards/bravery_256x256.png', '256x256'], 'thumb tag');
+    is($tags[0], ['d', 'bravery'], 'd tag');
+    is($tags[1], ['name', 'Medal of Bravery'], 'name tag');
+    is($tags[2], ['description', 'Awarded to users demonstrating bravery'], 'description tag');
+    is($tags[3], ['image', 'https://nostr.academy/awards/bravery.png', '1024x1024'], 'image tag');
+    is($tags[4], ['thumb', 'https://nostr.academy/awards/bravery_256x256.png', '256x256'], 'thumb tag');
 };
 
 ###############################################################################
@@ -217,7 +216,7 @@ subtest 'badge award: a tag references kind 30009' => sub {
 
 subtest 'badge award: single a tag required' => sub {
     like(
-        exception { Net::Nostr::Badge->award(
+        dies { Net::Nostr::Badge->award(
             pubkey   => $PK,
             awardees => [[$PK2]],
         ) },
@@ -241,7 +240,7 @@ subtest 'badge award: one or more p tags for awardees' => sub {
 
 subtest 'badge award: at least one awardee required' => sub {
     like(
-        exception { Net::Nostr::Badge->award(
+        dies { Net::Nostr::Badge->award(
             pubkey => $PK,
             badge  => "30009:$PK:bravery",
             awardees => [],
@@ -273,9 +272,9 @@ subtest 'spec example: badge award' => sub {
     );
     is($event->kind, 8, 'kind 8');
     my @tags = @{$event->tags};
-    is_deeply($tags[0], ['a', "30009:${PK}:bravery"], 'a tag');
-    is_deeply($tags[1], ['p', $PK2, 'wss://relay'], 'first p tag');
-    is_deeply($tags[2], ['p', $PK3, 'wss://relay'], 'second p tag');
+    is($tags[0], ['a', "30009:${PK}:bravery"], 'a tag');
+    is($tags[1], ['p', $PK2, 'wss://relay'], 'first p tag');
+    is($tags[2], ['p', $PK3, 'wss://relay'], 'second p tag');
 };
 
 ###############################################################################
@@ -351,10 +350,10 @@ subtest 'spec example: profile badges' => sub {
     is($event->kind, 10008, 'kind 10008');
     my @tags = @{$event->tags};
     is(scalar @tags, 4, '4 tags');
-    is_deeply($tags[0], ['a', "30009:${PK}:bravery"], 'first a');
-    is_deeply($tags[1], ['e', $EID, 'wss://nostr.academy'], 'first e');
-    is_deeply($tags[2], ['a', "30009:${PK}:honor"], 'second a');
-    is_deeply($tags[3], ['e', $EID2, 'wss://nostr.academy'], 'second e');
+    is($tags[0], ['a', "30009:${PK}:bravery"], 'first a');
+    is($tags[1], ['e', $EID, 'wss://nostr.academy'], 'first e');
+    is($tags[2], ['a', "30009:${PK}:honor"], 'second a');
+    is($tags[3], ['e', $EID2, 'wss://nostr.academy'], 'second e');
 };
 
 ###############################################################################
@@ -384,7 +383,7 @@ subtest 'badge set: d tag is identifier' => sub {
 
 subtest 'badge set: identifier is required' => sub {
     like(
-        exception { Net::Nostr::Badge->badge_set(
+        dies { Net::Nostr::Badge->badge_set(
             pubkey => $PK2,
             badges => [],
         ) },
@@ -435,8 +434,8 @@ subtest 'from_event: badge definition round-trip' => sub {
     is($badge->identifier, 'bravery', 'identifier');
     is($badge->name, 'Medal of Bravery', 'name');
     is($badge->description, 'Awarded to brave users', 'description');
-    is_deeply($badge->image, ['https://example.com/badge.png', '1024x1024'], 'image');
-    is_deeply($badge->thumbs, [
+    is($badge->image, ['https://example.com/badge.png', '1024x1024'], 'image');
+    is($badge->thumbs, [
         ['https://example.com/thumb_256.png', '256x256'],
         ['https://example.com/thumb_64.png', '64x64'],
     ], 'thumbs');
@@ -452,7 +451,7 @@ subtest 'from_event: badge definition minimal' => sub {
     is($badge->name, undef, 'no name');
     is($badge->description, undef, 'no description');
     is($badge->image, undef, 'no image');
-    is_deeply($badge->thumbs, [], 'no thumbs');
+    is($badge->thumbs, [], 'no thumbs');
 };
 
 ###############################################################################
@@ -468,7 +467,7 @@ subtest 'from_event: badge award round-trip' => sub {
     my $badge = Net::Nostr::Badge->from_event($event);
     ok($badge, 'from_event returns object');
     is($badge->badge, "30009:$PK:bravery", 'badge coordinate');
-    is_deeply($badge->awardees, [[$PK2, 'wss://relay'], [$PK3]], 'awardees');
+    is($badge->awardees, [[$PK2, 'wss://relay'], [$PK3]], 'awardees');
 };
 
 ###############################################################################
@@ -485,7 +484,7 @@ subtest 'from_event: profile badges round-trip' => sub {
     );
     my $badge = Net::Nostr::Badge->from_event($event);
     ok($badge, 'from_event returns object');
-    is_deeply($badge->badges, [
+    is($badge->badges, [
         { definition => "30009:$PK:bravery", award => $EID },
         { definition => "30009:$PK:honor", award => $EID2, award_relay => 'wss://relay' },
     ], 'badges round-trip');
@@ -497,7 +496,7 @@ subtest 'from_event: profile badges empty' => sub {
         badges => [],
     );
     my $badge = Net::Nostr::Badge->from_event($event);
-    is_deeply($badge->badges, [], 'empty badges');
+    is($badge->badges, [], 'empty badges');
 };
 
 ###############################################################################
@@ -515,7 +514,7 @@ subtest 'from_event: badge set round-trip' => sub {
     my $badge = Net::Nostr::Badge->from_event($event);
     ok($badge, 'from_event returns object');
     is($badge->identifier, 'my-favorites', 'identifier');
-    is_deeply($badge->badges, [
+    is($badge->badges, [
         { definition => "30009:$PK:bravery", award => $EID },
     ], 'badges round-trip');
 };
@@ -549,7 +548,7 @@ subtest 'validate: rejects wrong kind' => sub {
         tags => [['d', 'bravery']],
     );
     like(
-        exception { Net::Nostr::Badge->validate($event) },
+        dies { Net::Nostr::Badge->validate($event) },
         qr/kind/i,
         'rejects wrong kind'
     );
@@ -560,7 +559,7 @@ subtest 'validate: badge definition missing d tag' => sub {
         pubkey => $PK, kind => 30009, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::Badge->validate($event) },
+        dies { Net::Nostr::Badge->validate($event) },
         qr/'d' tag/i,
         'rejects missing d tag'
     );
@@ -581,7 +580,7 @@ subtest 'validate: badge award missing a tag' => sub {
         tags => [['p', $PK2]],
     );
     like(
-        exception { Net::Nostr::Badge->validate($event) },
+        dies { Net::Nostr::Badge->validate($event) },
         qr/'a' tag/i,
         'rejects missing a tag'
     );
@@ -593,7 +592,7 @@ subtest 'validate: badge award a tag must reference kind 30009' => sub {
         tags => [['a', "34550:$PK:community"], ['p', $PK2]],
     );
     like(
-        exception { Net::Nostr::Badge->validate($event) },
+        dies { Net::Nostr::Badge->validate($event) },
         qr/30009/,
         'rejects a tag not referencing kind 30009'
     );
@@ -605,7 +604,7 @@ subtest 'validate: badge award missing p tag' => sub {
         tags => [['a', "30009:$PK:bravery"]],
     );
     like(
-        exception { Net::Nostr::Badge->validate($event) },
+        dies { Net::Nostr::Badge->validate($event) },
         qr/'p' tag/i,
         'rejects missing p tag'
     );
@@ -645,7 +644,7 @@ subtest 'validate: badge set missing d tag' => sub {
         pubkey => $PK, kind => 30008, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::Badge->validate($event) },
+        dies { Net::Nostr::Badge->validate($event) },
         qr/'d' tag/i,
         'rejects missing d tag'
     );
@@ -666,7 +665,7 @@ subtest 'deprecated: kind 30008 d=profile_badges treated as profile badges' => s
     );
     my $badge = Net::Nostr::Badge->from_event($event);
     ok($badge, 'parsed deprecated profile badges');
-    is_deeply($badge->badges, [
+    is($badge->badges, [
         { definition => "30009:$PK:bravery", award => $EID },
     ], 'badges parsed from deprecated format');
 };
@@ -677,7 +676,7 @@ subtest 'deprecated: kind 30008 d=profile_badges treated as profile badges' => s
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::Badge->new(bogus => 1) },
+        dies { Net::Nostr::Badge->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );
@@ -699,7 +698,7 @@ subtest 'profile badges: unpaired a without e ignored' => sub {
     );
     my $badge = Net::Nostr::Badge->from_event($event);
     # Only the second pair is valid
-    is_deeply($badge->badges, [
+    is($badge->badges, [
         { definition => "30009:$PK:honor", award => $EID },
     ], 'unpaired a tag ignored');
 };
@@ -714,7 +713,7 @@ subtest 'profile badges: unpaired e without preceding a ignored' => sub {
         ],
     );
     my $badge = Net::Nostr::Badge->from_event($event);
-    is_deeply($badge->badges, [
+    is($badge->badges, [
         { definition => "30009:$PK:bravery", award => $EID2 },
     ], 'unpaired e tag ignored');
 };

@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use JSON ();
 use MIME::Base64 qw(decode_base64);
@@ -39,7 +38,7 @@ subtest 'POD: decode_response success' => sub {
 };
 
 subtest 'POD: decode_response error' => sub {
-    my $err = exception {
+    my $err = dies {
         decode_response('{"error":"not authorized"}');
     };
     like($err, qr/not authorized/, 'error message propagated');

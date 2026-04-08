@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Event;
 use Net::Nostr::Torrent;
@@ -90,8 +89,8 @@ subtest 'torrent: file tags' => sub {
     );
     my @files = grep { $_->[0] eq 'file' } @{$event->tags};
     is(scalar @files, 2, 'two file tags');
-    is_deeply($files[0], ['file', 'info/example.txt', '1024'], 'first file');
-    is_deeply($files[1], ['file', 'data/movie.mkv', '4294967296'], 'second file');
+    is($files[0], ['file', 'info/example.txt', '1024'], 'first file');
+    is($files[1], ['file', 'data/movie.mkv', '4294967296'], 'second file');
 };
 
 ###############################################################################
@@ -295,13 +294,13 @@ subtest 'from_event: round-trip all fields' => sub {
     is($torrent->info_hash, 'abcd1234abcd1234abcd1234abcd1234abcd1234', 'info_hash');
     is($torrent->title, 'Test Torrent', 'title');
     is($torrent->description, 'Description here', 'description');
-    is_deeply($torrent->files, [
+    is($torrent->files, [
         ['video.mkv', '1073741824'],
         ['subs.srt', '2048'],
     ], 'files');
-    is_deeply($torrent->trackers, ['udp://tracker.example.com:6969'], 'trackers');
-    is_deeply($torrent->identifiers, ['imdb:tt1234567'], 'identifiers');
-    is_deeply($torrent->hashtags, ['movie', 'hd'], 'hashtags');
+    is($torrent->trackers, ['udp://tracker.example.com:6969'], 'trackers');
+    is($torrent->identifiers, ['imdb:tt1234567'], 'identifiers');
+    is($torrent->hashtags, ['movie', 'hd'], 'hashtags');
 };
 
 subtest 'from_event: minimal' => sub {
@@ -314,10 +313,10 @@ subtest 'from_event: minimal' => sub {
     is($torrent->info_hash, 'abcd1234abcd1234abcd1234abcd1234abcd1234', 'info_hash');
     is($torrent->title, 'Minimal', 'title');
     is($torrent->description, '', 'empty description');
-    is_deeply($torrent->files, [], 'no files');
-    is_deeply($torrent->trackers, [], 'no trackers');
-    is_deeply($torrent->identifiers, [], 'no identifiers');
-    is_deeply($torrent->hashtags, [], 'no hashtags');
+    is($torrent->files, [], 'no files');
+    is($torrent->trackers, [], 'no trackers');
+    is($torrent->identifiers, [], 'no identifiers');
+    is($torrent->hashtags, [], 'no hashtags');
 };
 
 subtest 'from_event: returns undef for wrong kind' => sub {
@@ -398,7 +397,7 @@ subtest 'validate: rejects wrong kind' => sub {
         pubkey => $PK, kind => 1, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::Torrent->validate($event) },
+        dies { Net::Nostr::Torrent->validate($event) },
         qr/kind/i,
         'rejects wrong kind'
     );
@@ -412,7 +411,7 @@ subtest 'validate: torrent requires x tag' => sub {
         tags    => [['title', 'Test']],
     );
     like(
-        exception { Net::Nostr::Torrent->validate($event) },
+        dies { Net::Nostr::Torrent->validate($event) },
         qr/x.*tag/i,
         'rejects missing x tag'
     );
@@ -426,7 +425,7 @@ subtest 'validate: torrent requires title tag' => sub {
         tags    => [['x', 'abc123']],
     );
     like(
-        exception { Net::Nostr::Torrent->validate($event) },
+        dies { Net::Nostr::Torrent->validate($event) },
         qr/title.*tag/i,
         'rejects missing title tag'
     );
@@ -438,7 +437,7 @@ subtest 'validate: torrent requires title tag' => sub {
 
 subtest 'to_event: requires info_hash' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Torrent->to_event(
                 pubkey => $PK,
                 title  => 'Test',
@@ -451,7 +450,7 @@ subtest 'to_event: requires info_hash' => sub {
 
 subtest 'to_event: requires title' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Torrent->to_event(
                 pubkey    => $PK,
                 info_hash => 'abc123',
@@ -482,7 +481,7 @@ subtest 'created_at passthrough' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::Torrent->new(bogus => 1) },
+        dies { Net::Nostr::Torrent->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

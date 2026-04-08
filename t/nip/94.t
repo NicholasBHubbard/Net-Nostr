@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Event;
 use Net::Nostr::FileMetadata;
@@ -49,7 +48,7 @@ subtest 'required tags present in event' => sub {
 
 subtest 'to_event rejects missing url' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::FileMetadata->to_event(
                 pubkey => $PK, content => '', m => 'image/jpeg',
                 x => 'aa' x 32, ox => 'bb' x 32,
@@ -62,7 +61,7 @@ subtest 'to_event rejects missing url' => sub {
 
 subtest 'to_event rejects missing m' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::FileMetadata->to_event(
                 pubkey => $PK, content => '',
                 url => 'https://example.com/f', x => 'aa' x 32, ox => 'bb' x 32,
@@ -75,7 +74,7 @@ subtest 'to_event rejects missing m' => sub {
 
 subtest 'to_event rejects missing x' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::FileMetadata->to_event(
                 pubkey => $PK, content => '',
                 url => 'https://example.com/f', m => 'image/jpeg', ox => 'bb' x 32,
@@ -88,7 +87,7 @@ subtest 'to_event rejects missing x' => sub {
 
 subtest 'to_event rejects missing ox' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::FileMetadata->to_event(
                 pubkey => $PK, content => '',
                 url => 'https://example.com/f', m => 'image/jpeg', x => 'aa' x 32,
@@ -105,7 +104,7 @@ subtest 'to_event rejects missing ox' => sub {
 
 subtest 'x must be 64-char lowercase hex' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::FileMetadata->to_event(
                 pubkey => $PK, content => '',
                 url => 'https://example.com/f', m => 'image/jpeg',
@@ -116,7 +115,7 @@ subtest 'x must be 64-char lowercase hex' => sub {
         'x rejects non-hex'
     );
     like(
-        exception {
+        dies {
             Net::Nostr::FileMetadata->to_event(
                 pubkey => $PK, content => '',
                 url => 'https://example.com/f', m => 'image/jpeg',
@@ -130,7 +129,7 @@ subtest 'x must be 64-char lowercase hex' => sub {
 
 subtest 'ox must be 64-char lowercase hex' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::FileMetadata->to_event(
                 pubkey => $PK, content => '',
                 url => 'https://example.com/f', m => 'image/jpeg',
@@ -141,7 +140,7 @@ subtest 'ox must be 64-char lowercase hex' => sub {
         'ox rejects non-hex'
     );
     like(
-        exception {
+        dies {
             Net::Nostr::FileMetadata->to_event(
                 pubkey => $PK, content => '',
                 url => 'https://example.com/f', m => 'image/jpeg',
@@ -159,7 +158,7 @@ subtest 'ox must be 64-char lowercase hex' => sub {
 
 subtest 'm must contain a slash (MIME format)' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::FileMetadata->to_event(
                 pubkey => $PK, content => '',
                 url => 'https://example.com/f', m => 'jpeg',
@@ -173,7 +172,7 @@ subtest 'm must contain a slash (MIME format)' => sub {
 
 subtest 'm must be lowercase' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::FileMetadata->to_event(
                 pubkey => $PK, content => '',
                 url => 'https://example.com/f', m => 'Image/JPEG',
@@ -452,7 +451,7 @@ subtest 'from_event: round-trip' => sub {
     is($fm->image_hash, 'dd' x 32, 'image_hash');
     is($fm->summary, 'excerpt', 'summary');
     is($fm->alt, 'scenic photo', 'alt');
-    is_deeply($fm->fallback, ['https://alt.example.com/photo.jpg'], 'fallback');
+    is($fm->fallback, ['https://alt.example.com/photo.jpg'], 'fallback');
     is($fm->service, 'nip96', 'service');
 };
 
@@ -478,7 +477,7 @@ subtest 'from_event: minimal (required tags only)' => sub {
     is($fm->size, undef, 'size is undef');
     is($fm->dim, undef, 'dim is undef');
     is($fm->thumb, undef, 'thumb is undef');
-    is_deeply($fm->fallback, [], 'fallback is empty');
+    is($fm->fallback, [], 'fallback is empty');
 };
 
 ###############################################################################
@@ -534,7 +533,7 @@ subtest 'from_event: multiple fallback tags' => sub {
         ],
     );
     my $fm = Net::Nostr::FileMetadata->from_event($event);
-    is_deeply(
+    is(
         $fm->fallback,
         ['https://alt1.example.com/f', 'https://alt2.example.com/f'],
         'multiple fallback URLs'
@@ -565,7 +564,7 @@ subtest 'validate: wrong kind' => sub {
         ],
     );
     like(
-        exception { Net::Nostr::FileMetadata->validate($event) },
+        dies { Net::Nostr::FileMetadata->validate($event) },
         qr/kind.*1063/i,
         'rejects wrong kind'
     );
@@ -581,7 +580,7 @@ subtest 'validate: missing url tag' => sub {
         ],
     );
     like(
-        exception { Net::Nostr::FileMetadata->validate($event) },
+        dies { Net::Nostr::FileMetadata->validate($event) },
         qr/url/,
         'rejects missing url'
     );
@@ -597,7 +596,7 @@ subtest 'validate: missing m tag' => sub {
         ],
     );
     like(
-        exception { Net::Nostr::FileMetadata->validate($event) },
+        dies { Net::Nostr::FileMetadata->validate($event) },
         qr/\bm\b/,
         'rejects missing m'
     );
@@ -613,7 +612,7 @@ subtest 'validate: missing x tag' => sub {
         ],
     );
     like(
-        exception { Net::Nostr::FileMetadata->validate($event) },
+        dies { Net::Nostr::FileMetadata->validate($event) },
         qr/\bx\b/,
         'rejects missing x'
     );
@@ -629,7 +628,7 @@ subtest 'validate: missing ox tag' => sub {
         ],
     );
     like(
-        exception { Net::Nostr::FileMetadata->validate($event) },
+        dies { Net::Nostr::FileMetadata->validate($event) },
         qr/\box\b/,
         'rejects missing ox'
     );
@@ -721,7 +720,7 @@ subtest 'to_event: all fields' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::FileMetadata->new(bogus => 1) },
+        dies { Net::Nostr::FileMetadata->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );
@@ -750,7 +749,7 @@ subtest 'constructor: all accessors' => sub {
     is($fm->url, 'https://example.com/f');
     is($fm->m, 'image/jpeg');
     is($fm->size, '999');
-    is_deeply($fm->fallback, ['https://alt.example.com/f']);
+    is($fm->fallback, ['https://alt.example.com/f']);
 };
 
 ###############################################################################
@@ -759,7 +758,7 @@ subtest 'constructor: all accessors' => sub {
 
 subtest 'dim must be WxH format' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::FileMetadata->to_event(
                 pubkey => $PK, content => '',
                 url => 'https://example.com/f', m => 'image/jpeg',

@@ -1,5 +1,5 @@
 use strictures 2;
-use Test::More;
+use Test2::V0 -no_srand => 1;
 use lib 't/lib';
 use TestFixtures qw(make_event);
 use JSON ();
@@ -22,7 +22,7 @@ subtest 'parse_uri: spec example connection string' => sub {
     my $uri = "nostr+walletconnect://${wallet_pubkey}?relay=wss%3A%2F%2Frelay.damus.io&secret=${client_secret}";
     my $conn = Net::Nostr::WalletConnect->parse_uri($uri);
     is $conn->wallet_pubkey, $wallet_pubkey, 'wallet pubkey';
-    is_deeply $conn->relays, [$relay], 'relay';
+    is $conn->relays, [$relay], 'relay';
     is $conn->secret, $client_secret, 'secret';
     ok !defined $conn->lud16, 'lud16 not present';
 };
@@ -40,7 +40,7 @@ subtest 'parse_uri: with lud16' => sub {
 subtest 'parse_uri: multiple relays' => sub {
     my $uri = "nostr+walletconnect://${wallet_pubkey}?relay=wss%3A%2F%2Frelay.damus.io&relay=wss%3A%2F%2Frelay2.example.com&secret=${client_secret}";
     my $conn = Net::Nostr::WalletConnect->parse_uri($uri);
-    is_deeply $conn->relays, [$relay, 'wss://relay2.example.com'], 'multiple relays';
+    is $conn->relays, [$relay, 'wss://relay2.example.com'], 'multiple relays';
 };
 
 subtest 'parse_uri: croaks on invalid protocol' => sub {
@@ -70,7 +70,7 @@ subtest 'create_uri: round-trip' => sub {
     my $conn = Net::Nostr::WalletConnect->parse_uri($uri);
     is $conn->wallet_pubkey, $wallet_pubkey, 'round-trip wallet_pubkey';
     is $conn->secret, $client_secret, 'round-trip secret';
-    is_deeply $conn->relays, [$relay], 'round-trip relay';
+    is $conn->relays, [$relay], 'round-trip relay';
 };
 
 subtest 'create_uri: with lud16 and multiple relays' => sub {
@@ -81,7 +81,7 @@ subtest 'create_uri: with lud16 and multiple relays' => sub {
         lud16         => 'alice@example.com',
     );
     my $conn = Net::Nostr::WalletConnect->parse_uri($uri);
-    is_deeply $conn->relays, [$relay, 'wss://relay2.example.com'], 'multiple relays';
+    is $conn->relays, [$relay, 'wss://relay2.example.com'], 'multiple relays';
     is $conn->lud16, 'alice@example.com', 'lud16';
 };
 
@@ -140,9 +140,9 @@ subtest 'parse_info: parses info event' => sub {
     );
 
     my $info = Net::Nostr::WalletConnect->parse_info($event);
-    is_deeply $info->capabilities, [qw(pay_invoice get_balance make_invoice lookup_invoice list_transactions get_info notifications)], 'capabilities';
-    is_deeply $info->encryption, [qw(nip44_v2 nip04)], 'encryption';
-    is_deeply $info->notification_types, [qw(payment_received payment_sent)], 'notification types';
+    is $info->capabilities, [qw(pay_invoice get_balance make_invoice lookup_invoice list_transactions get_info notifications)], 'capabilities';
+    is $info->encryption, [qw(nip44_v2 nip04)], 'encryption';
+    is $info->notification_types, [qw(payment_received payment_sent)], 'notification types';
 };
 
 # Spec: "Absence of this tag implies that the wallet only supports nip04."
@@ -159,7 +159,7 @@ subtest 'parse_info: missing encryption tag implies nip04' => sub {
     );
 
     my $info = Net::Nostr::WalletConnect->parse_info($event);
-    is_deeply $info->encryption, ['nip04'], 'defaults to nip04';
+    is $info->encryption, ['nip04'], 'defaults to nip04';
 };
 
 subtest 'parse_info: supports_capability' => sub {
@@ -521,7 +521,7 @@ subtest 'parse_response: get_info result' => sub {
     my $resp = Net::Nostr::WalletConnect->parse_response($json);
     is $resp->result->{alias}, 'my-node', 'alias';
     is $resp->result->{network}, 'mainnet', 'network';
-    is_deeply $resp->result->{methods}, [qw(pay_invoice get_balance)], 'methods';
+    is $resp->result->{methods}, [qw(pay_invoice get_balance)], 'methods';
 };
 
 subtest 'parse_response: list_transactions result' => sub {

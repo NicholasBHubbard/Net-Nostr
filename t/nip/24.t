@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 use JSON ();
 
 use Net::Nostr::Event;
@@ -116,7 +115,7 @@ subtest 'metadata: birthday field' => sub {
         birthday => { year => 1990, month => 6, day => 15 },
     );
     my $data = $JSON->decode($event->content);
-    is_deeply($data->{birthday}, { year => 1990, month => 6, day => 15 },
+    is($data->{birthday}, { year => 1990, month => 6, day => 15 },
         'birthday object in content JSON');
 };
 
@@ -127,7 +126,7 @@ subtest 'metadata: birthday with partial fields (each MAY be omitted)' => sub {
         birthday => { month => 6, day => 15 },
     );
     my $data = $JSON->decode($event->content);
-    is_deeply($data->{birthday}, { month => 6, day => 15 },
+    is($data->{birthday}, { month => 6, day => 15 },
         'birthday without year');
 
     $event = Net::Nostr::Metadata->to_event(
@@ -136,7 +135,7 @@ subtest 'metadata: birthday with partial fields (each MAY be omitted)' => sub {
         birthday => { year => 1990 },
     );
     $data = $JSON->decode($event->content);
-    is_deeply($data->{birthday}, { year => 1990 }, 'birthday year only');
+    is($data->{birthday}, { year => 1990 }, 'birthday year only');
 };
 
 subtest 'metadata: all NIP-24 fields together' => sub {
@@ -159,7 +158,7 @@ subtest 'metadata: all NIP-24 fields together' => sub {
     is($data->{website}, 'https://alice.example.com', 'website');
     is($data->{banner}, 'https://example.com/banner.jpg', 'banner');
     is($data->{bot}, JSON::false, 'bot');
-    is_deeply($data->{birthday}, { year => 1990, month => 6, day => 15 }, 'birthday');
+    is($data->{birthday}, { year => 1990, month => 6, day => 15 }, 'birthday');
 };
 
 subtest 'metadata: omitted fields not included in JSON' => sub {
@@ -168,7 +167,7 @@ subtest 'metadata: omitted fields not included in JSON' => sub {
         name   => 'alice',
     );
     my $data = $JSON->decode($event->content);
-    is_deeply([sort keys %$data], ['name'], 'only name in JSON');
+    is([sort keys %$data], ['name'], 'only name in JSON');
 };
 
 ###############################################################################
@@ -210,7 +209,7 @@ subtest 'from_event: round-trip all fields' => sub {
     is($meta->website, 'https://alice.example.com', 'website');
     is($meta->banner, 'https://example.com/banner.jpg', 'banner');
     is($meta->bot, JSON::true, 'bot');
-    is_deeply($meta->birthday, { year => 1990, month => 6, day => 15 }, 'birthday');
+    is($meta->birthday, { year => 1990, month => 6, day => 15 }, 'birthday');
 };
 
 subtest 'from_event: minimal' => sub {
@@ -318,7 +317,7 @@ subtest 'kind 3: deprecated relay content documented' => sub {
 
 subtest 'tags: t tag (hashtag) value MUST be lowercase' => sub {
     my $event = Net::Nostr::Metadata->hashtag_tag('nostr');
-    is_deeply($event, ['t', 'nostr'], 'lowercase hashtag');
+    is($event, ['t', 'nostr'], 'lowercase hashtag');
 };
 
 subtest 'tags: t tag lowercases input' => sub {
@@ -332,7 +331,7 @@ subtest 'tags: t tag lowercases input' => sub {
 
 subtest 'tags: r tag (web URL)' => sub {
     my $tag = Net::Nostr::Metadata->url_tag('https://example.com');
-    is_deeply($tag, ['r', 'https://example.com'], 'r tag');
+    is($tag, ['r', 'https://example.com'], 'r tag');
 };
 
 ###############################################################################
@@ -341,7 +340,7 @@ subtest 'tags: r tag (web URL)' => sub {
 
 subtest 'tags: title tag' => sub {
     my $tag = Net::Nostr::Metadata->title_tag('My Event');
-    is_deeply($tag, ['title', 'My Event'], 'title tag');
+    is($tag, ['title', 'My Event'], 'title tag');
 };
 
 ###############################################################################
@@ -350,7 +349,7 @@ subtest 'tags: title tag' => sub {
 
 subtest 'tags: i tag (external ID)' => sub {
     my $tag = Net::Nostr::Metadata->external_id_tag('github:torvalds');
-    is_deeply($tag, ['i', 'github:torvalds'], 'i tag');
+    is($tag, ['i', 'github:torvalds'], 'i tag');
 };
 
 ###############################################################################
@@ -370,7 +369,7 @@ subtest 'validate: rejects wrong kind' => sub {
         pubkey => $PK, kind => 1, content => '{}', tags => [],
     );
     like(
-        exception { Net::Nostr::Metadata->validate($event) },
+        dies { Net::Nostr::Metadata->validate($event) },
         qr/kind/i,
         'rejects wrong kind'
     );
@@ -381,7 +380,7 @@ subtest 'validate: rejects non-JSON content' => sub {
         pubkey => $PK, kind => 0, content => 'not json', tags => [],
     );
     like(
-        exception { Net::Nostr::Metadata->validate($event) },
+        dies { Net::Nostr::Metadata->validate($event) },
         qr/content/i,
         'rejects non-JSON content'
     );
@@ -406,7 +405,7 @@ subtest 'created_at passthrough' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::Metadata->new(bogus => 1) },
+        dies { Net::Nostr::Metadata->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

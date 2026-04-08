@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Event;
 use Net::Nostr::RelayMonitor;
@@ -38,7 +37,7 @@ subtest 'discovery: d tag MAY be hex pubkey for non-URL relays' => sub {
 
 subtest 'discovery: relay_url required' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::RelayMonitor->discovery_event(pubkey => $PK)
         },
         qr/relay_url/i,
@@ -197,8 +196,8 @@ subtest 'discovery: l (language) tags' => sub {
     );
     my @tags = grep { $_->[0] eq 'l' } @{$event->tags};
     is(scalar @tags, 2, 'two l tags');
-    is_deeply($tags[0], ['l', 'en', 'ISO-639-1'], 'first language with namespace');
-    is_deeply($tags[1], ['l', 'ja', 'ISO-639-1'], 'second language with namespace');
+    is($tags[0], ['l', 'en', 'ISO-639-1'], 'first language with namespace');
+    is($tags[1], ['l', 'ja', 'ISO-639-1'], 'second language with namespace');
 };
 
 ###############################################################################
@@ -280,12 +279,12 @@ subtest 'discovery: from_event round-trip' => sub {
     is($mon->relay_url, 'wss://some.relay/', 'relay_url');
     is($mon->network, 'clearnet', 'network');
     is($mon->relay_type, 'PrivateInbox', 'relay_type');
-    is_deeply($mon->nips, ['40', '33'], 'nips');
-    is_deeply($mon->requirements, ['!payment', 'auth'], 'requirements');
+    is($mon->nips, ['40', '33'], 'nips');
+    is($mon->requirements, ['!payment', 'auth'], 'requirements');
     is($mon->geohash, 'ww8p1r4t8', 'geohash');
-    is_deeply($mon->languages, ['en'], 'languages');
-    is_deeply($mon->topics, ['nsfw'], 'topics');
-    is_deeply($mon->kinds, ['1', '!20000'], 'kinds');
+    is($mon->languages, ['en'], 'languages');
+    is($mon->topics, ['nsfw'], 'topics');
+    is($mon->kinds, ['1', '!20000'], 'kinds');
     is($mon->rtt_open, '234', 'rtt_open');
     is($mon->rtt_read, '150', 'rtt_read');
     is($mon->rtt_write, '300', 'rtt_write');
@@ -301,8 +300,8 @@ subtest 'discovery: from_event minimal' => sub {
     is($mon->relay_url, 'wss://minimal.relay/', 'relay_url');
     is($mon->network, undef, 'network undef');
     is($mon->rtt_open, undef, 'rtt_open undef');
-    is_deeply($mon->nips, [], 'nips empty');
-    is_deeply($mon->topics, [], 'topics empty');
+    is($mon->nips, [], 'nips empty');
+    is($mon->topics, [], 'topics empty');
 };
 
 subtest 'discovery: from_event returns undef for wrong kind' => sub {
@@ -329,7 +328,7 @@ subtest 'discovery: validate rejects missing d tag' => sub {
         pubkey => $PK, kind => 30166, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::RelayMonitor->validate($event) },
+        dies { Net::Nostr::RelayMonitor->validate($event) },
         qr/'d' tag/i,
         'rejects missing d tag'
     );
@@ -341,7 +340,7 @@ subtest 'discovery: validate rejects wrong kind' => sub {
         tags => [['d', 'wss://relay/']],
     );
     like(
-        exception { Net::Nostr::RelayMonitor->validate($event) },
+        dies { Net::Nostr::RelayMonitor->validate($event) },
         qr/kind/i,
         'rejects wrong kind'
     );
@@ -371,7 +370,7 @@ subtest 'announcement: frequency tag' => sub {
 
 subtest 'announcement: frequency required' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::RelayMonitor->announcement_event(pubkey => $PK)
         },
         qr/frequency/i,
@@ -404,10 +403,10 @@ subtest 'announcement: timeout tags with test type' => sub {
     );
     my @tags = grep { $_->[0] eq 'timeout' } @{$event->tags};
     is(scalar @tags, 4, 'four timeout tags');
-    is_deeply($tags[0], ['timeout', 'open', '5000'], 'open timeout');
-    is_deeply($tags[1], ['timeout', 'read', '3000'], 'read timeout');
-    is_deeply($tags[2], ['timeout', 'write', '3000'], 'write timeout');
-    is_deeply($tags[3], ['timeout', 'nip11', '3000'], 'nip11 timeout');
+    is($tags[0], ['timeout', 'open', '5000'], 'open timeout');
+    is($tags[1], ['timeout', 'read', '3000'], 'read timeout');
+    is($tags[2], ['timeout', 'write', '3000'], 'write timeout');
+    is($tags[3], ['timeout', 'nip11', '3000'], 'nip11 timeout');
 };
 
 subtest 'announcement: timeout tag without test type (applies to all)' => sub {
@@ -420,7 +419,7 @@ subtest 'announcement: timeout tag without test type (applies to all)' => sub {
     );
     my @tags = grep { $_->[0] eq 'timeout' } @{$event->tags};
     is(scalar @tags, 1, 'one timeout tag');
-    is_deeply($tags[0], ['timeout', '5000'], 'timeout without test type');
+    is($tags[0], ['timeout', '5000'], 'timeout without test type');
 };
 
 ###############################################################################
@@ -473,10 +472,10 @@ subtest 'announcement: spec JSON example' => sub {
     for my $tag (@{$event->tags}) {
         push @{$tags{$tag->[0]}}, $tag;
     }
-    is_deeply($tags{timeout}[0], ['timeout', 'open', '5000']);
-    is_deeply($tags{timeout}[1], ['timeout', 'read', '3000']);
-    is_deeply($tags{timeout}[2], ['timeout', 'write', '3000']);
-    is_deeply($tags{timeout}[3], ['timeout', 'nip11', '3000']);
+    is($tags{timeout}[0], ['timeout', 'open', '5000']);
+    is($tags{timeout}[1], ['timeout', 'read', '3000']);
+    is($tags{timeout}[2], ['timeout', 'write', '3000']);
+    is($tags{timeout}[3], ['timeout', 'nip11', '3000']);
     is($tags{frequency}[0][1], '3600');
     is($tags{c}[0][1], 'ws');
     is($tags{c}[1][1], 'nip11');
@@ -505,12 +504,12 @@ subtest 'announcement: from_event round-trip' => sub {
     my $mon = Net::Nostr::RelayMonitor->from_event($event);
     ok($mon, 'from_event returns object');
     is($mon->frequency, '3600', 'frequency');
-    is_deeply(
+    is(
         $mon->timeouts,
         [{ test => 'open', ms => '5000' }, { test => 'read', ms => '3000' }],
         'timeouts'
     );
-    is_deeply($mon->checks, [qw(ws nip11 ssl)], 'checks');
+    is($mon->checks, [qw(ws nip11 ssl)], 'checks');
     is($mon->geohash, 'ww8p1r4t8', 'geohash');
 };
 
@@ -523,7 +522,7 @@ subtest 'announcement: from_event timeout without test type' => sub {
         ],
     );
     my $mon = Net::Nostr::RelayMonitor->from_event($event);
-    is_deeply($mon->timeouts, [{ ms => '5000' }], 'timeout without test type');
+    is($mon->timeouts, [{ ms => '5000' }], 'timeout without test type');
 };
 
 subtest 'announcement: from_event minimal' => sub {
@@ -533,8 +532,8 @@ subtest 'announcement: from_event minimal' => sub {
     );
     my $mon = Net::Nostr::RelayMonitor->from_event($event);
     is($mon->frequency, '7200', 'frequency');
-    is_deeply($mon->timeouts, [], 'no timeouts');
-    is_deeply($mon->checks, [], 'no checks');
+    is($mon->timeouts, [], 'no timeouts');
+    is($mon->checks, [], 'no checks');
     is($mon->geohash, undef, 'no geohash');
 };
 
@@ -556,7 +555,7 @@ subtest 'announcement: validate rejects missing frequency' => sub {
         tags => [['c', 'ws']],
     );
     like(
-        exception { Net::Nostr::RelayMonitor->validate($event) },
+        dies { Net::Nostr::RelayMonitor->validate($event) },
         qr/frequency/i,
         'rejects missing frequency'
     );
@@ -571,7 +570,7 @@ subtest 'validate: rejects unsupported kind' => sub {
         pubkey => $PK, kind => 1, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::RelayMonitor->validate($event) },
+        dies { Net::Nostr::RelayMonitor->validate($event) },
         qr/kind/i,
         'rejects kind 1'
     );
@@ -583,7 +582,7 @@ subtest 'validate: rejects unsupported kind' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::RelayMonitor->new(bogus => 1) },
+        dies { Net::Nostr::RelayMonitor->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

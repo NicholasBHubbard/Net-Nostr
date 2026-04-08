@@ -1,5 +1,5 @@
 use strictures 2;
-use Test::More;
+use Test2::V0 -no_srand => 1;
 use lib 't/lib';
 use TestFixtures qw(make_event);
 use JSON ();
@@ -218,13 +218,13 @@ subtest 'spec example: make_like_event equivalent' => sub {
     my @tags = @{$reaction->tags};
     # e tag: ["e", liked.id, hint, liked.pubkey]
     my @e = grep { $_->[0] eq 'e' } @tags;
-    is_deeply $e[0], ['e', $liked->id, $hint, $liked->pubkey], 'e tag matches spec example';
+    is $e[0], ['e', $liked->id, $hint, $liked->pubkey], 'e tag matches spec example';
     # p tag: ["p", liked.pubkey, hint]
     my @p = grep { $_->[0] eq 'p' } @tags;
-    is_deeply $p[0], ['p', $liked->pubkey, $hint], 'p tag matches spec example';
+    is $p[0], ['p', $liked->pubkey, $hint], 'p tag matches spec example';
     # k tag: ["k", String(liked.kind)]
     my @k = grep { $_->[0] eq 'k' } @tags;
-    is_deeply $k[0], ['k', '1'], 'k tag matches spec example';
+    is $k[0], ['k', '1'], 'k tag matches spec example';
 };
 
 # --- external content reactions (kind 17) ---
@@ -253,8 +253,8 @@ subtest 'external reaction: spec website example' => sub {
     );
     my @k = grep { $_->[0] eq 'k' } @{$reaction->tags};
     my @i = grep { $_->[0] eq 'i' } @{$reaction->tags};
-    is_deeply $k[0], ['k', 'web'], 'k tag for website';
-    is_deeply $i[0], ['i', 'https://example.com'], 'i tag for URL';
+    is $k[0], ['k', 'web'], 'k tag for website';
+    is $i[0], ['i', 'https://example.com'], 'i tag for URL';
 };
 
 subtest 'external reaction: spec podcast example' => sub {
@@ -273,8 +273,8 @@ subtest 'external reaction: spec podcast example' => sub {
     my @i = grep { $_->[0] eq 'i' } @{$reaction->tags};
     is scalar @k, 2, 'two k tags';
     is scalar @i, 2, 'two i tags';
-    is_deeply $k[0], ['k', 'podcast:guid'], 'first k tag';
-    is_deeply $i[0], ['i', 'podcast:guid:917393e3-1b1e-5cef-ace4-edaa54e1f810', 'https://fountain.fm/show/QRT0l2EfrKXNGDlRrmjL'], 'first i tag with hint';
+    is $k[0], ['k', 'podcast:guid'], 'first k tag';
+    is $i[0], ['i', 'podcast:guid:917393e3-1b1e-5cef-ace4-edaa54e1f810', 'https://fountain.fm/show/QRT0l2EfrKXNGDlRrmjL'], 'first i tag with hint';
 };
 
 subtest 'external reaction requires content' => sub {
@@ -310,7 +310,7 @@ subtest 'custom emoji reaction with emoji tag' => sub {
     is $reaction->content, ':soapbox:', 'content is :soapbox:';
     my @emoji = grep { $_->[0] eq 'emoji' } @{$reaction->tags};
     is scalar @emoji, 1, 'one emoji tag';
-    is_deeply $emoji[0], ['emoji', 'soapbox', 'https://gleasonator.com/emoji/Gleasonator/soapbox.png'], 'emoji tag matches spec';
+    is $emoji[0], ['emoji', 'soapbox', 'https://gleasonator.com/emoji/Gleasonator/soapbox.png'], 'emoji tag matches spec';
 };
 
 # --- from_event ---

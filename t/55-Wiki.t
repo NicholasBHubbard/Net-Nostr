@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Wiki;
 
@@ -117,7 +116,7 @@ subtest 'POD: new' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::Wiki->new(bogus => 1) },
+        dies { Net::Nostr::Wiki->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Event;
 use Net::Nostr::MintDiscovery;
@@ -175,7 +174,7 @@ subtest 'recommendation: spec example' => sub {
 # Spec: recommendation requires identifier
 subtest 'recommendation: requires identifier' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::MintDiscovery->recommendation(
                 pubkey => $PK, mint_kind => '38173',
             )
@@ -188,7 +187,7 @@ subtest 'recommendation: requires identifier' => sub {
 # Spec: recommendation requires mint_kind
 subtest 'recommendation: requires mint_kind' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::MintDiscovery->recommendation(
                 pubkey => $PK, identifier => 'x',
             )
@@ -300,7 +299,7 @@ subtest 'cashu_mint: spec example' => sub {
 # Spec: cashu_mint requires identifier
 subtest 'cashu_mint: requires identifier' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::MintDiscovery->cashu_mint(pubkey => $PK)
         },
         qr/identifier/i,
@@ -414,7 +413,7 @@ subtest 'fedimint: spec example' => sub {
 # Spec: fedimint requires identifier
 subtest 'fedimint: requires identifier' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::MintDiscovery->fedimint(pubkey => $PK)
         },
         qr/identifier/i,
@@ -528,7 +527,7 @@ subtest 'validate: rejects wrong kind' => sub {
         pubkey => $PK, kind => 1, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::MintDiscovery->validate($event) },
+        dies { Net::Nostr::MintDiscovery->validate($event) },
         qr/kind/i,
         'rejects wrong kind'
     );
@@ -540,7 +539,7 @@ subtest 'validate: recommendation requires d tag' => sub {
         tags => [['k', '38173']],
     );
     like(
-        exception { Net::Nostr::MintDiscovery->validate($event) },
+        dies { Net::Nostr::MintDiscovery->validate($event) },
         qr/d.*tag/i,
         'rejects missing d tag'
     );
@@ -552,7 +551,7 @@ subtest 'validate: recommendation requires k tag' => sub {
         tags => [['d', 'x']],
     );
     like(
-        exception { Net::Nostr::MintDiscovery->validate($event) },
+        dies { Net::Nostr::MintDiscovery->validate($event) },
         qr/k.*tag/i,
         'rejects missing k tag'
     );
@@ -564,7 +563,7 @@ subtest 'validate: cashu_mint requires d tag' => sub {
         tags => [],
     );
     like(
-        exception { Net::Nostr::MintDiscovery->validate($event) },
+        dies { Net::Nostr::MintDiscovery->validate($event) },
         qr/d.*tag/i,
         'rejects missing d tag'
     );
@@ -576,7 +575,7 @@ subtest 'validate: fedimint requires d tag' => sub {
         tags => [],
     );
     like(
-        exception { Net::Nostr::MintDiscovery->validate($event) },
+        dies { Net::Nostr::MintDiscovery->validate($event) },
         qr/d.*tag/i,
         'rejects missing d tag'
     );
@@ -588,7 +587,7 @@ subtest 'validate: fedimint requires d tag' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::MintDiscovery->new(bogus => 1) },
+        dies { Net::Nostr::MintDiscovery->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

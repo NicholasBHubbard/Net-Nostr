@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::RelayMonitor;
 
@@ -43,7 +42,7 @@ subtest 'POD: build announcement event' => sub {
 
     my $mon = Net::Nostr::RelayMonitor->from_event($event);
     is($mon->frequency, '3600', 'frequency round-trips');
-    is_deeply($mon->checks, [qw(ws nip11 ssl dns)], 'checks round-trip');
+    is($mon->checks, [qw(ws nip11 ssl dns)], 'checks round-trip');
 };
 
 ###############################################################################
@@ -64,7 +63,7 @@ subtest 'POD: from_event' => sub {
     my $mon = Net::Nostr::RelayMonitor->from_event($event);
     is($mon->relay_url, 'wss://relay.example.com/');
     is($mon->network, 'clearnet');
-    is_deeply($mon->nips, ['1', '11']);
+    is($mon->nips, ['1', '11']);
 };
 
 ###############################################################################
@@ -78,7 +77,7 @@ subtest 'constructor: no args' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::RelayMonitor->new(bogus => 1) },
+        dies { Net::Nostr::RelayMonitor->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

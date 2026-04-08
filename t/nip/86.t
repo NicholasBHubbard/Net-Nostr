@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use JSON ();
 use MIME::Base64 qw(decode_base64);
@@ -37,13 +36,13 @@ subtest 'spec: request format' => sub {
 subtest 'spec: success response' => sub {
     my $json = '{"result":["supportedmethods","banpubkey"]}';
     my $result = decode_response($json);
-    is_deeply($result, ['supportedmethods', 'banpubkey'], 'result extracted');
+    is($result, ['supportedmethods', 'banpubkey'], 'result extracted');
 };
 
 subtest 'spec: error response' => sub {
     my $json = '{"result":null,"error":"permission denied"}';
     like(
-        exception { decode_response($json) },
+        dies { decode_response($json) },
         qr/permission denied/,
         'error field causes croak'
     );
@@ -57,7 +56,7 @@ subtest 'encode: supportedmethods' => sub {
     my $body = encode_request(method => 'supportedmethods', params => []);
     my $data = $JSON->decode($body);
     is($data->{method}, 'supportedmethods', 'method name');
-    is_deeply($data->{params}, [], 'empty params');
+    is($data->{params}, [], 'empty params');
 };
 
 subtest 'encode: banpubkey with reason' => sub {
@@ -65,14 +64,14 @@ subtest 'encode: banpubkey with reason' => sub {
     my $body = encode_request(method => 'banpubkey', params => [$pk, 'spammer']);
     my $data = $JSON->decode($body);
     is($data->{method}, 'banpubkey', 'method name');
-    is_deeply($data->{params}, [$pk, 'spammer'], 'pubkey + reason');
+    is($data->{params}, [$pk, 'spammer'], 'pubkey + reason');
 };
 
 subtest 'encode: banpubkey without reason' => sub {
     my $pk = 'aa' x 32;
     my $body = encode_request(method => 'banpubkey', params => [$pk]);
     my $data = $JSON->decode($body);
-    is_deeply($data->{params}, [$pk], 'pubkey only');
+    is($data->{params}, [$pk], 'pubkey only');
 };
 
 subtest 'encode: unbanpubkey' => sub {
@@ -86,7 +85,7 @@ subtest 'encode: listbannedpubkeys' => sub {
     my $body = encode_request(method => 'listbannedpubkeys', params => []);
     my $data = $JSON->decode($body);
     is($data->{method}, 'listbannedpubkeys', 'method name');
-    is_deeply($data->{params}, [], 'empty params');
+    is($data->{params}, [], 'empty params');
 };
 
 subtest 'encode: allowpubkey' => sub {
@@ -94,7 +93,7 @@ subtest 'encode: allowpubkey' => sub {
     my $body = encode_request(method => 'allowpubkey', params => [$pk, 'trusted']);
     my $data = $JSON->decode($body);
     is($data->{method}, 'allowpubkey', 'method name');
-    is_deeply($data->{params}, [$pk, 'trusted'], 'pubkey + reason');
+    is($data->{params}, [$pk, 'trusted'], 'pubkey + reason');
 };
 
 subtest 'encode: unallowpubkey' => sub {
@@ -121,7 +120,7 @@ subtest 'encode: allowevent' => sub {
     my $body = encode_request(method => 'allowevent', params => [$id, 'reviewed']);
     my $data = $JSON->decode($body);
     is($data->{method}, 'allowevent', 'method name');
-    is_deeply($data->{params}, [$id, 'reviewed'], 'event id + reason');
+    is($data->{params}, [$id, 'reviewed'], 'event id + reason');
 };
 
 subtest 'encode: banevent' => sub {
@@ -141,7 +140,7 @@ subtest 'encode: changerelayname' => sub {
     my $body = encode_request(method => 'changerelayname', params => ['My Relay']);
     my $data = $JSON->decode($body);
     is($data->{method}, 'changerelayname', 'method name');
-    is_deeply($data->{params}, ['My Relay'], 'name param');
+    is($data->{params}, ['My Relay'], 'name param');
 };
 
 subtest 'encode: changerelaydescription' => sub {
@@ -154,21 +153,21 @@ subtest 'encode: changerelayicon' => sub {
     my $body = encode_request(method => 'changerelayicon', params => ['https://example.com/icon.png']);
     my $data = $JSON->decode($body);
     is($data->{method}, 'changerelayicon', 'method name');
-    is_deeply($data->{params}, ['https://example.com/icon.png'], 'icon url param');
+    is($data->{params}, ['https://example.com/icon.png'], 'icon url param');
 };
 
 subtest 'encode: allowkind' => sub {
     my $body = encode_request(method => 'allowkind', params => [1]);
     my $data = $JSON->decode($body);
     is($data->{method}, 'allowkind', 'method name');
-    is_deeply($data->{params}, [1], 'kind number');
+    is($data->{params}, [1], 'kind number');
 };
 
 subtest 'encode: disallowkind' => sub {
     my $body = encode_request(method => 'disallowkind', params => [30023]);
     my $data = $JSON->decode($body);
     is($data->{method}, 'disallowkind', 'method name');
-    is_deeply($data->{params}, [30023], 'kind number');
+    is($data->{params}, [30023], 'kind number');
 };
 
 subtest 'encode: listallowedkinds' => sub {
@@ -181,14 +180,14 @@ subtest 'encode: blockip' => sub {
     my $body = encode_request(method => 'blockip', params => ['192.168.1.1', 'abuse']);
     my $data = $JSON->decode($body);
     is($data->{method}, 'blockip', 'method name');
-    is_deeply($data->{params}, ['192.168.1.1', 'abuse'], 'ip + reason');
+    is($data->{params}, ['192.168.1.1', 'abuse'], 'ip + reason');
 };
 
 subtest 'encode: unblockip' => sub {
     my $body = encode_request(method => 'unblockip', params => ['192.168.1.1']);
     my $data = $JSON->decode($body);
     is($data->{method}, 'unblockip', 'method name');
-    is_deeply($data->{params}, ['192.168.1.1'], 'ip param');
+    is($data->{params}, ['192.168.1.1'], 'ip param');
 };
 
 subtest 'encode: listblockedips' => sub {
@@ -204,7 +203,7 @@ subtest 'encode: listblockedips' => sub {
 subtest 'encode: params defaults to empty array' => sub {
     my $body = encode_request(method => 'supportedmethods');
     my $data = $JSON->decode($body);
-    is_deeply($data->{params}, [], 'params defaults to []');
+    is($data->{params}, [], 'params defaults to []');
 };
 
 ###############################################################################
@@ -213,7 +212,7 @@ subtest 'encode: params defaults to empty array' => sub {
 
 subtest 'encode: missing method' => sub {
     like(
-        exception { encode_request(params => []) },
+        dies { encode_request(params => []) },
         qr/method is required/,
         'missing method rejected'
     );
@@ -221,7 +220,7 @@ subtest 'encode: missing method' => sub {
 
 subtest 'encode: empty method' => sub {
     like(
-        exception { encode_request(method => '') },
+        dies { encode_request(method => '') },
         qr/method is required/,
         'empty method rejected'
     );
@@ -229,7 +228,7 @@ subtest 'encode: empty method' => sub {
 
 subtest 'encode: params must be arrayref' => sub {
     like(
-        exception { encode_request(method => 'supportedmethods', params => 'bad') },
+        dies { encode_request(method => 'supportedmethods', params => 'bad') },
         qr/params must be an array/i,
         'non-arrayref params rejected'
     );
@@ -237,7 +236,7 @@ subtest 'encode: params must be arrayref' => sub {
 
 subtest 'encode: banpubkey requires valid hex pubkey' => sub {
     like(
-        exception { encode_request(method => 'banpubkey', params => ['not-hex']) },
+        dies { encode_request(method => 'banpubkey', params => ['not-hex']) },
         qr/must be 64-char lowercase hex/,
         'bad pubkey rejected'
     );
@@ -245,7 +244,7 @@ subtest 'encode: banpubkey requires valid hex pubkey' => sub {
 
 subtest 'encode: unbanpubkey requires valid hex pubkey' => sub {
     like(
-        exception { encode_request(method => 'unbanpubkey', params => ['ZZ' x 32]) },
+        dies { encode_request(method => 'unbanpubkey', params => ['ZZ' x 32]) },
         qr/must be 64-char lowercase hex/,
         'uppercase hex rejected'
     );
@@ -253,7 +252,7 @@ subtest 'encode: unbanpubkey requires valid hex pubkey' => sub {
 
 subtest 'encode: allowpubkey requires valid hex pubkey' => sub {
     like(
-        exception { encode_request(method => 'allowpubkey', params => []) },
+        dies { encode_request(method => 'allowpubkey', params => []) },
         qr/requires a 64-char hex/,
         'missing pubkey rejected'
     );
@@ -261,7 +260,7 @@ subtest 'encode: allowpubkey requires valid hex pubkey' => sub {
 
 subtest 'encode: unallowpubkey requires valid hex pubkey' => sub {
     like(
-        exception { encode_request(method => 'unallowpubkey', params => ['short']) },
+        dies { encode_request(method => 'unallowpubkey', params => ['short']) },
         qr/must be 64-char lowercase hex/,
         'short hex rejected'
     );
@@ -269,7 +268,7 @@ subtest 'encode: unallowpubkey requires valid hex pubkey' => sub {
 
 subtest 'encode: allowevent requires valid hex event id' => sub {
     like(
-        exception { encode_request(method => 'allowevent', params => ['bad']) },
+        dies { encode_request(method => 'allowevent', params => ['bad']) },
         qr/must be 64-char lowercase hex/,
         'bad event id rejected'
     );
@@ -277,7 +276,7 @@ subtest 'encode: allowevent requires valid hex event id' => sub {
 
 subtest 'encode: banevent requires valid hex event id' => sub {
     like(
-        exception { encode_request(method => 'banevent', params => []) },
+        dies { encode_request(method => 'banevent', params => []) },
         qr/requires a 64-char hex/,
         'missing event id rejected'
     );
@@ -285,17 +284,17 @@ subtest 'encode: banevent requires valid hex event id' => sub {
 
 subtest 'encode: allowkind requires non-negative integer' => sub {
     like(
-        exception { encode_request(method => 'allowkind', params => []) },
+        dies { encode_request(method => 'allowkind', params => []) },
         qr/requires a kind number/,
         'missing kind rejected'
     );
     like(
-        exception { encode_request(method => 'allowkind', params => [-1]) },
+        dies { encode_request(method => 'allowkind', params => [-1]) },
         qr/must be a non-negative integer/,
         'negative kind rejected'
     );
     like(
-        exception { encode_request(method => 'allowkind', params => ['abc']) },
+        dies { encode_request(method => 'allowkind', params => ['abc']) },
         qr/must be a non-negative integer/,
         'non-numeric kind rejected'
     );
@@ -303,7 +302,7 @@ subtest 'encode: allowkind requires non-negative integer' => sub {
 
 subtest 'encode: disallowkind requires non-negative integer' => sub {
     like(
-        exception { encode_request(method => 'disallowkind', params => [1.5]) },
+        dies { encode_request(method => 'disallowkind', params => [1.5]) },
         qr/must be a non-negative integer/,
         'float kind rejected'
     );
@@ -311,7 +310,7 @@ subtest 'encode: disallowkind requires non-negative integer' => sub {
 
 subtest 'encode: changerelayname requires name' => sub {
     like(
-        exception { encode_request(method => 'changerelayname', params => []) },
+        dies { encode_request(method => 'changerelayname', params => []) },
         qr/requires a string param/,
         'missing name rejected'
     );
@@ -319,7 +318,7 @@ subtest 'encode: changerelayname requires name' => sub {
 
 subtest 'encode: changerelaydescription requires description' => sub {
     like(
-        exception { encode_request(method => 'changerelaydescription', params => []) },
+        dies { encode_request(method => 'changerelaydescription', params => []) },
         qr/requires a string param/,
         'missing description rejected'
     );
@@ -327,7 +326,7 @@ subtest 'encode: changerelaydescription requires description' => sub {
 
 subtest 'encode: changerelayicon requires url' => sub {
     like(
-        exception { encode_request(method => 'changerelayicon', params => []) },
+        dies { encode_request(method => 'changerelayicon', params => []) },
         qr/requires a string param/,
         'missing icon url rejected'
     );
@@ -335,7 +334,7 @@ subtest 'encode: changerelayicon requires url' => sub {
 
 subtest 'encode: blockip requires ip' => sub {
     like(
-        exception { encode_request(method => 'blockip', params => []) },
+        dies { encode_request(method => 'blockip', params => []) },
         qr/requires an IP/,
         'missing ip rejected'
     );
@@ -343,7 +342,7 @@ subtest 'encode: blockip requires ip' => sub {
 
 subtest 'encode: unblockip requires ip' => sub {
     like(
-        exception { encode_request(method => 'unblockip', params => []) },
+        dies { encode_request(method => 'unblockip', params => []) },
         qr/requires an IP/,
         'missing ip rejected'
     );
@@ -357,7 +356,7 @@ subtest 'encode: unknown method allowed' => sub {
     my $body = encode_request(method => 'custommethodxyz', params => ['anything']);
     my $data = $JSON->decode($body);
     is($data->{method}, 'custommethodxyz', 'unknown method passes through');
-    is_deeply($data->{params}, ['anything'], 'params preserved');
+    is($data->{params}, ['anything'], 'params preserved');
 };
 
 ###############################################################################
@@ -367,7 +366,7 @@ subtest 'encode: unknown method allowed' => sub {
 subtest 'decode: result with object' => sub {
     my $json = '{"result":{"name":"My Relay"}}';
     my $result = decode_response($json);
-    is_deeply($result, { name => 'My Relay' }, 'object result extracted');
+    is($result, { name => 'My Relay' }, 'object result extracted');
 };
 
 subtest 'decode: result true (boolean)' => sub {
@@ -387,13 +386,13 @@ subtest 'decode: result is array of objects' => sub {
 subtest 'decode: result is array of numbers' => sub {
     my $json = '{"result":[1,4,30023]}';
     my $result = decode_response($json);
-    is_deeply($result, [1, 4, 30023], 'kind numbers extracted');
+    is($result, [1, 4, 30023], 'kind numbers extracted');
 };
 
 subtest 'decode: error takes precedence' => sub {
     my $json = '{"result":true,"error":"something went wrong"}';
     like(
-        exception { decode_response($json) },
+        dies { decode_response($json) },
         qr/something went wrong/,
         'error field causes croak even when result present'
     );
@@ -407,7 +406,7 @@ subtest 'decode: missing result and no error' => sub {
 
 subtest 'decode: invalid JSON' => sub {
     like(
-        exception { decode_response('not json') },
+        dies { decode_response('not json') },
         qr/invalid JSON/i,
         'malformed JSON rejected'
     );
@@ -415,7 +414,7 @@ subtest 'decode: invalid JSON' => sub {
 
 subtest 'decode: undef input' => sub {
     like(
-        exception { decode_response(undef) },
+        dies { decode_response(undef) },
         qr/response is required/,
         'undef rejected'
     );
@@ -423,7 +422,7 @@ subtest 'decode: undef input' => sub {
 
 subtest 'decode: empty input' => sub {
     like(
-        exception { decode_response('') },
+        dies { decode_response('') },
         qr/response is required/,
         'empty string rejected'
     );
@@ -537,7 +536,7 @@ subtest 'auth: event is signed' => sub {
 
 subtest 'auth: missing key' => sub {
     like(
-        exception { request_with_auth(method => 'supportedmethods', relay_url => 'wss://x') },
+        dies { request_with_auth(method => 'supportedmethods', relay_url => 'wss://x') },
         qr/key is required/,
         'missing key rejected'
     );
@@ -546,7 +545,7 @@ subtest 'auth: missing key' => sub {
 subtest 'auth: missing relay_url' => sub {
     my $key = make_key_from_hex('01' x 32);
     like(
-        exception { request_with_auth(method => 'supportedmethods', key => $key) },
+        dies { request_with_auth(method => 'supportedmethods', key => $key) },
         qr/relay_url is required/,
         'missing relay_url rejected'
     );
@@ -572,7 +571,7 @@ subtest 'spec: 401 note is documented' => sub {
     require Net::Nostr::HttpAuth;
     my $event = Net::Nostr::HttpAuth::parse_auth_header($req{authorization});
     is(
-        exception {
+        dies {
             Net::Nostr::HttpAuth::validate_auth_event($event,
                 url     => 'wss://relay.example.com',
                 method  => 'POST',

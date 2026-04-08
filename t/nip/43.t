@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Event;
 use Net::Nostr::RelayAccess;
@@ -125,7 +124,7 @@ subtest 'add_member: spec example' => sub {
 # Spec: requires member
 subtest 'add_member: requires member' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::RelayAccess->add_member(pubkey => $PK)
         },
         qr/member/i,
@@ -181,7 +180,7 @@ subtest 'remove_member: spec example' => sub {
 # Spec: requires member
 subtest 'remove_member: requires member' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::RelayAccess->remove_member(pubkey => $PK)
         },
         qr/member/i,
@@ -237,7 +236,7 @@ subtest 'join_request: spec example' => sub {
 # Spec: requires claim
 subtest 'join_request: requires claim' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::RelayAccess->join_request(pubkey => $PK)
         },
         qr/claim/i,
@@ -293,7 +292,7 @@ subtest 'invite: spec example' => sub {
 # Spec: requires claim
 subtest 'invite: requires claim' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::RelayAccess->invite(pubkey => $PK)
         },
         qr/claim/i,
@@ -455,7 +454,7 @@ subtest 'validate: rejects wrong kind' => sub {
         pubkey => $PK, kind => 1, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::RelayAccess->validate($event) },
+        dies { Net::Nostr::RelayAccess->validate($event) },
         qr/kind/i,
         'rejects wrong kind'
     );
@@ -468,7 +467,7 @@ subtest 'validate: membership_list requires protected tag' => sub {
         tags => [['member', $MEMBER1]],
     );
     like(
-        exception { Net::Nostr::RelayAccess->validate($event) },
+        dies { Net::Nostr::RelayAccess->validate($event) },
         qr/protected|"-"/i,
         'rejects missing protected tag'
     );
@@ -480,7 +479,7 @@ subtest 'validate: add_member requires protected tag' => sub {
         tags => [['p', $MEMBER1]],
     );
     like(
-        exception { Net::Nostr::RelayAccess->validate($event) },
+        dies { Net::Nostr::RelayAccess->validate($event) },
         qr/protected|"-"/i,
         'rejects missing protected tag'
     );
@@ -492,7 +491,7 @@ subtest 'validate: remove_member requires protected tag' => sub {
         tags => [['p', $MEMBER1]],
     );
     like(
-        exception { Net::Nostr::RelayAccess->validate($event) },
+        dies { Net::Nostr::RelayAccess->validate($event) },
         qr/protected|"-"/i,
         'rejects missing protected tag'
     );
@@ -504,7 +503,7 @@ subtest 'validate: join_request requires protected tag' => sub {
         tags => [['claim', 'code']],
     );
     like(
-        exception { Net::Nostr::RelayAccess->validate($event) },
+        dies { Net::Nostr::RelayAccess->validate($event) },
         qr/protected|"-"/i,
         'rejects missing protected tag'
     );
@@ -516,7 +515,7 @@ subtest 'validate: invite requires protected tag' => sub {
         tags => [['claim', 'code']],
     );
     like(
-        exception { Net::Nostr::RelayAccess->validate($event) },
+        dies { Net::Nostr::RelayAccess->validate($event) },
         qr/protected|"-"/i,
         'rejects missing protected tag'
     );
@@ -528,7 +527,7 @@ subtest 'validate: leave_request requires protected tag' => sub {
         tags => [],
     );
     like(
-        exception { Net::Nostr::RelayAccess->validate($event) },
+        dies { Net::Nostr::RelayAccess->validate($event) },
         qr/protected|"-"/i,
         'rejects missing protected tag'
     );
@@ -541,7 +540,7 @@ subtest 'validate: add_member requires p tag' => sub {
         tags => [['-']],
     );
     like(
-        exception { Net::Nostr::RelayAccess->validate($event) },
+        dies { Net::Nostr::RelayAccess->validate($event) },
         qr/p.*tag/i,
         'rejects missing p tag'
     );
@@ -553,7 +552,7 @@ subtest 'validate: remove_member requires p tag' => sub {
         tags => [['-']],
     );
     like(
-        exception { Net::Nostr::RelayAccess->validate($event) },
+        dies { Net::Nostr::RelayAccess->validate($event) },
         qr/p.*tag/i,
         'rejects missing p tag'
     );
@@ -566,7 +565,7 @@ subtest 'validate: join_request requires claim tag' => sub {
         tags => [['-']],
     );
     like(
-        exception { Net::Nostr::RelayAccess->validate($event) },
+        dies { Net::Nostr::RelayAccess->validate($event) },
         qr/claim.*tag/i,
         'rejects missing claim tag'
     );
@@ -579,7 +578,7 @@ subtest 'validate: invite requires claim tag' => sub {
         tags => [['-']],
     );
     like(
-        exception { Net::Nostr::RelayAccess->validate($event) },
+        dies { Net::Nostr::RelayAccess->validate($event) },
         qr/claim.*tag/i,
         'rejects missing claim tag'
     );
@@ -591,7 +590,7 @@ subtest 'validate: invite requires claim tag' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::RelayAccess->new(bogus => 1) },
+        dies { Net::Nostr::RelayAccess->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

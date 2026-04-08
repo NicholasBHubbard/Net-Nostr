@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Mention qw(
     extract_mentions
@@ -210,12 +209,12 @@ subtest 'mention_pubkey: with relays produces nprofile' => sub {
     my $decoded = decode_nostr_uri($mention);
     is($decoded->{type}, 'nprofile', 'decodes as nprofile');
     is($decoded->{data}{pubkey}, $pk1, 'pubkey round-trips');
-    is_deeply($decoded->{data}{relays}, ['wss://relay.com'], 'relays round-trip');
+    is($decoded->{data}{relays}, ['wss://relay.com'], 'relays round-trip');
 };
 
 subtest 'mention_pubkey: validates hex' => sub {
     like(
-        exception { mention_pubkey('not-hex') },
+        dies { mention_pubkey('not-hex') },
         qr/pubkey must be 64-char lowercase hex/,
         'bad pubkey rejected'
     );
@@ -250,7 +249,7 @@ subtest 'mention_event: relays alone upgrades to nevent' => sub {
 
 subtest 'mention_event: validates hex' => sub {
     like(
-        exception { mention_event('bad') },
+        dies { mention_event('bad') },
         qr/event id must be 64-char lowercase hex/,
         'bad event id rejected'
     );
@@ -276,22 +275,22 @@ subtest 'mention_addr: with relays' => sub {
         relays => ['wss://relay.com'],
     );
     my $decoded = decode_nostr_uri($mention);
-    is_deeply($decoded->{data}{relays}, ['wss://relay.com'], 'relays round-trip');
+    is($decoded->{data}{relays}, ['wss://relay.com'], 'relays round-trip');
 };
 
 subtest 'mention_addr: required fields' => sub {
     like(
-        exception { mention_addr(pubkey => $pk1, kind => 30023) },
+        dies { mention_addr(pubkey => $pk1, kind => 30023) },
         qr/requires 'identifier'/,
         'missing identifier croaks'
     );
     like(
-        exception { mention_addr(identifier => 'x', kind => 30023) },
+        dies { mention_addr(identifier => 'x', kind => 30023) },
         qr/requires 'pubkey'/,
         'missing pubkey croaks'
     );
     like(
-        exception { mention_addr(identifier => 'x', pubkey => $pk1) },
+        dies { mention_addr(identifier => 'x', pubkey => $pk1) },
         qr/requires 'kind'/,
         'missing kind croaks'
     );
@@ -524,7 +523,7 @@ subtest 'NIP-27: raw NIP-19 code prefixed with nostr: (spec line 50)' => sub {
     is(scalar @m, 1, 'pasted nevent found');
     is($m[0]{type}, 'nevent', 'type is nevent');
     is($m[0]{data}{id}, $eid, 'event id extracted');
-    is_deeply($m[0]{data}{relays}, ['wss://nos.lol'], 'relay hint preserved');
+    is($m[0]{data}{relays}, ['wss://nos.lol'], 'relay hint preserved');
 };
 
 ###############################################################################
@@ -539,7 +538,7 @@ subtest 'extract_mentions: nprofile relay hints are accessible' => sub {
     is(scalar @m, 1, 'one mention');
     is($m[0]{type}, 'nprofile', 'type is nprofile');
     is($m[0]{data}{pubkey}, $pk1, 'pubkey extracted');
-    is_deeply($m[0]{data}{relays}, \@relays, 'relay hints extracted and accessible');
+    is($m[0]{data}{relays}, \@relays, 'relay hints extracted and accessible');
 };
 
 ###############################################################################

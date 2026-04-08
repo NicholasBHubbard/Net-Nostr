@@ -1,5 +1,5 @@
 use strictures 2;
-use Test::More;
+use Test2::V0 -no_srand => 1;
 use lib 't/lib';
 use TestFixtures qw(make_event);
 use JSON ();
@@ -170,7 +170,7 @@ subtest 'POD validate_connect_response' => sub {
 subtest 'POD parse_switch_relays' => sub {
     my $relays_json = JSON->new->utf8->encode(['wss://relay.example.com']);
     my $relays = Net::Nostr::RemoteSigning->parse_switch_relays($relays_json);
-    is_deeply $relays, ['wss://relay.example.com'], 'parsed relays';
+    is $relays, ['wss://relay.example.com'], 'parsed relays';
 };
 
 # --- POD: parse_nip05_metadata ---

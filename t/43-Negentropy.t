@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Negentropy;
 
@@ -27,8 +26,8 @@ subtest 'POD: basic reconciliation' => sub {
     ok(defined $a, 'server returns response');
 
     my ($q2, $chave, $cneed) = $client->reconcile($a);
-    is_deeply([sort @$chave], ['02' x 32], 'client has 02');
-    is_deeply([sort @$cneed], ['03' x 32], 'client needs 03');
+    is([sort @$chave], ['02' x 32], 'client has 02');
+    is([sort @$cneed], ['03' x 32], 'client needs 03');
 };
 
 ###############################################################################
@@ -53,7 +52,7 @@ subtest 'constructor: no args' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::Negentropy->new(bogus => 1) },
+        dies { Net::Nostr::Negentropy->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

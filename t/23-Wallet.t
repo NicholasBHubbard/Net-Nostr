@@ -1,5 +1,5 @@
 use strictures 2;
-use Test::More;
+use Test2::V0 -no_srand => 1;
 use JSON ();
 
 use lib 't/lib';
@@ -49,7 +49,7 @@ subtest 'SYNOPSIS: token_content' => sub {
     );
     my $data = $json->decode($token_plaintext);
     is $data->{mint}, 'https://stablenut.umint.cash', 'mint in token content';
-    is_deeply $data->{del}, ['old-token-event-id'], 'del in token content';
+    is $data->{del}, ['old-token-event-id'], 'del in token content';
 };
 
 subtest 'SYNOPSIS: token_event' => sub {
@@ -175,7 +175,7 @@ subtest 'token_content doc example' => sub {
     );
     my $data = $json->decode($plaintext);
     is $data->{unit}, 'sat', 'unit from doc example';
-    is_deeply $data->{del}, ['old-token-id'], 'del from doc example';
+    is $data->{del}, ['old-token-id'], 'del from doc example';
 };
 
 subtest 'history_content doc example' => sub {

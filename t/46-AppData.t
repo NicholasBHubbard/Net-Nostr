@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Event;
 use Net::Nostr::AppData;
@@ -68,7 +67,7 @@ subtest 'POD: to_event with extra_tags' => sub {
     );
     my @tags = @{$event->tags};
     is($tags[0][0], 'd');
-    is_deeply($tags[1], ['version', '2']);
+    is($tags[1], ['version', '2']);
 };
 
 ###############################################################################
@@ -82,7 +81,7 @@ subtest 'constructor: no args' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::AppData->new(bogus => 1) },
+        dies { Net::Nostr::AppData->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

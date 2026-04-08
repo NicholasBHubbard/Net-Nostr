@@ -1,5 +1,5 @@
 use strictures 2;
-use Test::More;
+use Test2::V0 -no_srand => 1;
 use JSON ();
 
 use lib 't/lib';
@@ -299,13 +299,13 @@ subtest 'new() POD example' => sub {
     );
     is $info->name, 'Widget';
     is $info->price, 10.50;
-    is_deeply $info->categories, [];
-    is_deeply $info->images, [];
-    is_deeply $info->shipping, [];
-    is_deeply $info->specs, [];
-    is_deeply $info->merchants, [];
-    is_deeply $info->items, [];
-    is_deeply $info->payment_options, [];
+    is $info->categories, [];
+    is $info->images, [];
+    is $info->shipping, [];
+    is $info->specs, [];
+    is $info->merchants, [];
+    is $info->items, [];
+    is $info->payment_options, [];
 };
 
 subtest 'new() rejects unknown arguments' => sub {

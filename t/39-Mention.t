@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Mention qw(
     extract_mentions
@@ -19,11 +18,11 @@ my $eid = 'bb' x 32;
 ###############################################################################
 
 subtest 'mention_pubkey: undef croaks' => sub {
-    like(exception { mention_pubkey(undef) }, qr/pubkey must be/, 'undef rejected');
+    like(dies { mention_pubkey(undef) }, qr/pubkey must be/, 'undef rejected');
 };
 
 subtest 'mention_pubkey: uppercase hex croaks' => sub {
-    like(exception { mention_pubkey(uc $pk) }, qr/pubkey must be/, 'uppercase rejected');
+    like(dies { mention_pubkey(uc $pk) }, qr/pubkey must be/, 'uppercase rejected');
 };
 
 subtest 'mention_pubkey: empty relays uses npub' => sub {
@@ -36,7 +35,7 @@ subtest 'mention_pubkey: empty relays uses npub' => sub {
 ###############################################################################
 
 subtest 'mention_event: undef croaks' => sub {
-    like(exception { mention_event(undef) }, qr/event id must be/, 'undef rejected');
+    like(dies { mention_event(undef) }, qr/event id must be/, 'undef rejected');
 };
 
 subtest 'mention_event: author alone upgrades to nevent' => sub {
@@ -86,7 +85,7 @@ subtest 'extract_mentions: mention order matches content order' => sub {
 ###############################################################################
 
 subtest 'replace_mentions: non-coderef callback croaks' => sub {
-    like(exception { replace_mentions('text', 'not a ref') },
+    like(dies { replace_mentions('text', 'not a ref') },
         qr/callback must be a code reference/, 'string rejected');
 };
 

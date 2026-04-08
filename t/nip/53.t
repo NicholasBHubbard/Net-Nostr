@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Event;
 use Net::Nostr::LiveActivity;
@@ -227,7 +226,7 @@ subtest 'live_event: content defaults to empty' => sub {
 # Spec: requires identifier
 subtest 'live_event: requires identifier' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->live_event(pubkey => $PK)
         },
         qr/identifier/i,
@@ -317,7 +316,7 @@ subtest 'chat_message: e tag for reply' => sub {
 # Spec: requires activity
 subtest 'chat_message: requires activity' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->chat_message(
                 pubkey => $PK, content => 'x',
             )
@@ -494,7 +493,7 @@ subtest 'meeting_space: p tags with roles' => sub {
 # Spec: requires identifier, room, status, service, participants
 subtest 'meeting_space: requires identifier' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->meeting_space(
                 pubkey => $PK, room => 'R', status => 'open',
                 service => 'x', participants => [[$PK2, '', 'Host']],
@@ -507,7 +506,7 @@ subtest 'meeting_space: requires identifier' => sub {
 
 subtest 'meeting_space: requires room' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->meeting_space(
                 pubkey => $PK, identifier => 'x', status => 'open',
                 service => 'x', participants => [[$PK2, '', 'Host']],
@@ -520,7 +519,7 @@ subtest 'meeting_space: requires room' => sub {
 
 subtest 'meeting_space: requires status' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->meeting_space(
                 pubkey => $PK, identifier => 'x', room => 'R',
                 service => 'x', participants => [[$PK2, '', 'Host']],
@@ -533,7 +532,7 @@ subtest 'meeting_space: requires status' => sub {
 
 subtest 'meeting_space: requires service' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->meeting_space(
                 pubkey => $PK, identifier => 'x', room => 'R',
                 status => 'open', participants => [[$PK2, '', 'Host']],
@@ -546,7 +545,7 @@ subtest 'meeting_space: requires service' => sub {
 
 subtest 'meeting_space: requires participants' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->meeting_space(
                 pubkey => $PK, identifier => 'x', room => 'R',
                 status => 'open', service => 'x',
@@ -734,7 +733,7 @@ subtest 'meeting_room: optional tags' => sub {
 # Spec: requires identifier, space_ref, title, starts, status
 subtest 'meeting_room: requires identifier' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->meeting_room(
                 pubkey => $PK, space_ref => ["30312:${PK2}:r", 'wss://r'],
                 title => 'M', starts => '1', status => 'planned',
@@ -747,7 +746,7 @@ subtest 'meeting_room: requires identifier' => sub {
 
 subtest 'meeting_room: requires space_ref' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->meeting_room(
                 pubkey => $PK, identifier => 'x',
                 title => 'M', starts => '1', status => 'planned',
@@ -760,7 +759,7 @@ subtest 'meeting_room: requires space_ref' => sub {
 
 subtest 'meeting_room: requires title' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->meeting_room(
                 pubkey => $PK, identifier => 'x',
                 space_ref => ["30312:${PK2}:r", 'wss://r'],
@@ -774,7 +773,7 @@ subtest 'meeting_room: requires title' => sub {
 
 subtest 'meeting_room: requires starts' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->meeting_room(
                 pubkey => $PK, identifier => 'x',
                 space_ref => ["30312:${PK2}:r", 'wss://r'],
@@ -788,7 +787,7 @@ subtest 'meeting_room: requires starts' => sub {
 
 subtest 'meeting_room: requires status' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->meeting_room(
                 pubkey => $PK, identifier => 'x',
                 space_ref => ["30312:${PK2}:r", 'wss://r'],
@@ -889,7 +888,7 @@ subtest 'room_presence: no hand tag by default' => sub {
 # Spec: requires activity
 subtest 'room_presence: requires activity' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::LiveActivity->room_presence(pubkey => $PK)
         },
         qr/activity/i,
@@ -948,10 +947,10 @@ subtest 'from_event: live_event round-trip' => sub {
     is($parsed->status, 'live', 'status');
     is($parsed->current_participants, '50', 'current_participants');
     is($parsed->total_participants, '100', 'total_participants');
-    is_deeply($parsed->hashtags, ['test', 'live'], 'hashtags');
+    is($parsed->hashtags, ['test', 'live'], 'hashtags');
     is($parsed->participants->[0][0], $PK2, 'participant pubkey');
     is($parsed->participants->[0][2], 'Host', 'participant role');
-    is_deeply($parsed->relays, ['wss://one.com'], 'relays');
+    is($parsed->relays, ['wss://one.com'], 'relays');
     is($parsed->pinned->[0], 'e' x 64, 'pinned');
 };
 
@@ -1086,7 +1085,7 @@ subtest 'validate: rejects wrong kind' => sub {
         pubkey => $PK, kind => 1, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/kind/i,
         'rejects wrong kind'
     );
@@ -1098,7 +1097,7 @@ subtest 'validate: live_event requires d tag' => sub {
         pubkey => $PK, kind => 30311, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/d.*tag/i,
         'rejects missing d tag'
     );
@@ -1110,7 +1109,7 @@ subtest 'validate: chat_message requires a tag' => sub {
         pubkey => $PK, kind => 1311, content => 'hi', tags => [],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/a.*tag/i,
         'rejects missing a tag'
     );
@@ -1123,7 +1122,7 @@ subtest 'validate: meeting_space requires d tag' => sub {
         tags => [['room', 'R'], ['status', 'open'], ['service', 'x'], ['p', $PK2, '', 'Host']],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/d.*tag/i,
         'rejects missing d tag'
     );
@@ -1135,7 +1134,7 @@ subtest 'validate: meeting_space requires room tag' => sub {
         tags => [['d', 'x'], ['status', 'open'], ['service', 'x'], ['p', $PK2, '', 'Host']],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/room.*tag/i,
         'rejects missing room tag'
     );
@@ -1147,7 +1146,7 @@ subtest 'validate: meeting_space requires status tag' => sub {
         tags => [['d', 'x'], ['room', 'R'], ['service', 'x'], ['p', $PK2, '', 'Host']],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/status.*tag/i,
         'rejects missing status tag'
     );
@@ -1159,7 +1158,7 @@ subtest 'validate: meeting_space requires service tag' => sub {
         tags => [['d', 'x'], ['room', 'R'], ['status', 'open'], ['p', $PK2, '', 'Host']],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/service.*tag/i,
         'rejects missing service tag'
     );
@@ -1171,7 +1170,7 @@ subtest 'validate: meeting_space requires p tag' => sub {
         tags => [['d', 'x'], ['room', 'R'], ['status', 'open'], ['service', 'x']],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/p.*tag/i,
         'rejects missing p tag'
     );
@@ -1184,7 +1183,7 @@ subtest 'validate: meeting_room requires a tag' => sub {
         tags => [['d', 'x'], ['title', 'M'], ['starts', '1'], ['status', 'live']],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/a.*tag/i,
         'rejects missing a tag'
     );
@@ -1196,7 +1195,7 @@ subtest 'validate: meeting_room requires title tag' => sub {
         tags => [['d', 'x'], ['a', "30312:${PK2}:r", 'wss://r'], ['starts', '1'], ['status', 'live']],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/title.*tag/i,
         'rejects missing title tag'
     );
@@ -1208,7 +1207,7 @@ subtest 'validate: meeting_room requires starts tag' => sub {
         tags => [['d', 'x'], ['a', "30312:${PK2}:r", 'wss://r'], ['title', 'M'], ['status', 'live']],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/starts.*tag/i,
         'rejects missing starts tag'
     );
@@ -1220,7 +1219,7 @@ subtest 'validate: meeting_room requires status tag' => sub {
         tags => [['d', 'x'], ['a', "30312:${PK2}:r", 'wss://r'], ['title', 'M'], ['starts', '1']],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/status.*tag/i,
         'rejects missing status tag'
     );
@@ -1232,7 +1231,7 @@ subtest 'validate: room_presence requires a tag' => sub {
         pubkey => $PK, kind => 10312, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::LiveActivity->validate($event) },
+        dies { Net::Nostr::LiveActivity->validate($event) },
         qr/a.*tag/i,
         'rejects missing a tag'
     );
@@ -1244,7 +1243,7 @@ subtest 'validate: room_presence requires a tag' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::LiveActivity->new(bogus => 1) },
+        dies { Net::Nostr::LiveActivity->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

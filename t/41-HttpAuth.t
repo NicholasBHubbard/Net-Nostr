@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use JSON ();
 use MIME::Base64 qw(decode_base64);
@@ -62,7 +61,7 @@ subtest 'POD: parse and validate' => sub {
     );
     my $event = parse_auth_header($header);
     is(
-        exception { validate_auth_event($event, url => 'https://api.example.com/data', method => 'GET') },
+        dies { validate_auth_event($event, url => 'https://api.example.com/data', method => 'GET') },
         undef,
         'parsed event validates'
     );
@@ -94,7 +93,7 @@ subtest 'POD: validate failure for 401' => sub {
         method => 'GET',
     );
     my $event = parse_auth_header($header);
-    my $err = exception { validate_auth_event($event, url => 'https://other.com', method => 'GET') };
+    my $err = dies { validate_auth_event($event, url => 'https://other.com', method => 'GET') };
     ok(defined $err, 'validation failure gives error for 401 response');
 };
 

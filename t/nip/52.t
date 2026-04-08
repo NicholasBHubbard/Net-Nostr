@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Event;
 use Net::Nostr::Calendar;
@@ -788,11 +787,11 @@ subtest 'from_event: date event round-trip' => sub {
     is($cal->end, '2024-08-15', 'end');
     is($cal->summary, 'A road trip', 'summary');
     is($cal->image, 'https://example.com/trip.jpg', 'image');
-    is_deeply($cal->locations, ['Highway 66'], 'locations');
+    is($cal->locations, ['Highway 66'], 'locations');
     is($cal->geohash, 'abc123', 'geohash');
     is(scalar @{$cal->participants}, 1, 'participants');
-    is_deeply($cal->hashtags, ['travel'], 'hashtags');
-    is_deeply($cal->references, ['https://example.com'], 'references');
+    is($cal->hashtags, ['travel'], 'hashtags');
+    is($cal->references, ['https://example.com'], 'references');
 };
 
 subtest 'from_event: time event round-trip' => sub {
@@ -811,7 +810,7 @@ subtest 'from_event: time event round-trip' => sub {
     is($cal->end, '1700003600', 'end');
     is($cal->start_tzid, 'America/New_York', 'start_tzid');
     is($cal->end_tzid, 'America/Chicago', 'end_tzid');
-    is_deeply($cal->days, ['19675'], 'days');
+    is($cal->days, ['19675'], 'days');
 };
 
 subtest 'from_event: calendar round-trip' => sub {
@@ -910,7 +909,7 @@ subtest 'validate: rejects wrong kind' => sub {
         pubkey => $PK, kind => 1, content => '', tags => [],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/kind/i,
         'rejects wrong kind'
     );
@@ -922,7 +921,7 @@ subtest 'validate: date event requires d tag' => sub {
         tags => [['title', 'T'], ['start', '2024-01-01']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/d.*tag/i,
         'rejects missing d tag'
     );
@@ -934,7 +933,7 @@ subtest 'validate: date event requires title tag' => sub {
         tags => [['d', 'x'], ['start', '2024-01-01']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/title.*tag/i,
         'rejects missing title tag'
     );
@@ -946,7 +945,7 @@ subtest 'validate: date event requires start tag' => sub {
         tags => [['d', 'x'], ['title', 'T']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/start.*tag/i,
         'rejects missing start tag'
     );
@@ -958,7 +957,7 @@ subtest 'validate: time event requires start tag' => sub {
         tags => [['d', 'x'], ['title', 'T']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/start.*tag/i,
         'rejects missing start tag'
     );
@@ -970,7 +969,7 @@ subtest 'validate: calendar requires d tag' => sub {
         tags => [['title', 'T']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/d.*tag/i,
         'rejects missing d tag'
     );
@@ -982,7 +981,7 @@ subtest 'validate: calendar requires title tag' => sub {
         tags => [['d', 'x']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/title.*tag/i,
         'rejects missing title tag'
     );
@@ -994,7 +993,7 @@ subtest 'validate: rsvp requires a tag' => sub {
         tags => [['d', 'x'], ['status', 'accepted']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/a.*tag/i,
         'rejects missing a tag'
     );
@@ -1006,7 +1005,7 @@ subtest 'validate: rsvp requires status tag' => sub {
         tags => [['d', 'x'], ['a', "31922:${PK}:test"]],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/status.*tag/i,
         'rejects missing status tag'
     );
@@ -1019,7 +1018,7 @@ subtest 'validate: time event requires D tag' => sub {
         tags => [['d', 'x'], ['title', 'T'], ['start', '1700000000']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/D.*tag/i,
         'rejects missing D tag'
     );
@@ -1032,7 +1031,7 @@ subtest 'validate: date event start must be less than end' => sub {
         tags => [['d', 'x'], ['title', 'T'], ['start', '2024-07-15'], ['end', '2024-07-01']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/start.*end|end.*start/i,
         'rejects start >= end'
     );
@@ -1044,7 +1043,7 @@ subtest 'validate: date event start equal to end rejected' => sub {
         tags => [['d', 'x'], ['title', 'T'], ['start', '2024-07-01'], ['end', '2024-07-01']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/start.*end|end.*start/i,
         'rejects start == end'
     );
@@ -1057,7 +1056,7 @@ subtest 'validate: time event start must be less than end' => sub {
         tags => [['d', 'x'], ['title', 'T'], ['start', '1700003600'], ['end', '1700000000'], ['D', '19675']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/start.*end|end.*start/i,
         'rejects start >= end'
     );
@@ -1084,7 +1083,7 @@ subtest 'rsvp: requires valid status' => sub {
         tags => [['d', 'x'], ['a', "31922:${PK}:test"], ['status', 'maybe']],
     );
     like(
-        exception { Net::Nostr::Calendar->validate($event) },
+        dies { Net::Nostr::Calendar->validate($event) },
         qr/status/i,
         'rejects invalid status'
     );
@@ -1096,7 +1095,7 @@ subtest 'rsvp: requires valid status' => sub {
 
 subtest 'date_event: requires identifier' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Calendar->date_event(
                 pubkey => $PK, title => 'T', start => '2024-01-01',
             )
@@ -1108,7 +1107,7 @@ subtest 'date_event: requires identifier' => sub {
 
 subtest 'date_event: requires title' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Calendar->date_event(
                 pubkey => $PK, identifier => 'x', start => '2024-01-01',
             )
@@ -1120,7 +1119,7 @@ subtest 'date_event: requires title' => sub {
 
 subtest 'date_event: requires start' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Calendar->date_event(
                 pubkey => $PK, identifier => 'x', title => 'T',
             )
@@ -1132,7 +1131,7 @@ subtest 'date_event: requires start' => sub {
 
 subtest 'rsvp: requires event_coord' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Calendar->rsvp(
                 pubkey => $PK, identifier => 'x', status => 'accepted',
             )
@@ -1144,7 +1143,7 @@ subtest 'rsvp: requires event_coord' => sub {
 
 subtest 'rsvp: requires status' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Calendar->rsvp(
                 pubkey => $PK, identifier => 'x',
                 event_coord => "31922:${PK}:test",
@@ -1157,7 +1156,7 @@ subtest 'rsvp: requires status' => sub {
 
 subtest 'rsvp: requires identifier' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Calendar->rsvp(
                 pubkey => $PK, event_coord => "31922:${PK}:test",
                 status => 'accepted',
@@ -1170,7 +1169,7 @@ subtest 'rsvp: requires identifier' => sub {
 
 subtest 'time_event: requires identifier' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Calendar->time_event(
                 pubkey => $PK, title => 'T', start => 1700000000,
             )
@@ -1182,7 +1181,7 @@ subtest 'time_event: requires identifier' => sub {
 
 subtest 'time_event: requires title' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Calendar->time_event(
                 pubkey => $PK, identifier => 'x', start => 1700000000,
             )
@@ -1194,7 +1193,7 @@ subtest 'time_event: requires title' => sub {
 
 subtest 'time_event: requires start' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Calendar->time_event(
                 pubkey => $PK, identifier => 'x', title => 'T',
             )
@@ -1206,7 +1205,7 @@ subtest 'time_event: requires start' => sub {
 
 subtest 'calendar: requires identifier' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Calendar->calendar(
                 pubkey => $PK, title => 'T',
             )
@@ -1218,7 +1217,7 @@ subtest 'calendar: requires identifier' => sub {
 
 subtest 'calendar: requires title' => sub {
     like(
-        exception {
+        dies {
             Net::Nostr::Calendar->calendar(
                 pubkey => $PK, identifier => 'x',
             )
@@ -1256,7 +1255,7 @@ subtest 'from_event: title takes precedence over name' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::Calendar->new(bogus => 1) },
+        dies { Net::Nostr::Calendar->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

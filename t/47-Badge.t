@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::Event;
 use Net::Nostr::Badge;
@@ -106,7 +105,7 @@ subtest 'POD: validate' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::Badge->new(bogus => 1) },
+        dies { Net::Nostr::Badge->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

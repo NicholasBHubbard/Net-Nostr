@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use Net::Nostr::ExternalId;
 
@@ -17,9 +16,9 @@ subtest 'url: basic' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->url_tags(
         'https://myblog.example.com/post/2012-03-27/hello-world',
     );
-    is_deeply($i, ['i', 'https://myblog.example.com/post/2012-03-27/hello-world'],
+    is($i, ['i', 'https://myblog.example.com/post/2012-03-27/hello-world'],
         'i tag');
-    is_deeply($k, ['k', 'web'], 'k tag');
+    is($k, ['k', 'web'], 'k tag');
 };
 
 # Spec example: exact JSON from NIP-73
@@ -57,8 +56,8 @@ subtest 'url: with hint' => sub {
 # Spec example: Book ISBN
 subtest 'isbn: spec example' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->isbn_tags('9780765382030');
-    is_deeply($i, ['i', 'isbn:9780765382030'], 'i tag');
-    is_deeply($k, ['k', 'isbn'], 'k tag');
+    is($i, ['i', 'isbn:9780765382030'], 'i tag');
+    is($k, ['k', 'isbn'], 'k tag');
 };
 
 # Spec: ISBNs MUST be referenced without hyphens
@@ -82,8 +81,8 @@ subtest 'isbn: with hint' => sub {
 # Spec example: Geohash
 subtest 'geo: spec example' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->geo_tags('ezs42e44yx96');
-    is_deeply($i, ['i', 'geo:ezs42e44yx96'], 'i tag');
-    is_deeply($k, ['k', 'geo'], 'k tag');
+    is($i, ['i', 'geo:ezs42e44yx96'], 'i tag');
+    is($k, ['k', 'geo'], 'k tag');
 };
 
 # Spec: Geohashes MUST be lowercase
@@ -107,15 +106,15 @@ subtest 'geo: with hint' => sub {
 # Spec example: Country (Venezuela)
 subtest 'country: spec example VE' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->country_tags('VE');
-    is_deeply($i, ['i', 'iso3166:VE'], 'i tag');
-    is_deeply($k, ['k', 'iso3166'], 'k tag');
+    is($i, ['i', 'iso3166:VE'], 'i tag');
+    is($k, ['k', 'iso3166'], 'k tag');
 };
 
 # Spec example: Subdivision (California, USA)
 subtest 'country: spec example US-CA' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->country_tags('US-CA');
-    is_deeply($i, ['i', 'iso3166:US-CA'], 'i tag');
-    is_deeply($k, ['k', 'iso3166'], 'k tag');
+    is($i, ['i', 'iso3166:US-CA'], 'i tag');
+    is($k, ['k', 'iso3166'], 'k tag');
 };
 
 # Spec: ISO 3166 codes MUST be uppercase
@@ -136,8 +135,8 @@ subtest 'country: subdivision uppercased' => sub {
 # Spec example: Movie ISAN
 subtest 'isan: spec example' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->isan_tags('0000-0000-401A-0000-7');
-    is_deeply($i, ['i', 'isan:0000-0000-401A-0000-7'], 'i tag');
-    is_deeply($k, ['k', 'isan'], 'k tag');
+    is($i, ['i', 'isan:0000-0000-401A-0000-7'], 'i tag');
+    is($k, ['k', 'isan'], 'k tag');
 };
 
 # Spec: ISANs SHOULD be referenced without the version part — we accept as-is
@@ -155,8 +154,8 @@ subtest 'isan: with hint' => sub {
 
 subtest 'doi: basic' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->doi_tags('10.1000/xyz123');
-    is_deeply($i, ['i', 'doi:10.1000/xyz123'], 'i tag');
-    is_deeply($k, ['k', 'doi'], 'k tag');
+    is($i, ['i', 'doi:10.1000/xyz123'], 'i tag');
+    is($k, ['k', 'doi'], 'k tag');
 };
 
 # Spec: DOI id MUST be lowercase
@@ -171,8 +170,8 @@ subtest 'doi: lowercased' => sub {
 
 subtest 'hashtag: basic' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->hashtag_tags('nostr');
-    is_deeply($i, ['i', '#nostr'], 'i tag');
-    is_deeply($k, ['k', '#'], 'k tag');
+    is($i, ['i', '#nostr'], 'i tag');
+    is($k, ['k', '#'], 'k tag');
 };
 
 # Spec: topic MUST be lowercase
@@ -190,8 +189,8 @@ subtest 'podcast_feed: spec example' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->podcast_feed_tags(
         'c90e609a-df1e-596a-bd5e-57bcc8aad6cc',
     );
-    is_deeply($i, ['i', 'podcast:guid:c90e609a-df1e-596a-bd5e-57bcc8aad6cc'], 'i tag');
-    is_deeply($k, ['k', 'podcast:guid'], 'k tag');
+    is($i, ['i', 'podcast:guid:c90e609a-df1e-596a-bd5e-57bcc8aad6cc'], 'i tag');
+    is($k, ['k', 'podcast:guid'], 'k tag');
 };
 
 ###############################################################################
@@ -203,8 +202,8 @@ subtest 'podcast_episode: spec example' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->podcast_episode_tags(
         'd98d189b-dc7b-45b1-8720-d4b98690f31f',
     );
-    is_deeply($i, ['i', 'podcast:item:guid:d98d189b-dc7b-45b1-8720-d4b98690f31f'], 'i tag');
-    is_deeply($k, ['k', 'podcast:item:guid'], 'k tag');
+    is($i, ['i', 'podcast:item:guid:d98d189b-dc7b-45b1-8720-d4b98690f31f'], 'i tag');
+    is($k, ['k', 'podcast:item:guid'], 'k tag');
 };
 
 # MAY: URL hint (spec example)
@@ -225,8 +224,8 @@ subtest 'podcast_publisher: spec example' => sub {
     my ($i, $k) = Net::Nostr::ExternalId->podcast_publisher_tags(
         '18bcbf10-6701-4ffb-b255-bc057390d738',
     );
-    is_deeply($i, ['i', 'podcast:publisher:guid:18bcbf10-6701-4ffb-b255-bc057390d738'], 'i tag');
-    is_deeply($k, ['k', 'podcast:publisher:guid'], 'k tag');
+    is($i, ['i', 'podcast:publisher:guid:18bcbf10-6701-4ffb-b255-bc057390d738'], 'i tag');
+    is($k, ['k', 'podcast:publisher:guid'], 'k tag');
 };
 
 ###############################################################################
@@ -239,9 +238,9 @@ subtest 'blockchain_tx: bitcoin spec example' => sub {
         'bitcoin',
         'a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d',
     );
-    is_deeply($i, ['i', 'bitcoin:tx:a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d'],
+    is($i, ['i', 'bitcoin:tx:a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d'],
         'i tag');
-    is_deeply($k, ['k', 'bitcoin:tx'], 'k tag');
+    is($k, ['k', 'bitcoin:tx'], 'k tag');
 };
 
 # Spec: txid MUST be hex, lowercase
@@ -261,9 +260,9 @@ subtest 'blockchain_tx: ethereum mainnet spec example' => sub {
         '0x98f7812be496f97f80e2e98d66358d1fc733cf34176a8356d171ea7fbbe97ccd',
         chain_id => 100,
     );
-    is_deeply($i, ['i', 'ethereum:100:tx:0x98f7812be496f97f80e2e98d66358d1fc733cf34176a8356d171ea7fbbe97ccd'],
+    is($i, ['i', 'ethereum:100:tx:0x98f7812be496f97f80e2e98d66358d1fc733cf34176a8356d171ea7fbbe97ccd'],
         'i tag');
-    is_deeply($k, ['k', 'ethereum:tx'], 'k tag');
+    is($k, ['k', 'ethereum:tx'], 'k tag');
 };
 
 # Ethereum tx lowercased
@@ -287,8 +286,8 @@ subtest 'blockchain_address: bitcoin base58 spec example' => sub {
         'bitcoin',
         '1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx',
     );
-    is_deeply($i, ['i', 'bitcoin:address:1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx'], 'i tag');
-    is_deeply($k, ['k', 'bitcoin:address'], 'k tag');
+    is($i, ['i', 'bitcoin:address:1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx'], 'i tag');
+    is($k, ['k', 'bitcoin:address'], 'k tag');
 };
 
 # Spec: Bitcoin bech32 addresses are lowercase
@@ -307,9 +306,9 @@ subtest 'blockchain_address: ethereum spec example' => sub {
         '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
         chain_id => 1,
     );
-    is_deeply($i, ['i', 'ethereum:1:address:0xd8da6bf26964af9d7eed9e03e53415d37aa96045'],
+    is($i, ['i', 'ethereum:1:address:0xd8da6bf26964af9d7eed9e03e53415d37aa96045'],
         'i tag');
-    is_deeply($k, ['k', 'ethereum:address'], 'k tag');
+    is($k, ['k', 'ethereum:address'], 'k tag');
 };
 
 # Spec: Ethereum addresses are hex, lowercase
@@ -468,7 +467,7 @@ subtest 'kind_for: unknown returns undef' => sub {
 
 subtest 'constructor: unknown args rejected' => sub {
     like(
-        exception { Net::Nostr::ExternalId->new(bogus => 1) },
+        dies { Net::Nostr::ExternalId->new(bogus => 1) },
         qr/unknown/i,
         'unknown arg rejected'
     );

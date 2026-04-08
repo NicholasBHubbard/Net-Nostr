@@ -1,5 +1,5 @@
 use strictures 2;
-use Test::More;
+use Test2::V0 -no_srand => 1;
 use JSON ();
 
 use lib 't/lib';
@@ -38,7 +38,7 @@ subtest 'stall_event creates kind 30017' => sub {
     is $content->{shipping}[0]{id}, 'zone-1', 'shipping zone id';
     is $content->{shipping}[0]{name}, 'US', 'shipping zone name';
     is $content->{shipping}[0]{cost}, 5.0, 'shipping zone cost';
-    is_deeply $content->{shipping}[0]{regions}, ['US', 'CA'], 'shipping zone regions';
+    is $content->{shipping}[0]{regions}, ['US', 'CA'], 'shipping zone regions';
 };
 
 subtest 'stall_event with optional description' => sub {
@@ -160,8 +160,8 @@ subtest 'product_event with all optional fields' => sub {
 
     my $content = $json->decode($ev->content);
     is $content->{description}, 'A great phone', 'description';
-    is_deeply $content->{images}, ['https://img1.jpg', 'https://img2.jpg'], 'images';
-    is_deeply $content->{specs}, [
+    is $content->{images}, ['https://img1.jpg', 'https://img2.jpg'], 'images';
+    is $content->{specs}, [
         ['operating_system', 'Android 12.0'],
         ['screen_size', '6.4 inches'],
         ['connector_type', 'USB Type C'],
@@ -303,9 +303,9 @@ subtest 'auction_event with all optional fields' => sub {
     );
     my $content = $json->decode($ev->content);
     is $content->{description}, 'A beautiful painting', 'description';
-    is_deeply $content->{images}, ['https://painting.jpg'], 'images';
+    is $content->{images}, ['https://painting.jpg'], 'images';
     is $content->{start_date}, 1700000000, 'start_date';
-    is_deeply $content->{specs}, [['medium', 'oil on canvas'], ['size', '24x36']], 'specs';
+    is $content->{specs}, [['medium', 'oil on canvas'], ['size', '24x36']], 'specs';
     is $content->{shipping}[0]{cost}, 25.0, 'shipping cost';
 };
 
@@ -576,7 +576,7 @@ subtest 'from_event parses kind 30018 product' => sub {
     is $product->stall_id, 's1', 'stall_id parsed';
     is $product->name, 'Widget', 'name parsed';
     is $product->price, 10, 'price parsed';
-    is_deeply $product->categories, ['electronics', 'gadgets'], 'categories from t tags';
+    is $product->categories, ['electronics', 'gadgets'], 'categories from t tags';
 };
 
 subtest 'from_event parses kind 30020 auction' => sub {

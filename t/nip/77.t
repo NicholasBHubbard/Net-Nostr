@@ -1,6 +1,5 @@
 use strictures 2;
-use Test::More;
-use Test::Fatal;
+use Test2::V0 -no_srand => 1;
 
 use JSON ();
 use Digest::SHA qw(sha256);
@@ -70,23 +69,23 @@ subtest 'NEG-OPEN: round-trip' => sub {
 subtest 'NEG-OPEN: filter is NIP-01 filter (spec line 43)' => sub {
     my $json = '["NEG-OPEN","x",{"kinds":[1,4],"#p":["' . ('aa' x 32) . '"]},"61"]';
     my $msg = Net::Nostr::Message->parse($json);
-    isa_ok($msg->filter, 'Net::Nostr::Filter', 'complex filter parsed');
+    isa_ok($msg->filter, ['Net::Nostr::Filter'], 'complex filter parsed');
 };
 
 subtest 'NEG-OPEN: validation' => sub {
     like(
-        exception { Net::Nostr::Message->new(type => 'NEG-OPEN', subscription_id => 'x', neg_msg => '61') },
+        dies { Net::Nostr::Message->new(type => 'NEG-OPEN', subscription_id => 'x', neg_msg => '61') },
         qr/filter is required/i,
         'missing filter rejected'
     );
     my $f = Net::Nostr::Filter->new(kinds => [1]);
     like(
-        exception { Net::Nostr::Message->new(type => 'NEG-OPEN', subscription_id => 'x', filter => $f) },
+        dies { Net::Nostr::Message->new(type => 'NEG-OPEN', subscription_id => 'x', filter => $f) },
         qr/neg_msg is required/i,
         'missing neg_msg rejected'
     );
     like(
-        exception { Net::Nostr::Message->new(type => 'NEG-OPEN', filter => $f, neg_msg => '61') },
+        dies { Net::Nostr::Message->new(type => 'NEG-OPEN', filter => $f, neg_msg => '61') },
         qr/subscription_id/i,
         'missing subscription_id rejected'
     );
@@ -95,7 +94,7 @@ subtest 'NEG-OPEN: validation' => sub {
 subtest 'NEG-OPEN: neg_msg must be hex' => sub {
     my $f = Net::Nostr::Filter->new(kinds => [1]);
     like(
-        exception { Net::Nostr::Message->new(type => 'NEG-OPEN', subscription_id => 'x', filter => $f, neg_msg => 'ZZZZ') },
+        dies { Net::Nostr::Message->new(type => 'NEG-OPEN', subscription_id => 'x', filter => $f, neg_msg => 'ZZZZ') },
         qr/hex/i,
         'non-hex neg_msg rejected'
     );
@@ -206,7 +205,7 @@ subtest 'NEG-MSG: round-trip' => sub {
 
 subtest 'NEG-MSG: validation' => sub {
     like(
-        exception { Net::Nostr::Message->new(type => 'NEG-MSG', subscription_id => 'x') },
+        dies { Net::Nostr::Message->new(type => 'NEG-MSG', subscription_id => 'x') },
         qr/neg_msg is required/i,
         'missing neg_msg rejected'
     );
@@ -222,7 +221,7 @@ subtest 'NEG-CLOSE: construct and serialize' => sub {
         subscription_id => 'neg1',
     );
     my $arr = $JSON->decode($msg->serialize);
-    is_deeply($arr, ['NEG-CLOSE', 'neg1'], 'wire format');
+    is($arr, ['NEG-CLOSE', 'neg1'], 'wire format');
 };
 
 subtest 'NEG-CLOSE: parse' => sub {
@@ -283,7 +282,7 @@ subtest 'message: protocol version byte is 0x61 (spec line 126)' => sub {
 subtest 'message: empty message is valid (zero ranges)' => sub {
     my $bytes = pack('H*', '61');
     my $ranges = $decode_message->($bytes);
-    is_deeply($ranges, [], 'empty message decodes to no ranges');
+    is($ranges, [], 'empty message decodes to no ranges');
 };
 
 ###############################################################################
@@ -425,13 +424,13 @@ subtest 'reconcile: both empty — no differences' => sub {
 
     my $q1 = $client->initiate;
     my ($a1, $have, $need) = $server->reconcile($q1);
-    is_deeply($have, [], 'server has nothing extra');
-    is_deeply($need, [], 'server needs nothing');
+    is($have, [], 'server has nothing extra');
+    is($need, [], 'server needs nothing');
 
     if (defined $a1) {
         my ($q2, $have2, $need2) = $client->reconcile($a1);
-        is_deeply($have2, [], 'client has nothing extra');
-        is_deeply($need2, [], 'client needs nothing');
+        is($have2, [], 'client has nothing extra');
+        is($need2, [], 'client needs nothing');
     }
 };
 
@@ -459,8 +458,8 @@ subtest 'reconcile: identical sets — no differences' => sub {
         push @all_have, @$chave;
         push @all_need, @$cneed;
     }
-    is_deeply(\@all_have, [], 'no differences');
-    is_deeply(\@all_need, [], 'no differences');
+    is(\@all_have, [], 'no differences');
+    is(\@all_need, [], 'no differences');
 };
 
 subtest 'reconcile: client has items server lacks' => sub {
@@ -489,8 +488,8 @@ subtest 'reconcile: client has items server lacks' => sub {
     }
 
     my @sorted_have = sort @all_have;
-    is_deeply(\@sorted_have, [sort($id1, $id2)], 'client has both items');
-    is_deeply(\@all_need, [], 'client needs nothing');
+    is(\@sorted_have, [sort($id1, $id2)], 'client has both items');
+    is(\@all_need, [], 'client needs nothing');
 };
 
 subtest 'reconcile: server has items client lacks' => sub {
@@ -518,9 +517,9 @@ subtest 'reconcile: server has items client lacks' => sub {
         $q = $q2;
     }
 
-    is_deeply(\@all_have, [], 'client has nothing extra');
+    is(\@all_have, [], 'client has nothing extra');
     my @sorted_need = sort @all_need;
-    is_deeply(\@sorted_need, [sort($id1, $id2)], 'client needs both items');
+    is(\@sorted_need, [sort($id1, $id2)], 'client needs both items');
 };
 
 subtest 'reconcile: partial overlap' => sub {
@@ -551,8 +550,8 @@ subtest 'reconcile: partial overlap' => sub {
         $q = $q2;
     }
 
-    is_deeply([sort @all_have], [$client_only], 'client has client_only');
-    is_deeply([sort @all_need], [$server_only], 'client needs server_only');
+    is([sort @all_have], [$client_only], 'client has client_only');
+    is([sort @all_need], [$server_only], 'client needs server_only');
 };
 
 subtest 'reconcile: larger set with multi-round' => sub {
@@ -602,8 +601,8 @@ subtest 'reconcile: larger set with multi-round' => sub {
         $q = $q2;
     }
 
-    is_deeply([sort @all_have], [sort @client_ids], 'correct client-only IDs');
-    is_deeply([sort @all_need], [sort @server_ids], 'correct server-only IDs');
+    is([sort @all_have], [sort @client_ids], 'correct client-only IDs');
+    is([sort @all_need], [sort @server_ids], 'correct server-only IDs');
     ok($rounds <= 10, "converged in $rounds rounds");
 };
 
@@ -614,7 +613,7 @@ subtest 'reconcile: larger set with multi-round' => sub {
 subtest 'protocol: initiate requires seal' => sub {
     my $ne = Net::Nostr::Negentropy->new;
     like(
-        exception { $ne->initiate },
+        dies { $ne->initiate },
         qr/seal/i,
         'initiate before seal rejected'
     );
@@ -623,7 +622,7 @@ subtest 'protocol: initiate requires seal' => sub {
 subtest 'protocol: reconcile requires seal' => sub {
     my $ne = Net::Nostr::Negentropy->new;
     like(
-        exception { $ne->reconcile('61') },
+        dies { $ne->reconcile('61') },
         qr/seal/i,
         'reconcile before seal rejected'
     );
@@ -633,7 +632,7 @@ subtest 'protocol: add_item after seal rejected' => sub {
     my $ne = Net::Nostr::Negentropy->new;
     $ne->seal;
     like(
-        exception { $ne->add_item(1000, '01' x 32) },
+        dies { $ne->add_item(1000, '01' x 32) },
         qr/sealed/i,
         'add_item after seal rejected'
     );
@@ -646,12 +645,12 @@ subtest 'protocol: add_item after seal rejected' => sub {
 subtest 'add_item: validates id format' => sub {
     my $ne = Net::Nostr::Negentropy->new;
     like(
-        exception { $ne->add_item(1000, 'not-hex') },
+        dies { $ne->add_item(1000, 'not-hex') },
         qr/must be 64-char/i,
         'bad id rejected'
     );
     like(
-        exception { $ne->add_item(1000, 'AA' x 32) },
+        dies { $ne->add_item(1000, 'AA' x 32) },
         qr/must be 64-char/i,
         'uppercase hex rejected'
     );
@@ -660,7 +659,7 @@ subtest 'add_item: validates id format' => sub {
 subtest 'add_item: validates timestamp' => sub {
     my $ne = Net::Nostr::Negentropy->new;
     like(
-        exception { $ne->add_item(-1, '01' x 32) },
+        dies { $ne->add_item(-1, '01' x 32) },
         qr/timestamp/i,
         'negative timestamp rejected'
     );
@@ -696,7 +695,7 @@ subtest 'seal: items sorted by timestamp then id (spec line 104)' => sub {
     }
 
     # All three should be discovered regardless of insertion order
-    is_deeply([sort @all_have], [sort($id_a, $id_b, $id_c)],
+    is([sort @all_have], [sort($id_a, $id_b, $id_c)],
         'all items found despite out-of-order insertion');
 };
 
@@ -707,7 +706,7 @@ subtest 'seal: items sorted by timestamp then id (spec line 104)' => sub {
 subtest 'add_item: reserved infinity timestamp rejected (spec line 104)' => sub {
     my $ne = Net::Nostr::Negentropy->new;
     like(
-        exception { $ne->add_item(~0, '01' x 32) },
+        dies { $ne->add_item(~0, '01' x 32) },
         qr/infinity|reserved/i,
         'max uint64 timestamp rejected'
     );
@@ -720,13 +719,13 @@ subtest 'add_item: reserved infinity timestamp rejected (spec line 104)' => sub 
 subtest 'decode: unsupported protocol version (spec line 126)' => sub {
     # Version 0x62 (protocol version 2) is not supported
     like(
-        exception { $decode_message->(chr(0x62)) },
+        dies { $decode_message->(chr(0x62)) },
         qr/unsupported.*version/i,
         'version 0x62 rejected'
     );
     # Version 0x00 is also unsupported
     like(
-        exception { $decode_message->(chr(0x00)) },
+        dies { $decode_message->(chr(0x00)) },
         qr/unsupported.*version/i,
         'version 0x00 rejected'
     );
@@ -781,12 +780,12 @@ subtest 'reconcile: non-infinity last range handled (spec line 128)' => sub {
 
 subtest 'NEG-OPEN: parse rejects wrong element count' => sub {
     like(
-        exception { Net::Nostr::Message->parse('["NEG-OPEN","x"]') },
+        dies { Net::Nostr::Message->parse('["NEG-OPEN","x"]') },
         qr/requires 4 elements/i,
         'too few elements rejected'
     );
     like(
-        exception { Net::Nostr::Message->parse('["NEG-OPEN","x",{},"61","extra"]') },
+        dies { Net::Nostr::Message->parse('["NEG-OPEN","x",{},"61","extra"]') },
         qr/requires 4 elements/i,
         'too many elements rejected'
     );
@@ -794,7 +793,7 @@ subtest 'NEG-OPEN: parse rejects wrong element count' => sub {
 
 subtest 'NEG-OPEN: parse rejects non-object filter' => sub {
     like(
-        exception { Net::Nostr::Message->parse('["NEG-OPEN","x","not-a-filter","61"]') },
+        dies { Net::Nostr::Message->parse('["NEG-OPEN","x","not-a-filter","61"]') },
         qr/filter must be a JSON object/i,
         'string filter rejected'
     );
@@ -802,7 +801,7 @@ subtest 'NEG-OPEN: parse rejects non-object filter' => sub {
 
 subtest 'NEG-OPEN: parse rejects non-hex neg_msg' => sub {
     like(
-        exception { Net::Nostr::Message->parse('["NEG-OPEN","x",{},"ZZZZ"]') },
+        dies { Net::Nostr::Message->parse('["NEG-OPEN","x",{},"ZZZZ"]') },
         qr/hex/i,
         'non-hex neg_msg rejected on parse'
     );
@@ -810,12 +809,12 @@ subtest 'NEG-OPEN: parse rejects non-hex neg_msg' => sub {
 
 subtest 'NEG-MSG: parse rejects wrong element count' => sub {
     like(
-        exception { Net::Nostr::Message->parse('["NEG-MSG","x"]') },
+        dies { Net::Nostr::Message->parse('["NEG-MSG","x"]') },
         qr/requires 3 elements/i,
         'too few elements rejected'
     );
     like(
-        exception { Net::Nostr::Message->parse('["NEG-MSG","x","ab","extra"]') },
+        dies { Net::Nostr::Message->parse('["NEG-MSG","x","ab","extra"]') },
         qr/requires 3 elements/i,
         'too many elements rejected'
     );
@@ -823,7 +822,7 @@ subtest 'NEG-MSG: parse rejects wrong element count' => sub {
 
 subtest 'NEG-MSG: parse rejects non-hex neg_msg' => sub {
     like(
-        exception { Net::Nostr::Message->parse('["NEG-MSG","x","ZZZZ"]') },
+        dies { Net::Nostr::Message->parse('["NEG-MSG","x","ZZZZ"]') },
         qr/hex/i,
         'non-hex neg_msg rejected on parse'
     );
@@ -831,7 +830,7 @@ subtest 'NEG-MSG: parse rejects non-hex neg_msg' => sub {
 
 subtest 'NEG-MSG: construct rejects non-hex neg_msg' => sub {
     like(
-        exception { Net::Nostr::Message->new(type => 'NEG-MSG', subscription_id => 'x', neg_msg => 'ZZZZ') },
+        dies { Net::Nostr::Message->new(type => 'NEG-MSG', subscription_id => 'x', neg_msg => 'ZZZZ') },
         qr/hex/i,
         'non-hex neg_msg rejected on construct'
     );
@@ -839,12 +838,12 @@ subtest 'NEG-MSG: construct rejects non-hex neg_msg' => sub {
 
 subtest 'NEG-CLOSE: parse rejects wrong element count' => sub {
     like(
-        exception { Net::Nostr::Message->parse('["NEG-CLOSE"]') },
+        dies { Net::Nostr::Message->parse('["NEG-CLOSE"]') },
         qr/requires 2 elements/i,
         'too few elements rejected'
     );
     like(
-        exception { Net::Nostr::Message->parse('["NEG-CLOSE","x","extra"]') },
+        dies { Net::Nostr::Message->parse('["NEG-CLOSE","x","extra"]') },
         qr/requires 2 elements/i,
         'too many elements rejected'
     );
@@ -852,12 +851,12 @@ subtest 'NEG-CLOSE: parse rejects wrong element count' => sub {
 
 subtest 'NEG-ERR: parse rejects wrong element count' => sub {
     like(
-        exception { Net::Nostr::Message->parse('["NEG-ERR","x"]') },
+        dies { Net::Nostr::Message->parse('["NEG-ERR","x"]') },
         qr/requires 3 or 4 elements/i,
         'too few elements rejected'
     );
     like(
-        exception { Net::Nostr::Message->parse('["NEG-ERR","x","msg",1,"extra"]') },
+        dies { Net::Nostr::Message->parse('["NEG-ERR","x","msg",1,"extra"]') },
         qr/requires 3 or 4 elements/i,
         'too many elements rejected'
     );
@@ -979,8 +978,8 @@ subtest 'reconcile: same-timestamp items sorted by ID (spec line 104)' => sub {
         $q = $q2;
     }
 
-    is_deeply([sort @all_have], [$client_only], 'client-only ID found');
-    is_deeply([sort @all_need], [$server_only], 'server-only ID found');
+    is([sort @all_have], [$client_only], 'client-only ID found');
+    is([sort @all_need], [$server_only], 'server-only ID found');
 };
 
 done_testing;
