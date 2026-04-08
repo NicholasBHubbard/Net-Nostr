@@ -170,6 +170,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-87|https://github.com/nostr-protocol/nips/blob/master/87.md> - Ecash Mint Discoverability
 
+=item L<NIP-90|https://github.com/nostr-protocol/nips/blob/master/90.md> - Data Vending Machine
+
 =item L<NIP-98|https://github.com/nostr-protocol/nips/blob/master/98.md> - HTTP auth
 
 =item L<NIP-99|https://github.com/nostr-protocol/nips/blob/master/99.md> - Classified Listings

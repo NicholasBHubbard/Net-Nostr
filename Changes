@@ -1,5 +1,9 @@
 1.000000   TBD
 
+  - New: Net::Nostr::DVM (NIP-90) - data vending machine with job
+    requests (kind 5000-5999), job results (kind 6000-6999), job
+    feedback (kind 7000), encrypted params, job chaining, and
+    service provider discoverability
   - New: Net::Nostr::Wiki (NIP-54) - wiki articles (kind 30818) with
     d tag normalization, merge requests (kind 818) with source markers,
     wiki redirects (kind 30819), fork/defer markers, and wikilink
