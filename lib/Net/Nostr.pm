@@ -76,23 +76,25 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-13|https://github.com/nostr-protocol/nips/blob/master/13.md> - Proof of Work
 
+=item L<NIP-15|https://github.com/nostr-protocol/nips/blob/master/15.md> - Nostr Marketplace
+
+=item L<NIP-17|https://github.com/nostr-protocol/nips/blob/master/17.md> - Private direct messages
+
 =item L<NIP-18|https://github.com/nostr-protocol/nips/blob/master/18.md> - Reposts
 
 =item L<NIP-19|https://github.com/nostr-protocol/nips/blob/master/19.md> - bech32-encoded entities
 
 =item L<NIP-21|https://github.com/nostr-protocol/nips/blob/master/21.md> - C<nostr:> URI scheme
 
+=item L<NIP-22|https://github.com/nostr-protocol/nips/blob/master/22.md> - Comment
+
 =item L<NIP-23|https://github.com/nostr-protocol/nips/blob/master/23.md> - Long-form content
 
-=item L<NIP-27|https://github.com/nostr-protocol/nips/blob/master/27.md> - Text note references
-
-=item L<NIP-17|https://github.com/nostr-protocol/nips/blob/master/17.md> - Private direct messages
+=item L<NIP-24|https://github.com/nostr-protocol/nips/blob/master/24.md> - Extra metadata fields and tags
 
 =item L<NIP-25|https://github.com/nostr-protocol/nips/blob/master/25.md> - Reactions
 
-=item L<NIP-22|https://github.com/nostr-protocol/nips/blob/master/22.md> - Comment
-
-=item L<NIP-24|https://github.com/nostr-protocol/nips/blob/master/24.md> - Extra metadata fields and tags
+=item L<NIP-27|https://github.com/nostr-protocol/nips/blob/master/27.md> - Text note references
 
 =item L<NIP-28|https://github.com/nostr-protocol/nips/blob/master/28.md> - Public chat
 
@@ -112,17 +114,17 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-43|https://github.com/nostr-protocol/nips/blob/master/43.md> - Relay Access Metadata and Requests
 
-=item L<NIP-46|https://github.com/nostr-protocol/nips/blob/master/46.md> - Nostr Remote Signing
+=item L<NIP-44|https://github.com/nostr-protocol/nips/blob/master/44.md> - Encrypted payloads (versioned)
 
 =item L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md> - Event counts
+
+=item L<NIP-46|https://github.com/nostr-protocol/nips/blob/master/46.md> - Nostr Remote Signing
 
 =item L<NIP-47|https://github.com/nostr-protocol/nips/blob/master/47.md> - Nostr Wallet Connect
 
 =item L<NIP-49|https://github.com/nostr-protocol/nips/blob/master/49.md> - Private key encryption
 
 =item L<NIP-50|https://github.com/nostr-protocol/nips/blob/master/50.md> - Search capability
-
-=item L<NIP-44|https://github.com/nostr-protocol/nips/blob/master/44.md> - Encrypted payloads (versioned)
 
 =item L<NIP-51|https://github.com/nostr-protocol/nips/blob/master/51.md> - Lists
 
@@ -140,8 +142,6 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-59|https://github.com/nostr-protocol/nips/blob/master/59.md> - Gift wrap
 
-=item L<NIP-15|https://github.com/nostr-protocol/nips/blob/master/15.md> - Nostr Marketplace
-
 =item L<NIP-60|https://github.com/nostr-protocol/nips/blob/master/60.md> - Cashu wallets
 
 =item L<NIP-61|https://github.com/nostr-protocol/nips/blob/master/61.md> - Nutzaps
@@ -152,25 +152,25 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-70|https://github.com/nostr-protocol/nips/blob/master/70.md> - Protected Events
 
-=item L<NIP-78|https://github.com/nostr-protocol/nips/blob/master/78.md> - Arbitrary Custom App Data
-
-=item L<NIP-89|https://github.com/nostr-protocol/nips/blob/master/89.md> - Recommended Application Handlers
-
-=item L<NIP-92|https://github.com/nostr-protocol/nips/blob/master/92.md> - Media Attachments
-
-=item L<NIP-94|https://github.com/nostr-protocol/nips/blob/master/94.md> - File Metadata
-
 =item L<NIP-72|https://github.com/nostr-protocol/nips/blob/master/72.md> - Moderated Communities
 
 =item L<NIP-73|https://github.com/nostr-protocol/nips/blob/master/73.md> - External Content IDs
 
 =item L<NIP-77|https://github.com/nostr-protocol/nips/blob/master/77.md> - Negentropy Syncing
 
+=item L<NIP-78|https://github.com/nostr-protocol/nips/blob/master/78.md> - Arbitrary Custom App Data
+
 =item L<NIP-86|https://github.com/nostr-protocol/nips/blob/master/86.md> - Relay Management API
 
 =item L<NIP-87|https://github.com/nostr-protocol/nips/blob/master/87.md> - Ecash Mint Discoverability
 
+=item L<NIP-89|https://github.com/nostr-protocol/nips/blob/master/89.md> - Recommended Application Handlers
+
 =item L<NIP-90|https://github.com/nostr-protocol/nips/blob/master/90.md> - Data Vending Machine
+
+=item L<NIP-92|https://github.com/nostr-protocol/nips/blob/master/92.md> - Media Attachments
+
+=item L<NIP-94|https://github.com/nostr-protocol/nips/blob/master/94.md> - File Metadata
 
 =item L<NIP-98|https://github.com/nostr-protocol/nips/blob/master/98.md> - HTTP auth
 
@@ -191,33 +191,37 @@ Use NIP-44 for encryption instead.
 
 =item L<Net::Nostr::AppHandler> - NIP-89 recommended application handlers
 
-=item L<Net::Nostr::Badge> - NIP-58 badges
-
 =item L<Net::Nostr::Article> - NIP-23 long-form content
 
-=item L<Net::Nostr::Blossom> - NIP-B7 Blossom media server lists
+=item L<Net::Nostr::Badge> - NIP-58 badges
 
 =item L<Net::Nostr::Bech32> - NIP-19 bech32-encoded entities
 
+=item L<Net::Nostr::Blossom> - NIP-B7 Blossom media server lists
+
 =item L<Net::Nostr::Calendar> - NIP-52 calendar events
 
-=item L<Net::Nostr::ClassifiedListing> - NIP-99 classified listings
-
-=item L<Net::Nostr::Community> - NIP-72 moderated communities
-
 =item L<Net::Nostr::Channel> - NIP-28 public chat channels
+
+=item L<Net::Nostr::ClassifiedListing> - NIP-99 classified listings
 
 =item L<Net::Nostr::Client> - WebSocket client for connecting to Nostr relays
 
 =item L<Net::Nostr::Comment> - NIP-22 comment threading
 
+=item L<Net::Nostr::Community> - NIP-72 moderated communities
+
 =item L<Net::Nostr::Deletion> - NIP-09 event deletion requests
 
 =item L<Net::Nostr::DirectMessage> - NIP-17 private direct messages
 
+=item L<Net::Nostr::DVM> - NIP-90 data vending machine
+
 =item L<Net::Nostr::Encryption> - NIP-44 versioned encrypted payloads
 
 =item L<Net::Nostr::Event> - Nostr event serialization, ID computation, and verification
+
+=item L<Net::Nostr::ExternalId> - NIP-73 external content IDs
 
 =item L<Net::Nostr::FileMetadata> - NIP-94 file metadata events
 
@@ -247,15 +251,13 @@ Use NIP-44 for encryption instead.
 
 =item L<Net::Nostr::Marketplace> - NIP-15 Nostr Marketplace
 
-=item L<Net::Nostr::Metadata> - NIP-24 extra metadata fields and tags
-
-=item L<Net::Nostr::ExternalId> - NIP-73 external content IDs
-
 =item L<Net::Nostr::MediaAttachment> - NIP-92 media attachments
 
-=item L<Net::Nostr::MintDiscovery> - NIP-87 ecash mint discoverability
-
 =item L<Net::Nostr::Message> - Protocol message serialization and parsing
+
+=item L<Net::Nostr::Metadata> - NIP-24 extra metadata fields and tags
+
+=item L<Net::Nostr::MintDiscovery> - NIP-87 ecash mint discoverability
 
 =item L<Net::Nostr::Negentropy> - NIP-77 negentropy set reconciliation
 
@@ -290,6 +292,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Wallet> - NIP-60 Cashu wallet state management
 
 =item L<Net::Nostr::WalletConnect> - NIP-47 Nostr Wallet Connect
+
+=item L<Net::Nostr::Wiki> - NIP-54 wiki
 
 =item L<Net::Nostr::Zap> - NIP-57 Lightning Zaps
 

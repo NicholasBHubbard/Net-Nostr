@@ -34,8 +34,8 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md) - Comment
 - [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) - Long-form content
 - [NIP-24](https://github.com/nostr-protocol/nips/blob/master/24.md) - Extra metadata fields and tags
-- [NIP-27](https://github.com/nostr-protocol/nips/blob/master/27.md) - Text note references
 - [NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md) - Reactions
+- [NIP-27](https://github.com/nostr-protocol/nips/blob/master/27.md) - Text note references
 - [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) - Public chat
 - [NIP-29](https://github.com/nostr-protocol/nips/blob/master/29.md) - Relay-based groups
 - [NIP-32](https://github.com/nostr-protocol/nips/blob/master/32.md) - Labeling
@@ -64,10 +64,10 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) - Relay list metadata
 - [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) - Relay Discovery and Liveness Monitoring
 - [NIP-70](https://github.com/nostr-protocol/nips/blob/master/70.md) - Protected Events
-- [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) - Arbitrary Custom App Data
 - [NIP-72](https://github.com/nostr-protocol/nips/blob/master/72.md) - Moderated Communities
 - [NIP-73](https://github.com/nostr-protocol/nips/blob/master/73.md) - External Content IDs
 - [NIP-77](https://github.com/nostr-protocol/nips/blob/master/77.md) - Negentropy Syncing
+- [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) - Arbitrary Custom App Data
 - [NIP-86](https://github.com/nostr-protocol/nips/blob/master/86.md) - Relay Management API
 - [NIP-87](https://github.com/nostr-protocol/nips/blob/master/87.md) - Ecash Mint Discoverability
 - [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) - Recommended Application Handlers
