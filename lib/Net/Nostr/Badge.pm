@@ -254,7 +254,7 @@ sub _parse_badge_pairs {
             push @badges, \%entry;
             $pending_def = undef;
         } elsif ($tag->[0] eq 'e') {
-            # e without preceding a — ignore
+            # e without preceding a -- ignore
         }
     }
 
@@ -294,7 +294,6 @@ sub validate {
 
 __END__
 
-=encoding UTF-8
 
 =head1 NAME
 

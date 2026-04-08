@@ -328,7 +328,6 @@ sub resolve_wikilinks {
 
 __END__
 
-=encoding UTF-8
 
 =head1 NAME
 

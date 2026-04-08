@@ -64,7 +64,7 @@ sub comment {
             push @tags, ['k', $kind_str];
             push @tags, ['p', $event->pubkey, $relay];
         } else {
-            # Regular or replaceable event — use E/e tags
+            # Regular or replaceable event -- use E/e tags
             push @tags, ['E', $event->id, $relay, $event->pubkey];
             push @tags, ['K', $kind_str];
             push @tags, ['P', $event->pubkey, $relay];

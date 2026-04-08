@@ -155,7 +155,6 @@ sub report_filter {
 
 __END__
 
-=encoding utf8
 
 =head1 NAME
 

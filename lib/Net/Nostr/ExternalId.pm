@@ -22,7 +22,7 @@ sub new {
     return $self;
 }
 
-# Tag builders — each returns ($i_tag, $k_tag)
+# Tag builders -- each returns ($i_tag, $k_tag)
 
 sub url_tags {
     my ($class, $url, %opts) = @_;
@@ -199,7 +199,6 @@ sub kind_for {
 
 __END__
 
-=encoding UTF-8
 
 =head1 NAME
 

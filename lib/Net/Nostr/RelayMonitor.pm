@@ -246,7 +246,6 @@ sub validate {
 
 __END__
 
-=encoding UTF-8
 
 =head1 NAME
 
@@ -289,14 +288,14 @@ methods to build and parse two event types:
 
 =over 4
 
-=item B<Kind 30166> — Relay Discovery Events
+=item B<Kind 30166> -- Relay Discovery Events
 
 Addressable events published by monitors documenting relay characteristics
 inferred from NIP-11 documents or probing. The C<d> tag MUST be set to the
 relay's normalized URL (or a hex pubkey for non-URL relays). The C<content>
 MAY include the stringified JSON of the relay's NIP-11 document.
 
-=item B<Kind 10166> — Relay Monitor Announcements
+=item B<Kind 10166> -- Relay Monitor Announcements
 
 Replaceable events advertising a monitor's intent to publish discovery
 events at a regular frequency.

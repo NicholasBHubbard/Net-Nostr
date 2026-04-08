@@ -368,7 +368,6 @@ sub _split_items_into_ranges {
 
 __END__
 
-=encoding UTF-8
 
 =head1 NAME
 
@@ -398,8 +397,8 @@ Net::Nostr::Negentropy - NIP-77 negentropy set reconciliation
 
     # Client processes response
     my ($next, $c_have, $c_need) = $client->reconcile($response);
-    # $c_have = ['02' x 32]   — client has, server doesn't
-    # $c_need = ['03' x 32]   — server has, client doesn't
+    # $c_have = ['02' x 32]   -- client has, server doesn't
+    # $c_need = ['03' x 32]   -- server has, client doesn't
     # If $next is defined, send as NEG-MSG and continue
 
 =head1 DESCRIPTION
@@ -450,7 +449,7 @@ Options:
 
 =over 4
 
-=item C<frame_size_limit> — maximum byte size for encoded protocol
+=item C<frame_size_limit> -- maximum byte size for encoded protocol
 messages. Defaults to C<0> (unlimited).
 
 =back
@@ -491,13 +490,13 @@ Processes a reconciliation message from the other side. Returns:
 
 =over 4
 
-=item C<$hex_response> — the response message (hex string), or
+=item C<$hex_response> -- the response message (hex string), or
 C<undef> if the protocol is complete
 
-=item C<$have_ids> — arrayref of hex ID strings that we have and
+=item C<$have_ids> -- arrayref of hex ID strings that we have and
 they don't
 
-=item C<$need_ids> — arrayref of hex ID strings that they have and
+=item C<$need_ids> -- arrayref of hex ID strings that they have and
 we don't
 
 =back

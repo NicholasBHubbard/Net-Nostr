@@ -166,7 +166,7 @@ sub _handle_nip11_or_ws {
 
     $timer = AnyEvent->timer(after => 5, cb => sub {
         $cleanup->();
-        # Timed out waiting for headers — fall through to WebSocket
+        # Timed out waiting for headers -- fall through to WebSocket
         $self->_establish_ws($fh, $peer_host);
     });
 

@@ -16,7 +16,7 @@ sub parse_id {
             unless $group_id =~ $VALID_GROUP_ID;
         return { host => $host, group_id => $group_id };
     }
-    # Host only — infer _ as group_id (MAY per spec)
+    # Host only -- infer _ as group_id (MAY per spec)
     return { host => $str, group_id => '_' };
 }
 

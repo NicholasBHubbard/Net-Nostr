@@ -265,7 +265,7 @@ sub _insert_ordered {
         if ($cmp == 0) {
             $cmp = $ordered->[$mid]->id cmp $event->id;
         }
-        # cmp > 0: event is newer (or same time, lower id) → goes before mid
+        # cmp > 0: event is newer (or same time, lower id) -- goes before mid
         if ($cmp > 0) {
             $hi = $mid;
         } else {
@@ -278,7 +278,7 @@ sub _insert_ordered {
 sub _candidates_for {
     my ($self, $filter) = @_;
 
-    # 1. ids — tightest
+    # 1. ids -- tightest
     if ($filter->ids) {
         my @events;
         for my $id (@{$filter->ids}) {
@@ -288,7 +288,7 @@ sub _candidates_for {
         return $self->_sort_events(\@events);
     }
 
-    # 2. authors + kinds — intersect
+    # 2. authors + kinds -- intersect
     if ($filter->authors && $filter->kinds) {
         my %by_author;
         for my $pk (@{$filter->authors}) {
@@ -345,7 +345,7 @@ sub _candidates_for {
         }
     }
 
-    # 6. fallback — use pre-sorted ordered list
+    # 6. fallback -- use pre-sorted ordered list
     return $self->{_ordered};
 }
 
