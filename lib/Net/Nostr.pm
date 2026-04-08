@@ -102,6 +102,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-34|https://github.com/nostr-protocol/nips/blob/master/34.md> - git stuff
 
+=item L<NIP-35|https://github.com/nostr-protocol/nips/blob/master/35.md> - Torrents
+
 =item L<NIP-36|https://github.com/nostr-protocol/nips/blob/master/36.md> - Sensitive Content / Content Warning
 
 =item L<NIP-40|https://github.com/nostr-protocol/nips/blob/master/40.md> - Expiration timestamp
@@ -262,6 +264,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Thread> - NIP-10 text note threading
 
 =item L<Net::Nostr::Timestamp> - NIP-03 OpenTimestamps attestations
+
+=item L<Net::Nostr::Torrent> - NIP-35 torrents
 
 =item L<Net::Nostr::Wallet> - NIP-60 Cashu wallet state management
 

@@ -40,6 +40,7 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-29](https://github.com/nostr-protocol/nips/blob/master/29.md) - Relay-based groups
 - [NIP-32](https://github.com/nostr-protocol/nips/blob/master/32.md) - Labeling
 - [NIP-34](https://github.com/nostr-protocol/nips/blob/master/34.md) - git stuff
+- [NIP-35](https://github.com/nostr-protocol/nips/blob/master/35.md) - Torrents
 - [NIP-36](https://github.com/nostr-protocol/nips/blob/master/36.md) - Sensitive Content / Content Warning
 - [NIP-40](https://github.com/nostr-protocol/nips/blob/master/40.md) - Expiration timestamp
 - [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) - Authentication of clients to relays

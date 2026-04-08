@@ -1,5 +1,8 @@
 1.000000   TBD
 
+  - New: Net::Nostr::Torrent (NIP-35) - kind 2003 torrent index events
+    with info hash, files, trackers, tag prefixes, and searchable hashtags;
+    kind 2004 torrent comments following NIP-10 tagging
   - New: Net::Nostr::ExternalId (NIP-73) - external content ID tag builders
     and parser for URLs, ISBNs, geohashes, ISO 3166 codes, ISANs, DOIs,
     hashtags, podcasts, and blockchain transactions/addresses
