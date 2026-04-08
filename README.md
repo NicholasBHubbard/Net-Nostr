@@ -66,6 +66,7 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-73](https://github.com/nostr-protocol/nips/blob/master/73.md) - External Content IDs
 - [NIP-77](https://github.com/nostr-protocol/nips/blob/master/77.md) - Negentropy Syncing
 - [NIP-86](https://github.com/nostr-protocol/nips/blob/master/86.md) - Relay Management API
+- [NIP-87](https://github.com/nostr-protocol/nips/blob/master/87.md) - Ecash Mint Discoverability
 - [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) - Recommended Application Handlers
 - [NIP-92](https://github.com/nostr-protocol/nips/blob/master/92.md) - Media Attachments
 - [NIP-94](https://github.com/nostr-protocol/nips/blob/master/94.md) - File Metadata

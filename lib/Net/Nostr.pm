@@ -162,6 +162,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-86|https://github.com/nostr-protocol/nips/blob/master/86.md> - Relay Management API
 
+=item L<NIP-87|https://github.com/nostr-protocol/nips/blob/master/87.md> - Ecash Mint Discoverability
+
 =item L<NIP-98|https://github.com/nostr-protocol/nips/blob/master/98.md> - HTTP auth
 
 =item L<NIP-99|https://github.com/nostr-protocol/nips/blob/master/99.md> - Classified Listings
@@ -240,6 +242,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::ExternalId> - NIP-73 external content IDs
 
 =item L<Net::Nostr::MediaAttachment> - NIP-92 media attachments
+
+=item L<Net::Nostr::MintDiscovery> - NIP-87 ecash mint discoverability
 
 =item L<Net::Nostr::Message> - Protocol message serialization and parsing
 

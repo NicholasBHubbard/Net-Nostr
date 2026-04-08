@@ -1,5 +1,8 @@
 1.000000   TBD
 
+  - New: Net::Nostr::MintDiscovery (NIP-87) - ecash mint discoverability
+    with recommendation events (kind 38000), Cashu mint info (kind 38172),
+    and Fedimint info (kind 38173)
   - New: Net::Nostr::Calendar (NIP-52) - date-based (kind 31922) and
     time-based (kind 31923) calendar events, calendar collections
     (kind 31924), and RSVPs (kind 31925) with common tag infrastructure,
