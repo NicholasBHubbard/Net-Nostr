@@ -1,5 +1,8 @@
 1.000000   TBD
 
+  - New: Net::Nostr::ExternalId (NIP-73) - external content ID tag builders
+    and parser for URLs, ISBNs, geohashes, ISO 3166 codes, ISANs, DOIs,
+    hashtags, podcasts, and blockchain transactions/addresses
   - New: Net::Nostr::Metadata (NIP-24) - kind 0 profile metadata with
     display_name, website, banner, bot, birthday; standard tag helpers
     for hashtags, URLs, and titles; deprecated field migration

@@ -152,6 +152,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-72|https://github.com/nostr-protocol/nips/blob/master/72.md> - Moderated Communities
 
+=item L<NIP-73|https://github.com/nostr-protocol/nips/blob/master/73.md> - External Content IDs
+
 =item L<NIP-77|https://github.com/nostr-protocol/nips/blob/master/77.md> - Negentropy Syncing
 
 =item L<NIP-86|https://github.com/nostr-protocol/nips/blob/master/86.md> - Relay Management API
@@ -228,6 +230,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Marketplace> - NIP-15 Nostr Marketplace
 
 =item L<Net::Nostr::Metadata> - NIP-24 extra metadata fields and tags
+
+=item L<Net::Nostr::ExternalId> - NIP-73 external content IDs
 
 =item L<Net::Nostr::MediaAttachment> - NIP-92 media attachments
 
