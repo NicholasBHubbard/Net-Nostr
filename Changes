@@ -1,5 +1,9 @@
 1.000000   TBD
 
+  - New: Net::Nostr::LiveActivity (NIP-53) - live activities with live
+    streaming events (kind 30311), chat messages (kind 1311), meeting
+    spaces (kind 30312), meeting room events (kind 30313), and room
+    presence (kind 10312) with participant roles and proof of agreement
   - New: Net::Nostr::RelayAccess (NIP-43) - relay access metadata and
     requests with membership lists (kind 13534), add/remove member
     (kinds 8000/8001), join/invite/leave requests (kinds 28934/28935/28936),

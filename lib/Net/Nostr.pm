@@ -128,6 +128,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-52|https://github.com/nostr-protocol/nips/blob/master/52.md> - Calendar Events
 
+=item L<NIP-53|https://github.com/nostr-protocol/nips/blob/master/53.md> - Live Activities
+
 =item L<NIP-56|https://github.com/nostr-protocol/nips/blob/master/56.md> - Reporting
 
 =item L<NIP-57|https://github.com/nostr-protocol/nips/blob/master/57.md> - Lightning Zaps
@@ -236,6 +238,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Label> - NIP-32 labeling
 
 =item L<Net::Nostr::List> - NIP-51 lists and sets
+
+=item L<Net::Nostr::LiveActivity> - NIP-53 live activities
 
 =item L<Net::Nostr::Marketplace> - NIP-15 Nostr Marketplace
 
