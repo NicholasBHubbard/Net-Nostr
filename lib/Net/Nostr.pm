@@ -124,6 +124,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-51|https://github.com/nostr-protocol/nips/blob/master/51.md> - Lists
 
+=item L<NIP-52|https://github.com/nostr-protocol/nips/blob/master/52.md> - Calendar Events
+
 =item L<NIP-56|https://github.com/nostr-protocol/nips/blob/master/56.md> - Reporting
 
 =item L<NIP-57|https://github.com/nostr-protocol/nips/blob/master/57.md> - Lightning Zaps
@@ -186,6 +188,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Blossom> - NIP-B7 Blossom media server lists
 
 =item L<Net::Nostr::Bech32> - NIP-19 bech32-encoded entities
+
+=item L<Net::Nostr::Calendar> - NIP-52 calendar events
 
 =item L<Net::Nostr::ClassifiedListing> - NIP-99 classified listings
 

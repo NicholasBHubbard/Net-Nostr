@@ -1,5 +1,9 @@
 1.000000   TBD
 
+  - New: Net::Nostr::Calendar (NIP-52) - date-based (kind 31922) and
+    time-based (kind 31923) calendar events, calendar collections
+    (kind 31924), and RSVPs (kind 31925) with common tag infrastructure,
+    deprecated name tag handling, and free/busy semantics
   - New: Net::Nostr::Torrent (NIP-35) - kind 2003 torrent index events
     with info hash, files, trackers, tag prefixes, and searchable hashtags;
     kind 2004 torrent comments following NIP-10 tagging
