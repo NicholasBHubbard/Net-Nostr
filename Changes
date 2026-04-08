@@ -1,5 +1,9 @@
 1.000000   TBD
 
+  - New: Net::Nostr::RelayAccess (NIP-43) - relay access metadata and
+    requests with membership lists (kind 13534), add/remove member
+    (kinds 8000/8001), join/invite/leave requests (kinds 28934/28935/28936),
+    all with NIP-70 protected tags
   - New: Net::Nostr::MintDiscovery (NIP-87) - ecash mint discoverability
     with recommendation events (kind 38000), Cashu mint info (kind 38172),
     and Fedimint info (kind 38173)

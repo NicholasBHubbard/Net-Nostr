@@ -110,6 +110,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md> - Authentication of clients to relays
 
+=item L<NIP-43|https://github.com/nostr-protocol/nips/blob/master/43.md> - Relay Access Metadata and Requests
+
 =item L<NIP-46|https://github.com/nostr-protocol/nips/blob/master/46.md> - Nostr Remote Signing
 
 =item L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md> - Event counts
@@ -254,6 +256,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::Reaction> - NIP-25 reactions
 
 =item L<Net::Nostr::Relay> - WebSocket relay server
+
+=item L<Net::Nostr::RelayAccess> - NIP-43 relay access metadata and requests
 
 =item L<Net::Nostr::RelayAdmin> - NIP-86 relay management API
 

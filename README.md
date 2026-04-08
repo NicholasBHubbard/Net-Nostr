@@ -44,6 +44,7 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-36](https://github.com/nostr-protocol/nips/blob/master/36.md) - Sensitive Content / Content Warning
 - [NIP-40](https://github.com/nostr-protocol/nips/blob/master/40.md) - Expiration timestamp
 - [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) - Authentication of clients to relays
+- [NIP-43](https://github.com/nostr-protocol/nips/blob/master/43.md) - Relay Access Metadata and Requests
 - [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md) - Encrypted payloads (versioned)
 - [NIP-45](https://github.com/nostr-protocol/nips/blob/master/45.md) - Event counts
 - [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) - Nostr Remote Signing
