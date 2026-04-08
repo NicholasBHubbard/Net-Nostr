@@ -84,6 +84,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-23|https://github.com/nostr-protocol/nips/blob/master/23.md> - Long-form content
 
+=item L<NIP-27|https://github.com/nostr-protocol/nips/blob/master/27.md> - Text note references
+
 =item L<NIP-17|https://github.com/nostr-protocol/nips/blob/master/17.md> - Private direct messages
 
 =item L<NIP-25|https://github.com/nostr-protocol/nips/blob/master/25.md> - Reactions

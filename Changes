@@ -1,5 +1,7 @@
 1.000000   TBD
 
+  - New: Net::Nostr::Mention (NIP-27) - extract, replace, and build
+    nostr: mentions in event content
   - New: Net::Nostr::Relay::Store - indexed in-memory event storage backend
     with O(1) duplicate detection, replaceable/addressable lookups, and
     index-accelerated queries by kind, author, id, and tag

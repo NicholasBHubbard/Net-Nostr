@@ -587,7 +587,7 @@ is missing the C<nostr:> prefix.
 
     my $result = decode_nostr_uri('nostr:npub1sn0wdenkukak0d9dfczzeacvhkrgz92ak56egt7vdgzn8pv2wfqqhrjdv9');
     say $result->{type};  # 'npub'
-    say $result->{data};  # '84dee6e676e5bb67b4ad4e042cf70cbd8681571dc2584dde958b60750a999d32'
+    say $result->{data};  # '84dee6e676e5bb67b4ad4e042cf70cbd8681155db535942fcc6a0533858a7240'
 
 =head1 SEE ALSO
 
