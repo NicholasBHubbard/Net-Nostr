@@ -1,5 +1,9 @@
 1.000000   TBD
 
+  - New: Net::Nostr::Negentropy (NIP-77) - negentropy set reconciliation
+    for efficient event syncing between clients and relays
+  - New: Message types NEG-OPEN, NEG-MSG, NEG-CLOSE, NEG-ERR in
+    Net::Nostr::Message for NIP-77 protocol flow
   - New: Net::Nostr::RelayAdmin (NIP-86) - relay management API client
   - New: Net::Nostr::HttpAuth (NIP-98) - HTTP auth using nostr events
   - New: Net::Nostr::KeyEncrypt (NIP-49) - private key encryption with

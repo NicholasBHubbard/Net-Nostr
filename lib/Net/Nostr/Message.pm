@@ -7,7 +7,7 @@ use JSON ();
 use Scalar::Util qw(blessed);
 use Net::Nostr::Event;
 use Net::Nostr::Filter;
-use Class::Tiny qw(type subscription_id event event_id accepted message prefix filters challenge count approximate);
+use Class::Tiny qw(type subscription_id event event_id accepted message prefix filters challenge count approximate neg_msg filter neg_limit);
 
 my $JSON = JSON->new->utf8;
 
@@ -105,6 +105,40 @@ sub new {
         } else {
             croak "AUTH requires either 'event' or 'challenge'";
         }
+    } elsif ($type eq 'NEG-OPEN') {
+        _validate_subscription_id($args{subscription_id});
+        $self->subscription_id($args{subscription_id});
+        croak "filter is required for NEG-OPEN"
+            unless $args{filter};
+        croak "filter must be a Net::Nostr::Filter object"
+            unless blessed($args{filter}) && $args{filter}->isa('Net::Nostr::Filter');
+        $self->filter($args{filter});
+        croak "neg_msg is required for NEG-OPEN"
+            unless defined $args{neg_msg};
+        croak "neg_msg must be a hex string"
+            unless $args{neg_msg} =~ /\A[0-9a-f]+\z/;
+        $self->neg_msg($args{neg_msg});
+    } elsif ($type eq 'NEG-MSG') {
+        _validate_subscription_id($args{subscription_id});
+        $self->subscription_id($args{subscription_id});
+        croak "neg_msg is required for NEG-MSG"
+            unless defined $args{neg_msg};
+        croak "neg_msg must be a hex string"
+            unless $args{neg_msg} =~ /\A[0-9a-f]+\z/;
+        $self->neg_msg($args{neg_msg});
+    } elsif ($type eq 'NEG-CLOSE') {
+        _validate_subscription_id($args{subscription_id});
+        $self->subscription_id($args{subscription_id});
+    } elsif ($type eq 'NEG-ERR') {
+        croak "subscription_id is required for NEG-ERR"
+            unless defined $args{subscription_id};
+        croak "message is required for NEG-ERR"
+            unless defined $args{message};
+        croak "message must be a string" if ref($args{message});
+        $self->subscription_id($args{subscription_id});
+        $self->message($args{message});
+        $self->prefix(_extract_prefix($self->message));
+        $self->neg_limit(0 + $args{neg_limit}) if defined $args{neg_limit};
     } else {
         croak "unknown message type: $type";
     }
@@ -146,6 +180,16 @@ sub serialize {
         } else {
             return $JSON->encode(['AUTH', $self->challenge]);
         }
+    } elsif ($type eq 'NEG-OPEN') {
+        return $JSON->encode(['NEG-OPEN', $self->subscription_id, $self->filter->to_hash, $self->neg_msg]);
+    } elsif ($type eq 'NEG-MSG') {
+        return $JSON->encode(['NEG-MSG', $self->subscription_id, $self->neg_msg]);
+    } elsif ($type eq 'NEG-CLOSE') {
+        return $JSON->encode(['NEG-CLOSE', $self->subscription_id]);
+    } elsif ($type eq 'NEG-ERR') {
+        my @arr = ('NEG-ERR', $self->subscription_id, $self->message);
+        push @arr, $self->neg_limit if defined $self->neg_limit;
+        return $JSON->encode(\@arr);
     }
 }
 
@@ -274,6 +318,55 @@ my %PARSERS = (
             challenge => $arr->[1],
         );
     },
+    'NEG-OPEN' => sub {
+        my ($arr) = @_;
+        croak "NEG-OPEN message requires 4 elements\n" unless @$arr == 4;
+        croak "NEG-OPEN subscription_id must be a string\n"
+            if ref($arr->[1]);
+        croak "NEG-OPEN filter must be a JSON object\n"
+            unless ref($arr->[2]) eq 'HASH';
+        croak "NEG-OPEN neg_msg must be a hex string\n"
+            unless defined $arr->[3] && !ref($arr->[3]) && $arr->[3] =~ /\A[0-9a-f]+\z/;
+        return (
+            subscription_id => $arr->[1],
+            filter          => Net::Nostr::Filter->new(%{$arr->[2]}),
+            neg_msg         => $arr->[3],
+        );
+    },
+    'NEG-MSG' => sub {
+        my ($arr) = @_;
+        croak "NEG-MSG message requires 3 elements\n" unless @$arr == 3;
+        croak "NEG-MSG subscription_id must be a string\n"
+            if ref($arr->[1]);
+        croak "NEG-MSG neg_msg must be a hex string\n"
+            unless defined $arr->[2] && !ref($arr->[2]) && $arr->[2] =~ /\A[0-9a-f]+\z/;
+        return (
+            subscription_id => $arr->[1],
+            neg_msg         => $arr->[2],
+        );
+    },
+    'NEG-CLOSE' => sub {
+        my ($arr) = @_;
+        croak "NEG-CLOSE message requires 2 elements\n" unless @$arr == 2;
+        croak "NEG-CLOSE subscription_id must be a string\n"
+            if ref($arr->[1]);
+        return (
+            subscription_id => $arr->[1],
+        );
+    },
+    'NEG-ERR' => sub {
+        my ($arr) = @_;
+        croak "NEG-ERR message requires 3 or 4 elements\n" unless @$arr == 3 || @$arr == 4;
+        croak "NEG-ERR subscription_id must be a string\n"
+            if ref($arr->[1]);
+        croak "NEG-ERR message must be a string\n"
+            if ref($arr->[2]);
+        return (
+            subscription_id => $arr->[1],
+            message         => $arr->[2],
+            (@$arr == 4 ? (neg_limit => $arr->[3]) : ()),
+        );
+    },
 );
 
 sub parse {
@@ -345,7 +438,8 @@ C<serialize>, and parsed from JSON with C<parse>.
     my $msg = Net::Nostr::Message->new(type => $type, ...);
 
 Creates a new message. C<type> is required and must be one of: C<EVENT>,
-C<REQ>, C<CLOSE>, C<OK>, C<EOSE>, C<NOTICE>, C<CLOSED>, C<COUNT>, C<AUTH>.
+C<REQ>, C<CLOSE>, C<OK>, C<EOSE>, C<NOTICE>, C<CLOSED>, C<COUNT>, C<AUTH>,
+C<NEG-OPEN>, C<NEG-MSG>, C<NEG-CLOSE>, C<NEG-ERR>.
 
 Required fields by type:
 
@@ -356,8 +450,12 @@ Required fields by type:
     EOSE   - subscription_id
     NOTICE - message (string)
     CLOSED - subscription_id, message (string)
-    COUNT  - subscription_id, filters (client-to-relay) or count (relay-to-client)
-    AUTH   - challenge (string) or event (Net::Nostr::Event object)
+    COUNT     - subscription_id, filters (client-to-relay) or count (relay-to-client)
+    AUTH       - challenge (string) or event (Net::Nostr::Event object)
+    NEG-OPEN  - subscription_id, filter (Net::Nostr::Filter), neg_msg (hex string)
+    NEG-MSG   - subscription_id, neg_msg (hex string)
+    NEG-CLOSE - subscription_id
+    NEG-ERR   - subscription_id, message (string), optional neg_limit (integer)
 
 C<subscription_id> must be a non-empty string of at most 64 characters
 for REQ, CLOSE, and COUNT messages. For EOSE and CLOSED, subscription_id
@@ -486,11 +584,35 @@ The challenge string. Present on AUTH messages from relays.
     my $msg = Net::Nostr::Message->parse('["AUTH","challenge123"]');
     say $msg->challenge;  # 'challenge123'
 
+=head2 neg_msg
+
+    my $hex = $msg->neg_msg;
+
+The negentropy protocol message as a hex string. Present on NEG-OPEN
+and NEG-MSG messages.
+
+=head2 filter
+
+    my $filter = $msg->filter;  # Net::Nostr::Filter
+
+A single NIP-01 filter. Present on NEG-OPEN messages.
+
+=head2 neg_limit
+
+    my $limit = $msg->neg_limit;  # integer or undef
+
+Optional maximum number of records the relay will process. Present on
+NEG-ERR messages when the relay rejects a query as too large.
+
+    my $msg = Net::Nostr::Message->parse('["NEG-ERR","x","blocked: too big",100000]');
+    say $msg->neg_limit;  # 100000
+
 =head1 SEE ALSO
 
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
 L<NIP-42|https://github.com/nostr-protocol/nips/blob/master/42.md>,
 L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md>,
+L<NIP-77|https://github.com/nostr-protocol/nips/blob/master/77.md>,
 L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Filter>
 
 =cut

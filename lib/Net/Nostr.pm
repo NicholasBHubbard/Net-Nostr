@@ -140,6 +140,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<NIP-72|https://github.com/nostr-protocol/nips/blob/master/72.md> - Moderated Communities
 
+=item L<NIP-77|https://github.com/nostr-protocol/nips/blob/master/77.md> - Negentropy Syncing
+
 =item L<NIP-86|https://github.com/nostr-protocol/nips/blob/master/86.md> - Relay Management API
 
 =item L<NIP-98|https://github.com/nostr-protocol/nips/blob/master/98.md> - HTTP auth
@@ -210,6 +212,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::MediaAttachment> - NIP-92 media attachments
 
 =item L<Net::Nostr::Message> - Protocol message serialization and parsing
+
+=item L<Net::Nostr::Negentropy> - NIP-77 negentropy set reconciliation
 
 =item L<Net::Nostr::Nutzap> - NIP-61 nutzaps (Cashu ecash payments)
 
