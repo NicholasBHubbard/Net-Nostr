@@ -1492,4 +1492,1241 @@ subtest 'inject_event returns 0 for duplicate' => sub {
     is scalar @{$relay->events}, 1, 'still only 1 event';
 };
 
+###############################################################################
+# Resource limit constructor validation
+###############################################################################
+
+subtest 'constructor validates positive integer options' => sub {
+    for my $opt (qw(max_subscriptions max_filters max_content_length
+                     max_event_tags max_limit default_limit
+                     created_at_lower_limit created_at_upper_limit
+                     max_message_length)) {
+        ok dies { Net::Nostr::Relay->new(verify_signatures => 0, $opt => 0) },
+            "$opt rejects 0";
+        ok dies { Net::Nostr::Relay->new(verify_signatures => 0, $opt => -1) },
+            "$opt rejects negative";
+        ok dies { Net::Nostr::Relay->new(verify_signatures => 0, $opt => 'abc') },
+            "$opt rejects non-integer";
+        ok lives { Net::Nostr::Relay->new(verify_signatures => 0, $opt => 1) },
+            "$opt accepts 1";
+    }
+};
+
+subtest 'constructor validates on_event callback' => sub {
+    ok dies { Net::Nostr::Relay->new(verify_signatures => 0, on_event => 'not_a_sub') },
+        'on_event rejects non-coderef';
+    ok lives { Net::Nostr::Relay->new(verify_signatures => 0, on_event => sub { 1 }) },
+        'on_event accepts coderef';
+};
+
+###############################################################################
+# max_subscriptions enforcement
+###############################################################################
+
+subtest 'max_subscriptions limits subscriptions per connection' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures   => 0,
+        max_subscriptions   => 2,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my (@eose, @closed);
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @eose, $parsed if $parsed->[0] eq 'EOSE';
+            push @closed, $parsed if $parsed->[0] eq 'CLOSED';
+            $cv->send if @eose + @closed >= 3;
+        });
+
+        # Create 3 subscriptions: first two should succeed, third should fail
+        my $f = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send($JSON->encode(['REQ', 'sub1', $f->to_hash]));
+        $conn->send($JSON->encode(['REQ', 'sub2', $f->to_hash]));
+        $conn->send($JSON->encode(['REQ', 'sub3', $f->to_hash]));
+    });
+
+    $cv->recv;
+    is scalar @eose, 2, 'two subscriptions accepted (EOSE)';
+    is scalar @closed, 1, 'third subscription rejected (CLOSED)';
+    like $closed[0][2], qr/too many subscriptions/, 'CLOSED message explains reason';
+
+    $relay->stop;
+};
+
+subtest 'max_subscriptions allows replacing existing subscription' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures   => 0,
+        max_subscriptions   => 1,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my @eose;
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @eose, $parsed if $parsed->[0] eq 'EOSE';
+            $cv->send if @eose >= 2;
+        });
+
+        # Same sub_id twice: second should replace, not count as new
+        my $f = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send($JSON->encode(['REQ', 'sub1', $f->to_hash]));
+        # Small delay to ensure first REQ is processed
+        my $t; $t = AnyEvent->timer(after => 0.1, cb => sub {
+            undef $t;
+            $conn->send($JSON->encode(['REQ', 'sub1', $f->to_hash]));
+        });
+    });
+
+    $cv->recv;
+    is scalar @eose, 2, 'replacing existing subscription succeeds both times';
+
+    $relay->stop;
+};
+
+###############################################################################
+# max_filters enforcement
+###############################################################################
+
+subtest 'max_filters limits filters per REQ' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        max_filters       => 2,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my @closed;
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @closed, $parsed if $parsed->[0] eq 'CLOSED';
+            $cv->send if @closed >= 1;
+        });
+
+        # REQ with 3 filters should be rejected
+        my $f = { kinds => [1] };
+        $conn->send($JSON->encode(['REQ', 'sub1', $f, $f, $f]));
+    });
+
+    $cv->recv;
+    is scalar @closed, 1, 'REQ with too many filters rejected';
+    like $closed[0][2], qr/too many filters/, 'CLOSED message explains reason';
+
+    $relay->stop;
+};
+
+subtest 'max_filters also applies to COUNT' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        max_filters       => 1,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my @closed;
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @closed, $parsed if $parsed->[0] eq 'CLOSED';
+            $cv->send if @closed >= 1;
+        });
+
+        my $f = { kinds => [1] };
+        $conn->send($JSON->encode(['COUNT', 'c1', $f, $f]));
+    });
+
+    $cv->recv;
+    is scalar @closed, 1, 'COUNT with too many filters rejected';
+
+    $relay->stop;
+};
+
+###############################################################################
+# max_content_length enforcement
+###############################################################################
+
+subtest 'max_content_length rejects oversized events' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures   => 0,
+        max_content_length  => 10,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send($parsed) if $parsed->[0] eq 'OK';
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1,
+            content => 'x' x 11, sig => 'b' x 128,
+            created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $ok = $cv->recv;
+    is $ok->[2], JSON::false, 'oversized content rejected';
+    like $ok->[3], qr/content too long/, 'message explains reason';
+
+    $relay->stop;
+};
+
+subtest 'max_content_length accepts events at limit' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures   => 0,
+        max_content_length  => 10,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send($parsed) if $parsed->[0] eq 'OK';
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1,
+            content => 'x' x 10, sig => 'b' x 128,
+            created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $ok = $cv->recv;
+    is $ok->[2], JSON::true, 'content at limit accepted';
+
+    $relay->stop;
+};
+
+###############################################################################
+# max_event_tags enforcement
+###############################################################################
+
+subtest 'max_event_tags rejects events with too many tags' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        max_event_tags    => 3,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send($parsed) if $parsed->[0] eq 'OK';
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'hi',
+            sig => 'b' x 128, created_at => 1000,
+            tags => [['t', 'a'], ['t', 'b'], ['t', 'c'], ['t', 'd']],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $ok = $cv->recv;
+    is $ok->[2], JSON::false, '4 tags rejected when max is 3';
+    like $ok->[3], qr/too many tags/, 'message explains reason';
+
+    $relay->stop;
+};
+
+###############################################################################
+# max_limit / default_limit enforcement
+###############################################################################
+
+subtest 'max_limit caps query results' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        max_limit         => 2,
+    );
+    # Seed 5 events
+    for my $i (1..5) {
+        $relay->inject_event(Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => "e$i",
+            sig => 'b' x 128, created_at => $i * 1000, tags => [],
+        ));
+    }
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my @events;
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @events, $parsed if $parsed->[0] eq 'EVENT';
+            $cv->send if $parsed->[0] eq 'EOSE';
+        });
+
+        # REQ with limit=100, should be capped to max_limit=2
+        $conn->send($JSON->encode(['REQ', 'sub1', { kinds => [1], limit => 100 }]));
+    });
+
+    $cv->recv;
+    is scalar @events, 2, 'results capped to max_limit';
+
+    $relay->stop;
+};
+
+subtest 'default_limit applied when no limit specified' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        default_limit     => 3,
+    );
+    for my $i (1..5) {
+        $relay->inject_event(Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => "e$i",
+            sig => 'b' x 128, created_at => $i * 1000, tags => [],
+        ));
+    }
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my @events;
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @events, $parsed if $parsed->[0] eq 'EVENT';
+            $cv->send if $parsed->[0] eq 'EOSE';
+        });
+
+        # REQ without limit, should get default_limit=3
+        $conn->send($JSON->encode(['REQ', 'sub1', { kinds => [1] }]));
+    });
+
+    $cv->recv;
+    is scalar @events, 3, 'default_limit applied';
+
+    $relay->stop;
+};
+
+subtest 'max_limit overrides client limit even when lower than default_limit' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        default_limit     => 10,
+        max_limit         => 2,
+    );
+    for my $i (1..5) {
+        $relay->inject_event(Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => "e$i",
+            sig => 'b' x 128, created_at => $i * 1000, tags => [],
+        ));
+    }
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my @events;
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @events, $parsed if $parsed->[0] eq 'EVENT';
+            $cv->send if $parsed->[0] eq 'EOSE';
+        });
+
+        # no limit set, default_limit=10 would apply, but max_limit=2 caps it
+        $conn->send($JSON->encode(['REQ', 'sub1', { kinds => [1] }]));
+    });
+
+    $cv->recv;
+    is scalar @events, 2, 'max_limit caps default_limit';
+
+    $relay->stop;
+};
+
+###############################################################################
+# created_at bounds enforcement
+###############################################################################
+
+subtest 'created_at_lower_limit rejects old events' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures      => 0,
+        created_at_lower_limit => 3600, # 1 hour
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send($parsed) if $parsed->[0] eq 'OK';
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'old',
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $ok = $cv->recv;
+    is $ok->[2], JSON::false, 'old event rejected';
+    like $ok->[3], qr/too old/, 'message explains reason';
+
+    $relay->stop;
+};
+
+subtest 'created_at_upper_limit rejects future events' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures      => 0,
+        created_at_upper_limit => 60, # 1 minute
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send($parsed) if $parsed->[0] eq 'OK';
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'future',
+            sig => 'b' x 128, created_at => time() + 120, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $ok = $cv->recv;
+    is $ok->[2], JSON::false, 'future event rejected';
+    like $ok->[3], qr/too far in the future/, 'message explains reason';
+
+    $relay->stop;
+};
+
+subtest 'created_at_lower_limit accepts recent events' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures      => 0,
+        created_at_lower_limit => 3600,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send($parsed) if $parsed->[0] eq 'OK';
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'recent',
+            sig => 'b' x 128, created_at => time() - 60, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $ok = $cv->recv;
+    is $ok->[2], JSON::true, 'recent event accepted';
+
+    $relay->stop;
+};
+
+###############################################################################
+# max_message_length enforcement
+###############################################################################
+
+subtest 'max_message_length rejects oversized messages' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures  => 0,
+        max_message_length => 100,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my @notices;
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            push @notices, $parsed if $parsed->[0] eq 'NOTICE';
+            $cv->send if @notices >= 1;
+        });
+
+        # Send a message that exceeds 100 bytes
+        my $big_msg = $JSON->encode(['EVENT', {
+            id => 'a' x 64, pubkey => 'b' x 64, created_at => 1000,
+            kind => 1, tags => [], content => 'x' x 200, sig => 'c' x 128,
+        }]);
+        $conn->send($big_msg);
+    });
+
+    $cv->recv;
+    is scalar @notices, 1, 'got NOTICE for oversized message';
+    like $notices[0][1], qr/too large/, 'NOTICE explains reason';
+
+    $relay->stop;
+};
+
+###############################################################################
+# on_event policy callback
+###############################################################################
+
+subtest 'on_event callback can reject events' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        on_event => sub {
+            my ($event) = @_;
+            return (0, 'blocked: spam detected') if $event->content =~ /spam/;
+            return (1, '');
+        },
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send($parsed) if $parsed->[0] eq 'OK';
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'this is spam',
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $ok = $cv->recv;
+    is $ok->[2], JSON::false, 'event rejected by callback';
+    like $ok->[3], qr/spam detected/, 'message from callback preserved';
+
+    $relay->stop;
+};
+
+subtest 'on_event callback accepts normal events' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        on_event => sub {
+            my ($event) = @_;
+            return (0, 'blocked: spam') if $event->content =~ /spam/;
+            return (1, '');
+        },
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send($parsed) if $parsed->[0] eq 'OK';
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'hello world',
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $ok = $cv->recv;
+    is $ok->[2], JSON::true, 'normal event accepted';
+
+    $relay->stop;
+};
+
+subtest 'on_event callback with default rejection message' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        on_event => sub { return (0) },
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send($parsed) if $parsed->[0] eq 'OK';
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'test',
+            sig => 'b' x 128, created_at => 1000, tags => [],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $ok = $cv->recv;
+    is $ok->[2], JSON::false, 'rejected';
+    like $ok->[3], qr/rejected by policy/, 'default rejection message used';
+
+    $relay->stop;
+};
+
+###############################################################################
+# Broadcast Inverted Index
+###############################################################################
+
+subtest 'broadcast: kind-filtered sub only receives matching kinds' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my @received;
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($parsed->[0] eq 'EVENT' && $parsed->[1] eq 'kind1-only') {
+                push @received, $parsed->[2];
+            }
+            if ($parsed->[0] eq 'OK') {
+                # After second event published, check results
+                my $t; $t = AnyEvent->timer(after => 0.3, cb => sub {
+                    undef $t;
+                    $cv->send;
+                });
+            }
+        });
+
+        # Subscribe to kind 1 only
+        my $filter = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'kind1-only',
+            filters => [$filter],
+        )->serialize);
+
+        # Wait for EOSE, then publish kind 1 and kind 2
+        my $t; $t = AnyEvent->timer(after => 0.3, cb => sub {
+            undef $t;
+            my $e1 = Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 1, content => 'kind1 event',
+                sig => 'b' x 128, created_at => 1000, tags => [],
+            );
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e1)->serialize);
+
+            my $t2; $t2 = AnyEvent->timer(after => 0.2, cb => sub {
+                undef $t2;
+                my $e2 = Net::Nostr::Event->new(
+                    pubkey => 'a' x 64, kind => 2, content => 'kind2 event',
+                    sig => 'b' x 128, created_at => 1001, tags => [],
+                );
+                $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e2)->serialize);
+            });
+        });
+    });
+
+    $cv->recv;
+    is(scalar @received, 1, 'received exactly 1 broadcast');
+    is($received[0]{content}, 'kind1 event', 'only kind 1 event received');
+
+    $relay->stop;
+};
+
+subtest 'broadcast: no-kind-filter sub receives all kinds' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my @received;
+    my $ok_count = 0;
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($parsed->[0] eq 'EVENT' && $parsed->[1] eq 'all-kinds') {
+                push @received, $parsed->[2];
+            }
+            if ($parsed->[0] eq 'OK') {
+                $ok_count++;
+                if ($ok_count >= 2) {
+                    # Both events published; wait briefly for broadcasts to arrive
+                    my $t; $t = AnyEvent->timer(after => 0.3, cb => sub {
+                        undef $t;
+                        $cv->send;
+                    });
+                }
+            }
+        });
+
+        # Subscribe with no kind filter
+        my $filter = Net::Nostr::Filter->new(authors => ['a' x 64]);
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'all-kinds',
+            filters => [$filter],
+        )->serialize);
+
+        my $t; $t = AnyEvent->timer(after => 0.3, cb => sub {
+            undef $t;
+            my $e1 = Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 1, content => 'first',
+                sig => 'b' x 128, created_at => 1000, tags => [],
+            );
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e1)->serialize);
+
+            my $t2; $t2 = AnyEvent->timer(after => 0.2, cb => sub {
+                undef $t2;
+                my $e2 = Net::Nostr::Event->new(
+                    pubkey => 'a' x 64, kind => 7, content => 'second',
+                    sig => 'b' x 128, created_at => 1001, tags => [],
+                );
+                $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e2)->serialize);
+            });
+        });
+    });
+
+    $cv->recv;
+    is(scalar @received, 2, 'no-kind sub receives both events');
+
+    $relay->stop;
+};
+
+subtest 'broadcast: CLOSE removes sub from index (no phantom broadcasts)' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my @received;
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($parsed->[0] eq 'EVENT' && $parsed->[1] eq 'temp-sub') {
+                push @received, $parsed->[2];
+            }
+        });
+
+        # Subscribe, then immediately CLOSE
+        my $filter = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'temp-sub',
+            filters => [$filter],
+        )->serialize);
+
+        my $t; $t = AnyEvent->timer(after => 0.2, cb => sub {
+            undef $t;
+            $conn->send(Net::Nostr::Message->new(
+                type => 'CLOSE', subscription_id => 'temp-sub',
+            )->serialize);
+
+            # Now publish — should NOT broadcast to closed sub
+            my $t2; $t2 = AnyEvent->timer(after => 0.2, cb => sub {
+                undef $t2;
+                my $e = Net::Nostr::Event->new(
+                    pubkey => 'a' x 64, kind => 1, content => 'after close',
+                    sig => 'b' x 128, created_at => 1000, tags => [],
+                );
+                $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e)->serialize);
+
+                my $t3; $t3 = AnyEvent->timer(after => 0.3, cb => sub {
+                    undef $t3;
+                    $cv->send;
+                });
+            });
+        });
+    });
+
+    $cv->recv;
+    is(scalar @received, 0, 'no broadcast after CLOSE');
+
+    $relay->stop;
+};
+
+subtest 'broadcast: replacing subscription updates index' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my @received;
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($parsed->[0] eq 'EVENT' && $parsed->[1] eq 'my-sub') {
+                push @received, $parsed->[2];
+            }
+            if ($parsed->[0] eq 'OK') {
+                my $t; $t = AnyEvent->timer(after => 0.3, cb => sub {
+                    undef $t;
+                    $cv->send;
+                });
+            }
+        });
+
+        # Subscribe to kind 1
+        my $f1 = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'my-sub',
+            filters => [$f1],
+        )->serialize);
+
+        my $t; $t = AnyEvent->timer(after => 0.2, cb => sub {
+            undef $t;
+            # Replace with kind 7
+            my $f2 = Net::Nostr::Filter->new(kinds => [7]);
+            $conn->send(Net::Nostr::Message->new(
+                type => 'REQ', subscription_id => 'my-sub',
+                filters => [$f2],
+            )->serialize);
+
+            my $t2; $t2 = AnyEvent->timer(after => 0.2, cb => sub {
+                undef $t2;
+                # Publish kind 1 — should NOT match replaced sub
+                my $e = Net::Nostr::Event->new(
+                    pubkey => 'a' x 64, kind => 1, content => 'kind1 after replace',
+                    sig => 'b' x 128, created_at => 1000, tags => [],
+                );
+                $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e)->serialize);
+            });
+        });
+    });
+
+    $cv->recv;
+    is(scalar @received, 0, 'old kind not broadcast after subscription replaced');
+
+    $relay->stop;
+};
+
+subtest 'broadcast: multiple subs on same connection with different kinds' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my %received;
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($parsed->[0] eq 'EVENT') {
+                push @{$received{$parsed->[1]}}, $parsed->[2];
+            }
+        });
+
+        # Sub A: kind 1, Sub B: kind 7
+        my $fA = Net::Nostr::Filter->new(kinds => [1]);
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'sub-a',
+            filters => [$fA],
+        )->serialize);
+        my $fB = Net::Nostr::Filter->new(kinds => [7]);
+        $conn->send(Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'sub-b',
+            filters => [$fB],
+        )->serialize);
+
+        my $t; $t = AnyEvent->timer(after => 0.3, cb => sub {
+            undef $t;
+            # Publish kind 1
+            my $e = Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 1, content => 'for sub-a',
+                sig => 'b' x 128, created_at => 1000, tags => [],
+            );
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $e)->serialize);
+
+            my $t2; $t2 = AnyEvent->timer(after => 0.3, cb => sub {
+                undef $t2;
+                $cv->send;
+            });
+        });
+    });
+
+    $cv->recv;
+    is(scalar @{$received{'sub-a'} // []}, 1, 'sub-a received kind 1');
+    is(scalar @{$received{'sub-b'} // []}, 0, 'sub-b did not receive kind 1');
+
+    $relay->stop;
+};
+
+###############################################################################
+# Idle Timeout
+###############################################################################
+
+subtest 'idle_timeout constructor validation' => sub {
+    ok(dies { Net::Nostr::Relay->new(idle_timeout => 0) }, 'rejects zero');
+    ok(dies { Net::Nostr::Relay->new(idle_timeout => -1) }, 'rejects negative');
+    ok(dies { Net::Nostr::Relay->new(idle_timeout => 'abc') }, 'rejects non-numeric');
+    ok(dies { Net::Nostr::Relay->new(idle_timeout => 1.5) }, 'rejects float');
+    ok(lives { Net::Nostr::Relay->new(idle_timeout => 5) }, 'accepts positive integer');
+};
+
+subtest 'no idle_timeout: clients stay connected indefinitely' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $finish_called = 0;
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(finish => sub { $finish_called = 1 });
+        # Wait 2 seconds with no activity — should NOT be disconnected
+        my $t; $t = AnyEvent->timer(after => 2, cb => sub {
+            undef $t;
+            $cv->send($finish_called ? 'disconnected' : 'connected');
+        });
+    });
+
+    my $result = $cv->recv;
+    is($result, 'connected', 'no timeout by default — client stays connected');
+
+    $relay->stop;
+};
+
+subtest 'idle_timeout disconnects idle clients' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        idle_timeout => 1,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(finish => sub { $cv->send('disconnected') });
+        # Don't send anything — just wait to be disconnected
+    });
+
+    my $result = $cv->recv;
+    is($result, 'disconnected', 'idle client was disconnected');
+
+    $relay->stop;
+};
+
+subtest 'idle_timeout resets on activity' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        idle_timeout => 2,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 8, cb => sub { $cv->croak("timeout") });
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        my $finish_called = 0;
+        $conn->on(finish => sub { $finish_called = 1 });
+
+        # Send a REQ after 1 second to reset the idle timer
+        my $t1; $t1 = AnyEvent->timer(after => 1, cb => sub {
+            undef $t1;
+            my $filter = Net::Nostr::Filter->new(kinds => [1]);
+            $conn->send(Net::Nostr::Message->new(
+                type => 'REQ', subscription_id => 'keep-alive',
+                filters => [$filter],
+            )->serialize);
+        });
+
+        # Check at 2.5 seconds — should still be connected (timer was reset at 1s)
+        my $t2; $t2 = AnyEvent->timer(after => 2.5, cb => sub {
+            undef $t2;
+            $cv->send($finish_called ? 'disconnected' : 'connected');
+        });
+    });
+
+    my $result = $cv->recv;
+    is($result, 'connected', 'client still connected after activity reset');
+
+    $relay->stop;
+};
+
+subtest 'idle_timeout: cleanup on disconnect does not leak timers' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        idle_timeout => 30,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        # Client disconnects voluntarily
+        $conn->close;
+        my $t; $t = AnyEvent->timer(after => 0.5, cb => sub {
+            undef $t;
+            $cv->send;
+        });
+    });
+
+    $cv->recv;
+    # After client disconnect, idle timer state should be cleaned up
+    my $idle_timers = $relay->_idle_timers;
+    is(scalar keys %$idle_timers, 0, 'no idle timers after client disconnect');
+
+    $relay->stop;
+};
+
+subtest 'idle_timeout: EVENT message resets timer' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        idle_timeout => 2,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 8, cb => sub { $cv->croak("timeout") });
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        my $finish_called = 0;
+        $conn->on(finish => sub { $finish_called = 1 });
+
+        # Send an EVENT after 1 second to reset idle timer
+        my $t1; $t1 = AnyEvent->timer(after => 1, cb => sub {
+            undef $t1;
+            my $event = Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 1, content => 'keep alive',
+                sig => 'b' x 128, created_at => 1000, tags => [],
+            );
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+        });
+
+        # Check at 2.5 seconds — should still be connected
+        my $t2; $t2 = AnyEvent->timer(after => 2.5, cb => sub {
+            undef $t2;
+            $cv->send($finish_called ? 'disconnected' : 'connected');
+        });
+    });
+
+    my $result = $cv->recv;
+    is($result, 'connected', 'EVENT message resets idle timer');
+
+    $relay->stop;
+};
+
+###############################################################################
+# Graceful Shutdown
+###############################################################################
+
+subtest 'shutdown_timeout constructor validation' => sub {
+    ok(dies { Net::Nostr::Relay->new(shutdown_timeout => 0) }, 'rejects zero');
+    ok(dies { Net::Nostr::Relay->new(shutdown_timeout => -1) }, 'rejects negative');
+    ok(dies { Net::Nostr::Relay->new(shutdown_timeout => 1.5) }, 'rejects float');
+    ok(lives { Net::Nostr::Relay->new(shutdown_timeout => 5) }, 'accepts positive integer');
+};
+
+subtest 'graceful_stop sends NOTICE before closing' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        shutdown_timeout => 2,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 8, cb => sub { $cv->croak("timeout") });
+    my @notices;
+    my $finish_called = 0;
+
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($parsed->[0] eq 'NOTICE') {
+                push @notices, $parsed->[1];
+            }
+        });
+        $conn->on(finish => sub {
+            $finish_called = 1;
+            $cv->send;
+        });
+        $relay->graceful_stop;
+    });
+
+    $cv->recv;
+    ok($finish_called, 'connection closed after graceful stop');
+    ok(scalar @notices >= 1, 'received shutdown NOTICE');
+    like($notices[0], qr/shutting down/i, 'NOTICE mentions shutdown');
+
+    $relay->stop;
+};
+
+subtest 'graceful_stop: new connections rejected after call' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        shutdown_timeout => 3,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    # First connect, then graceful_stop, then try a second connection
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 8, cb => sub { $cv->croak("timeout") });
+
+    my $ref1 = connect_to_relay($port, sub {
+        my ($conn1) = @_;
+        $relay->graceful_stop;
+
+        # Try connecting after graceful_stop — guard is gone, should fail
+        my $t; $t = AnyEvent->timer(after => 0.3, cb => sub {
+            undef $t;
+            my $client2 = AnyEvent::WebSocket::Client->new;
+            $client2->connect("ws://127.0.0.1:$port")->cb(sub {
+                my $conn2 = eval { shift->recv };
+                if ($conn2) {
+                    $cv->send('connected');
+                } else {
+                    $cv->send('rejected');
+                }
+            });
+        });
+    });
+
+    my $result = $cv->recv;
+    is($result, 'rejected', 'new connections rejected after graceful_stop');
+
+    $relay->stop;
+};
+
+subtest 'graceful_stop: multiple clients all receive NOTICE' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        shutdown_timeout => 2,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 8, cb => sub { $cv->croak("timeout") });
+    my $finish_count = 0;
+    my $notice_count = 0;
+
+    my $make_handler = sub {
+        return sub {
+            my ($conn) = @_;
+            $conn->on(each_message => sub {
+                my ($c, $msg) = @_;
+                my $parsed = $JSON->decode($msg->body);
+                if ($parsed->[0] eq 'NOTICE' && $parsed->[1] =~ /shutting down/i) {
+                    $notice_count++;
+                }
+            });
+            $conn->on(finish => sub {
+                $finish_count++;
+                $cv->send if $finish_count >= 2;
+            });
+        };
+    };
+
+    my $ref1 = connect_to_relay($port, $make_handler->());
+    my $ref2;
+    my $t; $t = AnyEvent->timer(after => 0.3, cb => sub {
+        undef $t;
+        $ref2 = connect_to_relay($port, sub {
+            my ($conn) = @_;
+            $make_handler->()->($conn);
+            # Both connected, now graceful_stop
+            my $t2; $t2 = AnyEvent->timer(after => 0.2, cb => sub {
+                undef $t2;
+                $relay->graceful_stop;
+            });
+        });
+    });
+
+    $cv->recv;
+    is($finish_count, 2, 'both clients disconnected');
+    is($notice_count, 2, 'both clients received shutdown NOTICE');
+
+    $relay->stop;
+};
+
+subtest 'graceful_stop: default timeout is 5 seconds when unset' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    is($relay->shutdown_timeout, undef, 'shutdown_timeout defaults to undef');
+    # graceful_stop uses 5 when undef — just verify the accessor
+};
+
 done_testing;

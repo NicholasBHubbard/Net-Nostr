@@ -145,8 +145,38 @@ sub delete_by_id {
         delete $self->{_by_tag}{$key}{$id};
     }
 
-    # ordered list
-    $self->{_ordered} = [grep { $_->id ne $id } @{$self->{_ordered}}];
+    # ordered list: binary search for exact position, then single splice
+    my $ordered = $self->{_ordered};
+    my $cat = $event->created_at;
+    my $eid = $event->id;
+    my ($lo, $hi) = (0, scalar @$ordered);
+    while ($lo < $hi) {
+        my $mid = int(($lo + $hi) / 2);
+        my $cmp = $cat <=> $ordered->[$mid]->created_at;
+        if ($cmp == 0) {
+            $cmp = $ordered->[$mid]->id cmp $eid;
+        }
+        if ($cmp > 0) {
+            $hi = $mid;
+        } else {
+            $lo = $mid + 1;
+        }
+    }
+    # $lo is the insertion point; scan nearby for exact match
+    # (binary search lands at or near the element)
+    if ($lo > 0 && $ordered->[$lo - 1]->id eq $eid) {
+        splice @$ordered, $lo - 1, 1;
+    } elsif ($lo < @$ordered && $ordered->[$lo]->id eq $eid) {
+        splice @$ordered, $lo, 1;
+    } else {
+        # fallback linear scan (shouldn't happen with consistent data)
+        for my $i (0 .. $#$ordered) {
+            if ($ordered->[$i]->id eq $eid) {
+                splice @$ordered, $i, 1;
+                last;
+            }
+        }
+    }
 
     return $event;
 }

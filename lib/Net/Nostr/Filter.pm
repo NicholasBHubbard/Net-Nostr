@@ -58,6 +58,11 @@ sub new {
                 if $f eq 'since' || $f eq 'until' || $f eq 'limit';
             croak "search must be a string" if $f eq 'search' && ref($args{$f});
             $self->$f($args{$f});
+            # Pre-parse and lowercase search terms for O(1) matching
+            if ($f eq 'search' && defined $args{$f} && length $args{$f}) {
+                my $parsed = $self->parse_search_extensions($args{$f});
+                $self->{_search_terms} = [map { lc($_) } @{$parsed->{terms}}];
+            }
         }
     }
     for my $f (@LIST_FIELDS) {
@@ -67,6 +72,8 @@ sub new {
             _validate_hex64($f, $args{$f}) if $HEX64_REQUIRED{$f};
             _validate_kinds($args{$f}) if $f eq 'kinds';
             $self->{$f} = [@{$args{$f}}];
+            # Pre-build hash set for O(1) matching
+            $self->{"_${f}_set"} = { map { $_ => 1 } @{$args{$f}} };
         }
     }
 
@@ -94,19 +101,16 @@ sub tag_filter {
 sub matches {
     my ($self, $event) = @_;
 
-    if ($self->{ids}) {
-        my $eid = $event->id;
-        return 0 unless grep { $_ eq $eid } @{ $self->{ids} };
+    if ($self->{_ids_set}) {
+        return 0 unless $self->{_ids_set}{$event->id};
     }
 
-    if ($self->{authors}) {
-        my $pk = $event->pubkey;
-        return 0 unless grep { $_ eq $pk } @{ $self->{authors} };
+    if ($self->{_authors_set}) {
+        return 0 unless $self->{_authors_set}{$event->pubkey};
     }
 
-    if ($self->{kinds}) {
-        my $k = $event->kind;
-        return 0 unless grep { $_ == $k } @{ $self->{kinds} };
+    if ($self->{_kinds_set}) {
+        return 0 unless $self->{_kinds_set}{$event->kind};
     }
 
     if (defined $self->{since}) {
@@ -117,27 +121,24 @@ sub matches {
         return 0 unless $event->created_at <= $self->{until};
     }
 
-    if (defined $self->{search} && length $self->{search}) {
-        my $parsed = $self->parse_search_extensions($self->{search});
-        my @terms = @{$parsed->{terms}};
-        if (@terms) {
-            my $content = lc($event->content // '');
-            for my $term (@terms) {
-                return 0 unless index($content, lc($term)) >= 0;
-            }
+    if ($self->{_search_terms} && @{$self->{_search_terms}}) {
+        my $content = lc($event->content // '');
+        for my $term (@{$self->{_search_terms}}) {
+            return 0 unless index($content, $term) >= 0;
         }
     }
 
     if ($self->{_tag_filters}) {
         for my $letter (keys %{ $self->{_tag_filters} }) {
             my $filter_values = $self->{_tag_filters}{$letter};
-            my @event_tag_values;
+            # Build hash set of event's tag values for this letter
+            my %event_vals;
             for my $tag (@{ $event->tags }) {
-                push @event_tag_values, $tag->[1] if $tag->[0] eq $letter;
+                $event_vals{$tag->[1]} = 1 if $tag->[0] eq $letter;
             }
             my $found = 0;
             for my $fv (@$filter_values) {
-                if (grep { $_ eq $fv } @event_tag_values) {
+                if ($event_vals{$fv}) {
                     $found = 1;
                     last;
                 }

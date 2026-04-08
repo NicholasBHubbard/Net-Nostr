@@ -1,5 +1,23 @@
 1.000000   TBD
 
+  - New: Relay production hardening with configurable resource limits:
+    max_subscriptions, max_filters, max_content_length, max_event_tags,
+    max_limit, default_limit, created_at_lower_limit, created_at_upper_limit,
+    max_message_length, and on_event policy callback. All limits are opt-in
+    with sane defaults (unlimited). Names match NIP-11 limitation fields.
+  - New: Relay idle_timeout option disconnects inactive clients after a
+    configurable period. Timer resets on each client message.
+  - New: Relay shutdown_timeout option and graceful_stop method. Sends a
+    NOTICE to all clients before closing connections, giving them time to
+    reconnect to another relay.
+  - Performance: Filter.matches() now uses O(1) hash set lookups for ids,
+    authors, and kinds instead of O(n) grep. Search terms are pre-parsed
+    and lowercased at construction time. Tag matching uses hash sets.
+  - Performance: RelayStore.delete_by_id now uses binary search + single
+    splice instead of O(n) grep to rebuild the ordered array.
+  - Performance: Relay broadcast uses an inverted subscription index by
+    kind, reducing fanout from O(connections * subscriptions) to
+    O(matching_subscriptions) for kind-filtered subscriptions.
   - New: Net::Nostr::DVM (NIP-90) - data vending machine with job
     requests (kind 5000-5999), job results (kind 6000-6999), job
     feedback (kind 7000), encrypted params, job chaining, and

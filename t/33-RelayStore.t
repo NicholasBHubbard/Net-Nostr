@@ -876,4 +876,140 @@ subtest 'delete only replaceable clears index completely' => sub {
     is $store->find_replaceable($PK1, 0), undef, 'index empty when no candidates remain';
 };
 
+###############################################################################
+# delete_by_id binary search correctness
+###############################################################################
+
+subtest 'delete_by_id removes from beginning of ordered list (newest)' => sub {
+    my $store = Net::Nostr::RelayStore->new;
+
+    my $e1 = make_event(pubkey => $PK1, kind => 1, content => 'old', created_at => 1000);
+    my $e2 = make_event(pubkey => $PK1, kind => 1, content => 'mid', created_at => 2000);
+    my $e3 = make_event(pubkey => $PK1, kind => 1, content => 'new', created_at => 3000);
+    $store->store($e1);
+    $store->store($e2);
+    $store->store($e3);
+
+    $store->delete_by_id($e3->id);
+    is $store->event_count, 2, 'count after deleting newest';
+    is $store->get_by_id($e3->id), undef, 'newest gone';
+    my $all = $store->all_events;
+    is scalar @$all, 2, 'ordered list has 2';
+    is $all->[0]->id, $e2->id, 'first is now e2 (next newest)';
+    is $all->[1]->id, $e1->id, 'second is e1 (oldest)';
+};
+
+subtest 'delete_by_id removes from end of ordered list (oldest)' => sub {
+    my $store = Net::Nostr::RelayStore->new;
+
+    my $e1 = make_event(pubkey => $PK1, kind => 1, content => 'old', created_at => 1000);
+    my $e2 = make_event(pubkey => $PK1, kind => 1, content => 'mid', created_at => 2000);
+    my $e3 = make_event(pubkey => $PK1, kind => 1, content => 'new', created_at => 3000);
+    $store->store($e1);
+    $store->store($e2);
+    $store->store($e3);
+
+    $store->delete_by_id($e1->id);
+    is $store->event_count, 2, 'count after deleting oldest';
+    is $store->get_by_id($e1->id), undef, 'oldest gone';
+    my $all = $store->all_events;
+    is $all->[0]->id, $e3->id, 'first is newest';
+    is $all->[1]->id, $e2->id, 'second is middle';
+};
+
+subtest 'delete_by_id removes from middle of ordered list' => sub {
+    my $store = Net::Nostr::RelayStore->new;
+
+    my $e1 = make_event(pubkey => $PK1, kind => 1, content => 'old', created_at => 1000);
+    my $e2 = make_event(pubkey => $PK1, kind => 1, content => 'mid', created_at => 2000);
+    my $e3 = make_event(pubkey => $PK1, kind => 1, content => 'new', created_at => 3000);
+    $store->store($e1);
+    $store->store($e2);
+    $store->store($e3);
+
+    $store->delete_by_id($e2->id);
+    is $store->event_count, 2, 'count after deleting middle';
+    is $store->get_by_id($e2->id), undef, 'middle gone';
+    my $all = $store->all_events;
+    is $all->[0]->id, $e3->id, 'first is newest';
+    is $all->[1]->id, $e1->id, 'second is oldest';
+};
+
+subtest 'delete_by_id with same created_at (tiebreaker by id)' => sub {
+    my $store = Net::Nostr::RelayStore->new;
+
+    # Create 5 events with identical timestamp — order is by id ASC
+    my @events;
+    for my $i (1..5) {
+        my $e = make_event(
+            pubkey => $PK1, kind => 1, content => "event_$i", created_at => 1000,
+        );
+        $store->store($e);
+        push @events, $e;
+    }
+    is $store->event_count, 5, '5 events stored';
+
+    # Delete the middle one (by sort order)
+    my @sorted = sort { $a->id cmp $b->id } @events;
+    my $mid = $sorted[2];
+    $store->delete_by_id($mid->id);
+    is $store->event_count, 4, 'count is 4 after delete';
+    is $store->get_by_id($mid->id), undef, 'middle-by-id event gone';
+
+    # Remaining events should still be in correct order
+    my $all = $store->all_events;
+    is scalar @$all, 4, '4 events in ordered list';
+    for my $i (0 .. $#$all - 1) {
+        my $cmp = $all->[$i]->created_at <=> $all->[$i+1]->created_at;
+        $cmp = $all->[$i]->id cmp $all->[$i+1]->id if $cmp == 0;
+        ok($cmp <= 0, "order preserved at position $i");
+    }
+};
+
+subtest 'delete_by_id: sequential deletes until empty' => sub {
+    my $store = Net::Nostr::RelayStore->new;
+
+    my @events;
+    for my $ts (1000, 2000, 3000, 4000, 5000) {
+        my $e = make_event(pubkey => $PK1, kind => 1, content => "t$ts", created_at => $ts);
+        $store->store($e);
+        push @events, $e;
+    }
+    is $store->event_count, 5, '5 events stored';
+
+    # Delete in random order: 3rd, 1st, 5th, 2nd, 4th
+    for my $idx (2, 0, 4, 1, 3) {
+        $store->delete_by_id($events[$idx]->id);
+    }
+    is $store->event_count, 0, 'all events deleted';
+    is $store->all_events, [], 'ordered list empty';
+};
+
+subtest 'delete_by_id: single event store' => sub {
+    my $store = Net::Nostr::RelayStore->new;
+    my $e = make_event(pubkey => $PK1, kind => 1, content => 'solo', created_at => 1000);
+    $store->store($e);
+    $store->delete_by_id($e->id);
+    is $store->event_count, 0, 'store empty after deleting sole event';
+    is $store->all_events, [], 'ordered list empty';
+};
+
+subtest 'delete_by_id: store and delete interleaved maintains order' => sub {
+    my $store = Net::Nostr::RelayStore->new;
+
+    my $e1 = make_event(pubkey => $PK1, kind => 1, content => 'a', created_at => 1000);
+    my $e2 = make_event(pubkey => $PK1, kind => 1, content => 'b', created_at => 2000);
+    $store->store($e1);
+    $store->store($e2);
+    $store->delete_by_id($e1->id);
+
+    my $e3 = make_event(pubkey => $PK1, kind => 1, content => 'c', created_at => 1500);
+    $store->store($e3);
+
+    my $all = $store->all_events;
+    is scalar @$all, 2, '2 events';
+    is $all->[0]->id, $e2->id, 'newest first';
+    is $all->[1]->id, $e3->id, 'next by created_at';
+};
+
 done_testing;

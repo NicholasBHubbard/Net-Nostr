@@ -39,6 +39,21 @@ use Class::Tiny qw(
     _nip11_watchers
     min_pow_difficulty
     _rate_state
+    max_subscriptions
+    max_filters
+    max_content_length
+    max_event_tags
+    max_limit
+    default_limit
+    created_at_lower_limit
+    created_at_upper_limit
+    max_message_length
+    on_event
+    idle_timeout
+    shutdown_timeout
+    _idle_timers
+    _sub_by_kind
+    _sub_no_kind
 );
 
 sub new {
@@ -55,6 +70,23 @@ sub new {
             unless $self->event_rate_limit =~ m{^(\d+)/(\d+)$} && $1 > 0 && $2 > 0;
     }
 
+    # Validate positive integer options
+    for my $opt (qw(max_subscriptions max_filters max_content_length
+                     max_event_tags max_limit default_limit
+                     created_at_lower_limit created_at_upper_limit
+                     max_message_length)) {
+        if (defined $self->$opt) {
+            croak "$opt must be a positive integer"
+                unless $self->$opt =~ /^\d+$/ && $self->$opt > 0;
+        }
+    }
+
+    # Validate on_event callback
+    if (defined $self->on_event) {
+        croak "on_event must be a code reference"
+            unless ref($self->on_event) eq 'CODE';
+    }
+
     # Initialize store: use provided store, or build default
     if (!$self->store) {
         my %store_args;
@@ -62,7 +94,18 @@ sub new {
         $self->store(Net::Nostr::RelayStore->new(%store_args));
     }
 
+    # Validate idle_timeout and shutdown_timeout
+    for my $opt (qw(idle_timeout shutdown_timeout)) {
+        if (defined $self->$opt) {
+            croak "$opt must be a positive integer"
+                unless $self->$opt =~ /^\d+$/ && $self->$opt > 0;
+        }
+    }
+
     $self->_rate_state({});
+    $self->_idle_timers({});
+    $self->_sub_by_kind({});
+    $self->_sub_no_kind({});
     $self->_server(AnyEvent::WebSocket::Server->new());
     return $self;
 }
@@ -191,6 +234,30 @@ sub stop {
     $self->_stop_cleanup;
 }
 
+sub graceful_stop {
+    my ($self) = @_;
+
+    # Stop accepting new connections immediately
+    $self->_guard(undef);
+
+    # Send NOTICE to all connected clients
+    my $notice = Net::Nostr::Message->new(
+        type => 'NOTICE',
+        message => 'shutting down',
+    )->serialize;
+    for my $conn (values %{$self->connections || {}}) {
+        eval { $conn->send($notice) };
+    }
+
+    my $timeout = $self->shutdown_timeout // 5;
+    my $t; $t = AnyEvent->timer(after => $timeout, cb => sub {
+        undef $t;
+        $self->stop;
+    });
+    # Store the timer to prevent GC
+    $self->{_shutdown_timer} = $t;
+}
+
 sub authenticated_pubkeys {
     my ($self) = @_;
     return { %{$self->_authenticated || {}} };
@@ -209,20 +276,40 @@ sub _stop_cleanup {
     $self->_authenticated({});
     $self->_nip11_watchers({});
     $self->_rate_state({});
+    $self->_idle_timers({});
+    $self->_sub_by_kind({});
+    $self->_sub_no_kind({});
 }
 
 sub broadcast {
     my ($self, $event) = @_;
     # NIP-40: Do not broadcast expired events
     return if $event->is_expired;
+
+    # Collect candidate subscriptions from inverted index
+    my %candidates;  # "$conn_id\0$sub_id" => [$conn_id, $sub_id]
+
+    # Subscriptions that filter on this event's kind
+    my $kind_subs = $self->_sub_by_kind->{$event->kind};
+    if ($kind_subs) {
+        for my $key (keys %$kind_subs) {
+            $candidates{$key} = $kind_subs->{$key};
+        }
+    }
+
+    # Subscriptions with no kind filter (match any kind)
+    my $no_kind = $self->_sub_no_kind;
+    for my $key (keys %$no_kind) {
+        $candidates{$key} = $no_kind->{$key};
+    }
+
     my $subs = $self->subscriptions || {};
-    for my $conn_id (keys %$subs) {
+    for my $entry (values %candidates) {
+        my ($conn_id, $sub_id) = @$entry;
         my $conn = $self->connections->{$conn_id} or next;
-        for my $sub_id (keys %{$subs->{$conn_id}}) {
-            my $filters = $subs->{$conn_id}{$sub_id};
-            if (Net::Nostr::Filter->matches_any($event, @$filters)) {
-                $conn->send(Net::Nostr::Message->new(type => 'EVENT', subscription_id => $sub_id, event => $event)->serialize);
-            }
+        my $filters = $subs->{$conn_id}{$sub_id} or next;
+        if (Net::Nostr::Filter->matches_any($event, @$filters)) {
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', subscription_id => $sub_id, event => $event)->serialize);
         }
     }
 }
@@ -257,9 +344,38 @@ sub _on_connection {
     $self->_authenticated->{$conn_id} = {};
     $conn->send(Net::Nostr::Message->new(type => 'AUTH', challenge => $challenge)->serialize);
 
+    # Idle timeout: disconnect clients that send no messages
+    if (defined $self->idle_timeout) {
+        my $reset_idle; $reset_idle = sub {
+            $self->_idle_timers->{$conn_id} = AnyEvent->timer(
+                after => $self->idle_timeout,
+                cb => sub {
+                    my $c = $self->connections->{$conn_id};
+                    $c->close if $c;
+                },
+            );
+        };
+        $reset_idle->();
+        $self->{_reset_idle}{$conn_id} = $reset_idle;
+    }
+
     $conn->on(each_message => sub {
         my ($conn, $message) = @_;
-        my $arr = eval { JSON::decode_json($message->body) };
+        my $raw = $message->body;
+
+        # Reset idle timer on any activity
+        if ($self->{_reset_idle} && $self->{_reset_idle}{$conn_id}) {
+            $self->{_reset_idle}{$conn_id}->();
+        }
+
+        if (defined $self->max_message_length && length($raw) > $self->max_message_length) {
+            $conn->send(Net::Nostr::Message->new(
+                type => 'NOTICE', message => "error: message too large",
+            )->serialize);
+            return;
+        }
+
+        my $arr = eval { JSON::decode_json($raw) };
         return warn "bad message: $@\n" if $@ || ref($arr) ne 'ARRAY' || !@$arr;
 
         my $type = $arr->[0];
@@ -317,11 +433,14 @@ sub _on_connection {
     });
 
     $conn->on(finish => sub {
+        $self->_remove_all_sub_indexes($conn_id);
         delete $self->connections->{$conn_id};
         delete $self->subscriptions->{$conn_id};
         delete $self->_challenges->{$conn_id};
         delete $self->_authenticated->{$conn_id};
         delete $self->_rate_state->{$conn_id};
+        delete $self->_idle_timers->{$conn_id};
+        delete $self->{_reset_idle}{$conn_id} if $self->{_reset_idle};
         $self->_conn_count_by_ip->{$peer_host}-- if defined $peer_host;
     });
 }
@@ -405,6 +524,44 @@ sub _handle_event {
     if ($error) {
         $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => ($event->id // ''), accepted => 0, message => $error)->serialize);
         return;
+    }
+
+    # Content length limit
+    if (defined $self->max_content_length && length($event->content) > $self->max_content_length) {
+        $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: content too long')->serialize);
+        return;
+    }
+
+    # Tag count limit
+    if (defined $self->max_event_tags && scalar(@{$event->tags}) > $self->max_event_tags) {
+        $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: too many tags')->serialize);
+        return;
+    }
+
+    # created_at lower bound (reject events too far in the past)
+    if (defined $self->created_at_lower_limit) {
+        if ($event->created_at < time() - $self->created_at_lower_limit) {
+            $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: event too old')->serialize);
+            return;
+        }
+    }
+
+    # created_at upper bound (reject events too far in the future)
+    if (defined $self->created_at_upper_limit) {
+        if ($event->created_at > time() + $self->created_at_upper_limit) {
+            $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: event too far in the future')->serialize);
+            return;
+        }
+    }
+
+    # Policy callback
+    if ($self->on_event) {
+        my ($ok, $msg) = $self->on_event->($event);
+        unless ($ok) {
+            $msg = 'blocked: rejected by policy' unless defined $msg && length $msg;
+            $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => $msg)->serialize);
+            return;
+        }
     }
 
     # Rate limiting check
@@ -572,8 +729,46 @@ sub _handle_req {
     my ($self, $conn_id, $sub_id, @filters) = @_;
     my $conn = $self->connections->{$conn_id};
 
+    # Max filters per REQ
+    if (defined $self->max_filters && @filters > $self->max_filters) {
+        $conn->send(Net::Nostr::Message->new(
+            type => 'CLOSED', subscription_id => $sub_id,
+            message => "error: too many filters",
+        )->serialize);
+        return;
+    }
+
+    # Max subscriptions per connection (new subs only, replacing is free)
+    if (defined $self->max_subscriptions) {
+        my $existing = $self->subscriptions->{$conn_id} // {};
+        if (!exists $existing->{$sub_id}
+            && scalar(keys %$existing) >= $self->max_subscriptions) {
+            $conn->send(Net::Nostr::Message->new(
+                type => 'CLOSED', subscription_id => $sub_id,
+                message => "error: too many subscriptions",
+            )->serialize);
+            return;
+        }
+    }
+
+    # Cap filter limits
+    for my $f (@filters) {
+        if (defined $self->default_limit && !defined $f->limit) {
+            $f->limit($self->default_limit);
+        }
+        if (defined $self->max_limit) {
+            if (!defined $f->limit || $f->limit > $self->max_limit) {
+                $f->limit($self->max_limit);
+            }
+        }
+    }
+
     $self->subscriptions->{$conn_id} //= {};
+    # Remove old index entries if replacing an existing subscription
+    my $old_filters = $self->subscriptions->{$conn_id}{$sub_id};
+    $self->_remove_from_sub_index($conn_id, $sub_id, $old_filters) if $old_filters;
     $self->subscriptions->{$conn_id}{$sub_id} = \@filters;
+    $self->_add_to_sub_index($conn_id, $sub_id, \@filters);
 
     my $results = $self->store->query(\@filters);
 
@@ -588,6 +783,14 @@ sub _handle_count {
     my ($self, $conn_id, $sub_id, @filters) = @_;
     my $conn = $self->connections->{$conn_id};
 
+    if (defined $self->max_filters && @filters > $self->max_filters) {
+        $conn->send(Net::Nostr::Message->new(
+            type => 'CLOSED', subscription_id => $sub_id,
+            message => "error: too many filters",
+        )->serialize);
+        return;
+    }
+
     my $count = $self->store->count(\@filters);
 
     $conn->send(Net::Nostr::Message->new(
@@ -597,7 +800,52 @@ sub _handle_count {
 
 sub _handle_close {
     my ($self, $conn_id, $sub_id) = @_;
-    delete $self->subscriptions->{$conn_id}{$sub_id} if $self->subscriptions->{$conn_id};
+    if ($self->subscriptions->{$conn_id}) {
+        my $filters = $self->subscriptions->{$conn_id}{$sub_id};
+        $self->_remove_from_sub_index($conn_id, $sub_id, $filters) if $filters;
+        delete $self->subscriptions->{$conn_id}{$sub_id};
+    }
+}
+
+sub _add_to_sub_index {
+    my ($self, $conn_id, $sub_id, $filters) = @_;
+    my $key = "$conn_id\0$sub_id";
+    my $entry = [$conn_id, $sub_id];
+    my $has_kind_filter = 0;
+    for my $f (@$filters) {
+        if ($f->kinds) {
+            $has_kind_filter = 1;
+            for my $k (@{$f->kinds}) {
+                $self->_sub_by_kind->{$k}{$key} = $entry;
+            }
+        }
+    }
+    unless ($has_kind_filter) {
+        $self->_sub_no_kind->{$key} = $entry;
+    }
+}
+
+sub _remove_from_sub_index {
+    my ($self, $conn_id, $sub_id, $filters) = @_;
+    my $key = "$conn_id\0$sub_id";
+    if ($filters) {
+        for my $f (@$filters) {
+            if ($f->kinds) {
+                for my $k (@{$f->kinds}) {
+                    delete $self->_sub_by_kind->{$k}{$key};
+                }
+            }
+        }
+    }
+    delete $self->_sub_no_kind->{$key};
+}
+
+sub _remove_all_sub_indexes {
+    my ($self, $conn_id) = @_;
+    my $conn_subs = $self->subscriptions->{$conn_id} || {};
+    for my $sub_id (keys %$conn_subs) {
+        $self->_remove_from_sub_index($conn_id, $sub_id, $conn_subs->{$sub_id});
+    }
 }
 
 1;
@@ -755,6 +1003,98 @@ C<undef> (unlimited). Croaks if the format is invalid.
 
     my $relay = Net::Nostr::Relay->new(event_rate_limit => '10/60');
 
+=item C<max_subscriptions> - Maximum number of active subscriptions per
+connection. When a client sends a REQ that would exceed this limit, the
+relay responds with a CLOSED message. Replacing an existing subscription
+(same ID) does not count toward the limit. Must be a positive integer.
+Default: C<undef> (unlimited).
+
+    my $relay = Net::Nostr::Relay->new(max_subscriptions => 20);
+
+=item C<max_filters> - Maximum number of filters allowed in a single REQ
+or COUNT message. Requests exceeding this limit are rejected with a CLOSED
+message. Must be a positive integer. Default: C<undef> (unlimited).
+
+    my $relay = Net::Nostr::Relay->new(max_filters => 10);
+
+=item C<max_content_length> - Maximum length (in bytes) of the C<content>
+field in an event. Events exceeding this limit are rejected with C<OK false>
+and an C<invalid:> prefix. Must be a positive integer. Default: C<undef>
+(unlimited).
+
+    my $relay = Net::Nostr::Relay->new(max_content_length => 8196);
+
+=item C<max_event_tags> - Maximum number of tags allowed on an event. Events
+exceeding this limit are rejected with C<OK false> and an C<invalid:> prefix.
+Must be a positive integer. Default: C<undef> (unlimited).
+
+    my $relay = Net::Nostr::Relay->new(max_event_tags => 2000);
+
+=item C<max_limit> - Server-side cap on the C<limit> field in filters.
+If a client requests a higher limit (or no limit), it is silently capped
+to this value. Applies to both REQ and COUNT queries. Must be a positive
+integer. Default: C<undef> (no cap).
+
+    my $relay = Net::Nostr::Relay->new(max_limit => 500);
+
+=item C<default_limit> - Default C<limit> applied to filters that do not
+specify one. Without this, a filter with no limit returns all matching
+events. Must be a positive integer. Default: C<undef> (no default limit).
+
+    my $relay = Net::Nostr::Relay->new(default_limit => 100);
+
+=item C<created_at_lower_limit> - Maximum age (in seconds) for events.
+Events with C<created_at> older than C<now - created_at_lower_limit> are
+rejected with C<OK false>. Matches the NIP-11 C<limitation> field of the
+same name. Must be a positive integer. Default: C<undef> (no lower bound).
+
+    # Reject events older than 1 year
+    my $relay = Net::Nostr::Relay->new(created_at_lower_limit => 31536000);
+
+=item C<created_at_upper_limit> - Maximum seconds into the future for events.
+Events with C<created_at> more than this many seconds ahead of the current
+time are rejected with C<OK false>. Matches the NIP-11 C<limitation> field
+of the same name. Must be a positive integer. Default: C<undef> (no upper
+bound).
+
+    # Reject events more than 15 minutes in the future
+    my $relay = Net::Nostr::Relay->new(created_at_upper_limit => 900);
+
+=item C<max_message_length> - Maximum incoming WebSocket message size in
+bytes. Messages exceeding this limit are dropped and a NOTICE is sent to
+the client. This is an application-level check; for frame-level protection,
+configure your reverse proxy. Must be a positive integer. Default: C<undef>
+(unlimited).
+
+    my $relay = Net::Nostr::Relay->new(max_message_length => 65536);
+
+=item C<on_event> - A code reference called for each incoming event after
+structural validation but before storage and broadcast. Receives the
+L<Net::Nostr::Event> object as its sole argument. Must return a two-element
+list C<($accepted, $message)>. If C<$accepted> is false, the event is
+rejected with C<OK false> and the given message (or a default if empty).
+
+    my $relay = Net::Nostr::Relay->new(
+        on_event => sub {
+            my ($event) = @_;
+            return (0, 'blocked: spam') if $event->content =~ /spam/;
+            return (1, '');
+        },
+    );
+
+=item C<idle_timeout> - Seconds of client inactivity before the relay
+disconnects the connection. The timer resets each time the client sends
+a message. Must be a positive integer. Default: C<undef> (no timeout).
+
+    # Disconnect clients idle for more than 5 minutes
+    my $relay = Net::Nostr::Relay->new(idle_timeout => 300);
+
+=item C<shutdown_timeout> - Seconds to wait after sending a shutdown NOTICE
+before closing connections during L</graceful_stop>. Must be a positive
+integer. Default: C<undef> (5 seconds when C<graceful_stop> is called).
+
+    my $relay = Net::Nostr::Relay->new(shutdown_timeout => 10);
+
 Croaks on unknown arguments.
 
 =back
@@ -791,6 +1131,20 @@ process, or compose with other AnyEvent watchers.
 Stops the relay, closes all connections, and clears all subscriptions.
 If the relay was started with C<run>, also unblocks it.
 Safe to call on an unstarted relay.
+
+=head2 graceful_stop
+
+    $relay->graceful_stop;
+
+Initiates a graceful shutdown. Stops accepting new connections immediately,
+sends a C<NOTICE> ("shutting down") to all connected clients, then closes
+all connections after C<shutdown_timeout> seconds (default: 5). This gives
+clients time to reconnect to another relay.
+
+    my $relay = Net::Nostr::Relay->new(shutdown_timeout => 10);
+    $relay->start('0.0.0.0', 8080);
+    # ... later ...
+    $relay->graceful_stop;  # NOTICE sent, connections close after 10s
 
 =head2 broadcast
 
@@ -913,6 +1267,78 @@ Returns the L<Net::Nostr::RelayInfo> object (NIP-11), or C<undef> if not set.
     $relay->start('0.0.0.0', 8080);
 
     # Clients can now fetch: curl -H 'Accept: application/nostr+json' http://localhost:8080/
+
+=head2 max_subscriptions
+
+    my $max = $relay->max_subscriptions;
+
+Returns the per-connection subscription limit, or C<undef> if unlimited.
+
+=head2 max_filters
+
+    my $max = $relay->max_filters;
+
+Returns the per-REQ/COUNT filter count limit, or C<undef> if unlimited.
+
+=head2 max_content_length
+
+    my $max = $relay->max_content_length;
+
+Returns the maximum event content length in bytes, or C<undef> if unlimited.
+
+=head2 max_event_tags
+
+    my $max = $relay->max_event_tags;
+
+Returns the maximum event tag count, or C<undef> if unlimited.
+
+=head2 max_limit
+
+    my $max = $relay->max_limit;
+
+Returns the server-side cap on filter C<limit>, or C<undef> if no cap.
+
+=head2 default_limit
+
+    my $default = $relay->default_limit;
+
+Returns the default limit applied to filters without one, or C<undef>.
+
+=head2 created_at_lower_limit
+
+    my $secs = $relay->created_at_lower_limit;
+
+Returns the maximum event age in seconds, or C<undef> if no bound.
+
+=head2 created_at_upper_limit
+
+    my $secs = $relay->created_at_upper_limit;
+
+Returns the maximum seconds-into-future for events, or C<undef> if no bound.
+
+=head2 max_message_length
+
+    my $max = $relay->max_message_length;
+
+Returns the maximum incoming message size in bytes, or C<undef> if unlimited.
+
+=head2 on_event
+
+    my $cb = $relay->on_event;
+
+Returns the event policy callback, or C<undef> if not set.
+
+=head2 idle_timeout
+
+    my $secs = $relay->idle_timeout;
+
+Returns the idle timeout in seconds, or C<undef> if not set.
+
+=head2 shutdown_timeout
+
+    my $secs = $relay->shutdown_timeout;
+
+Returns the graceful shutdown drain period in seconds, or C<undef> if not set.
 
 =head2 authenticated_pubkeys
 
