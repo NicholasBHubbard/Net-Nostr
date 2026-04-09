@@ -1,5 +1,8 @@
 1.000000   TBD
 
+  - BREAKING: AppHandler->client_tag now croaks on missing name or
+    coordinate. Previously these were silently passed as undef into the
+    tag array.
   - BREAKING: Key->new now rejects passing both privkey and pubkey
     (previously silently preferred privkey). Message->new now rejects
     AUTH with both event and challenge, and COUNT with both count and

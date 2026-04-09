@@ -191,4 +191,36 @@ subtest 'new() rejects unknown arguments' => sub {
     );
 };
 
+###############################################################################
+# client_tag validation
+###############################################################################
+
+subtest 'client_tag rejects missing name' => sub {
+    like(
+        dies { Net::Nostr::AppHandler->client_tag(
+            coordinate => "31990:$app_pk:my-client",
+        ) },
+        qr/name/i,
+        'missing name rejected'
+    );
+};
+
+subtest 'client_tag rejects missing coordinate' => sub {
+    like(
+        dies { Net::Nostr::AppHandler->client_tag(
+            name => 'My Client',
+        ) },
+        qr/coordinate/i,
+        'missing coordinate rejected'
+    );
+};
+
+subtest 'client_tag rejects both missing' => sub {
+    like(
+        dies { Net::Nostr::AppHandler->client_tag() },
+        qr/name|coordinate/i,
+        'missing both rejected'
+    );
+};
+
 done_testing;

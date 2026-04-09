@@ -85,6 +85,8 @@ sub handler {
 
 sub client_tag {
     my ($class, %args) = @_;
+    croak "client_tag requires 'name'" unless defined $args{name};
+    croak "client_tag requires 'coordinate'" unless defined $args{coordinate};
     my @tag = ('client', $args{name}, $args{coordinate});
     push @tag, $args{relay} if defined $args{relay};
     return \@tag;
@@ -341,6 +343,7 @@ tag without an entity type is a generic handler for any NIP-19 entity.
     );
 
 Creates a C<client> tag arrayref suitable for inclusion in any event's tags.
+C<name> and C<coordinate> are required; croaks if either is missing.
 Clients MAY include this tag to identify themselves. This has privacy
 implications, so clients SHOULD allow users to opt out.
 
