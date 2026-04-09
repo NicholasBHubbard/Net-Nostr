@@ -259,6 +259,8 @@ Use NIP-44 for encryption instead.
 
 =item L<Net::Nostr::Message> - Protocol message serialization and parsing
 
+=item L<Net::Nostr::Mention> - NIP-27 text note references
+
 =item L<Net::Nostr::Metadata> - NIP-24 extra metadata fields and tags
 
 =item L<Net::Nostr::MintDiscovery> - NIP-87 ecash mint discoverability
@@ -280,6 +282,8 @@ Use NIP-44 for encryption instead.
 =item L<Net::Nostr::RelayList> - NIP-65 relay list metadata
 
 =item L<Net::Nostr::RelayMonitor> - NIP-66 relay discovery and liveness monitoring
+
+=item L<Net::Nostr::RelayStore> - Indexed in-memory event storage for relays
 
 =item L<Net::Nostr::RemoteSigning> - NIP-46 Nostr Remote Signing
 
