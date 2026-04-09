@@ -1,4 +1,4 @@
-1.000000   TBD
+1.000000   2026-04-09
 
   First stable release. Perl implementation of the Nostr protocol with
   both client and relay functionality.
@@ -7,6 +7,11 @@
   19, 21, 22, 23, 24, 25, 27, 28, 29, 32, 34, 35, 36, 40, 42, 43,
   44, 45, 46, 47, 49, 50, 51, 52, 53, 54, 56, 57, 58, 59, 60, 61,
   65, 66, 70, 72, 73, 77, 78, 86, 87, 89, 90, 92, 94, 98, 99, B7.
+
+0.002000   2026-04-01
+
+  - Add save_privkey() and save_pubkey() methods to Net::Nostr::Key
+  - Improved documentation
 
 0.001000   2026-04-01
 
