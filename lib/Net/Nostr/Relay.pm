@@ -897,7 +897,7 @@ Net::Nostr::Relay - Nostr WebSocket relay server
 An in-process Nostr relay. Accepts WebSocket connections, stores events
 using an indexed in-memory backend (or a pluggable custom store), manages
 subscriptions, and broadcasts new events to matching subscribers. Supports
-configurable event capacity with FIFO eviction and per-connection rate
+configurable event capacity with oldest-first eviction and per-connection rate
 limiting. Events do not persist across restarts unless a persistent storage
 backend is provided.
 
