@@ -16,6 +16,7 @@ use Digest::SHA qw(sha256_hex);
 use JSON ();
 use Socket qw(MSG_PEEK);
 
+use Net::Nostr::Negentropy;
 use Net::Nostr::RelayInfo;
 
 use Net::Nostr::RelayStore;
@@ -54,6 +55,7 @@ use Class::Tiny qw(
     _idle_timers
     _sub_by_kind
     _sub_no_kind
+    _neg_sessions
 );
 
 sub connections {
@@ -291,6 +293,7 @@ sub _stop_cleanup {
     $self->_idle_timers({});
     $self->_sub_by_kind({});
     $self->_sub_no_kind({});
+    $self->_neg_sessions({});
 }
 
 sub broadcast {
@@ -336,6 +339,7 @@ sub _on_connection {
     $self->_subscriptions($self->_subscriptions // {});
     $self->_challenges($self->_challenges // {});
     $self->_authenticated($self->_authenticated // {});
+    $self->_neg_sessions($self->_neg_sessions // {});
 
     $self->_connections->{$conn_id} = $conn;
 
@@ -420,6 +424,43 @@ sub _on_connection {
             return;
         }
 
+        if ($type eq 'NEG-OPEN') {
+            my $sub_id = $arr->[1] // '';
+            my $msg = eval { Net::Nostr::Message->parse($message->body) };
+            if ($@) {
+                my $reason = $@;
+                $reason =~ s/\n\z//;
+                $conn->send(Net::Nostr::Message->new(
+                    type => 'NEG-ERR', subscription_id => $sub_id,
+                    message => "error: $reason",
+                )->serialize);
+                return;
+            }
+            $self->_handle_neg_open($conn_id, $msg);
+            return;
+        }
+
+        if ($type eq 'NEG-MSG') {
+            my $sub_id = $arr->[1] // '';
+            my $msg = eval { Net::Nostr::Message->parse($message->body) };
+            if ($@) {
+                my $reason = $@;
+                $reason =~ s/\n\z//;
+                $conn->send(Net::Nostr::Message->new(
+                    type => 'NEG-ERR', subscription_id => $sub_id,
+                    message => "error: $reason",
+                )->serialize);
+                return;
+            }
+            $self->_handle_neg_msg($conn_id, $msg);
+            return;
+        }
+
+        if ($type eq 'NEG-CLOSE') {
+            $self->_handle_neg_close($conn_id, $arr->[1] // '');
+            return;
+        }
+
         my $msg = eval { Net::Nostr::Message->parse($message->body) };
         if ($@) {
             if ($type eq 'EVENT' || $type eq 'AUTH') {
@@ -453,6 +494,7 @@ sub _on_connection {
         delete $self->_rate_state->{$conn_id};
         delete $self->_idle_timers->{$conn_id};
         delete $self->{_reset_idle}{$conn_id} if $self->{_reset_idle};
+        delete $self->_neg_sessions->{$conn_id};
         $self->_conn_count_by_ip->{$peer_host}-- if defined $peer_host;
     });
 }
@@ -820,6 +862,102 @@ sub _handle_close {
     }
 }
 
+sub _handle_neg_open {
+    my ($self, $conn_id, $msg) = @_;
+    my $conn = $self->_connections->{$conn_id};
+    my $sub_id = $msg->subscription_id;
+
+    # Per spec: if NEG-OPEN is issued for a currently open subscription ID,
+    # the existing subscription is first closed.
+    delete $self->_neg_sessions->{$conn_id}{$sub_id};
+
+    # Build server-side Negentropy from ALL matching events.
+    # Negentropy requires the complete set, so strip any limit from the filter.
+    my $filter_hash = $msg->filter->to_hash;
+    delete $filter_hash->{limit};
+    my $unlimited_filter = Net::Nostr::Filter->new(%$filter_hash);
+
+    my $ne = Net::Nostr::Negentropy->new;
+    my $events = $self->store->query([$unlimited_filter]);
+    for my $ev (@$events) {
+        $ne->add_item($ev->created_at, $ev->id);
+    }
+    $ne->seal;
+
+    my ($response, $have, $need) = eval { $ne->reconcile($msg->neg_msg) };
+    if ($@) {
+        my $reason = $@;
+        $reason =~ s/\n\z//;
+        $conn->send(Net::Nostr::Message->new(
+            type => 'NEG-ERR', subscription_id => $sub_id,
+            message => "error: $reason",
+        )->serialize);
+        return;
+    }
+
+    if (defined $response) {
+        $self->_neg_sessions->{$conn_id}{$sub_id} = $ne;
+        $conn->send(Net::Nostr::Message->new(
+            type => 'NEG-MSG', subscription_id => $sub_id,
+            neg_msg => $response,
+        )->serialize);
+    } else {
+        # Protocol complete in one round — send empty NEG-MSG
+        # (response is undef when all ranges match)
+        $conn->send(Net::Nostr::Message->new(
+            type => 'NEG-MSG', subscription_id => $sub_id,
+            neg_msg => $response // _empty_neg_msg(),
+        )->serialize);
+    }
+}
+
+sub _handle_neg_msg {
+    my ($self, $conn_id, $msg) = @_;
+    my $conn = $self->_connections->{$conn_id};
+    my $sub_id = $msg->subscription_id;
+
+    my $ne = $self->_neg_sessions->{$conn_id}{$sub_id};
+    unless ($ne) {
+        $conn->send(Net::Nostr::Message->new(
+            type => 'NEG-ERR', subscription_id => $sub_id,
+            message => "closed: no open negentropy session",
+        )->serialize);
+        return;
+    }
+
+    my ($response, $have, $need) = eval { $ne->reconcile($msg->neg_msg) };
+    if ($@) {
+        my $reason = $@;
+        $reason =~ s/\n\z//;
+        delete $self->_neg_sessions->{$conn_id}{$sub_id};
+        $conn->send(Net::Nostr::Message->new(
+            type => 'NEG-ERR', subscription_id => $sub_id,
+            message => "error: $reason",
+        )->serialize);
+        return;
+    }
+
+    if (defined $response) {
+        $conn->send(Net::Nostr::Message->new(
+            type => 'NEG-MSG', subscription_id => $sub_id,
+            neg_msg => $response,
+        )->serialize);
+    } else {
+        delete $self->_neg_sessions->{$conn_id}{$sub_id};
+    }
+}
+
+sub _handle_neg_close {
+    my ($self, $conn_id, $sub_id) = @_;
+    delete $self->_neg_sessions->{$conn_id}{$sub_id}
+        if $self->_neg_sessions->{$conn_id};
+}
+
+# Minimal valid negentropy message: version byte + no ranges (all skip)
+sub _empty_neg_msg {
+    return '61';
+}
+
 sub _add_to_sub_index {
     my ($self, $conn_id, $sub_id, $filters) = @_;
     my $key = "$conn_id\0$sub_id";
@@ -920,6 +1058,8 @@ Implements:
 =item * L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md> - Event counts (HyperLogLog not supported)
 
 =item * L<NIP-70|https://github.com/nostr-protocol/nips/blob/master/70.md> - Protected events
+
+=item * L<NIP-77|https://github.com/nostr-protocol/nips/blob/master/77.md> - Negentropy syncing
 
 =back
 

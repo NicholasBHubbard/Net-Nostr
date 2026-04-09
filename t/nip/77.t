@@ -982,4 +982,445 @@ subtest 'reconcile: same-timestamp items sorted by ID (spec line 104)' => sub {
     is([sort @all_need], [$server_only], 'server-only ID found');
 };
 
+###############################################################################
+# Transport integration: Client + Relay end-to-end negentropy sync
+###############################################################################
+
+use AnyEvent;
+use IO::Socket::INET;
+use Net::Nostr::Client;
+use Net::Nostr::Relay;
+use Net::Nostr::Key;
+
+my $port;
+{
+    my $sock = IO::Socket::INET->new(
+        Listen => 1, LocalAddr => '127.0.0.1', LocalPort => 0,
+    );
+    $port = $sock->sockport;
+    close $sock;
+}
+
+subtest 'end-to-end negentropy sync via Client + Relay' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    # Store some events in the relay
+    my $key = Net::Nostr::Key->new;
+    my @relay_events;
+    for my $i (1 .. 3) {
+        my $ev = $key->create_event(
+            kind    => 1,
+            content => "relay event $i",
+            tags    => [],
+            created_at => 1000 + $i,
+        );
+        $relay->store->store($ev);
+        push @relay_events, $ev;
+    }
+
+    # Client connects
+    my $client = Net::Nostr::Client->new;
+    $client->connect("ws://127.0.0.1:$port");
+
+    # Wait for AUTH challenge
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Client has event 1 and 2 locally, wants to sync
+    my $ne = Net::Nostr::Negentropy->new;
+    $ne->add_item($relay_events[0]->created_at, $relay_events[0]->id);
+    $ne->add_item($relay_events[1]->created_at, $relay_events[1]->id);
+    $ne->seal;
+
+    my $initial_msg = $ne->initiate;
+
+    # Set up callbacks to collect NEG-MSG responses
+    my @neg_msgs;
+    my $neg_err;
+    $client->on(neg_msg => sub {
+        my ($sub_id, $msg) = @_;
+        push @neg_msgs, { sub_id => $sub_id, msg => $msg };
+    });
+    $client->on(neg_err => sub {
+        my ($sub_id, $reason) = @_;
+        $neg_err = { sub_id => $sub_id, reason => $reason };
+    });
+
+    # Send NEG-OPEN
+    my $filter = Net::Nostr::Filter->new(kinds => [1]);
+    $client->neg_open('neg1', $filter, $initial_msg);
+
+    # Wait for relay response
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+    $cv->recv;
+
+    ok scalar @neg_msgs >= 1, 'received at least one NEG-MSG response';
+    is $neg_msgs[0]{sub_id}, 'neg1', 'subscription ID matches';
+    ok !$neg_err, 'no NEG-ERR received';
+
+    # Process response with negentropy
+    my ($next, $have, $need) = $ne->reconcile($neg_msgs[0]{msg});
+
+    # Client has events 1 and 2, relay has 1, 2, and 3
+    # So client needs event 3
+    is scalar @$need, 1, 'client needs one event';
+    is $need->[0], $relay_events[2]->id, 'client needs event 3';
+
+    # If more rounds needed, continue
+    if (defined $next) {
+        $client->neg_msg('neg1', $next);
+        $cv = AnyEvent->condvar;
+        $w = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+        $cv->recv;
+    }
+
+    # Close the negentropy session
+    $client->neg_close('neg1');
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'relay sends NEG-ERR for parse failures' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $client = Net::Nostr::Client->new;
+    my $neg_err;
+    $client->on(neg_err => sub {
+        my ($sub_id, $reason) = @_;
+        $neg_err = { sub_id => $sub_id, reason => $reason };
+    });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Send a NEG-OPEN with invalid (non-hex) neg_msg via raw WebSocket
+    my $raw = JSON::encode_json(['NEG-OPEN', 'neg1', { kinds => [1] }, 'not_hex!!!']);
+    $client->_conn->send($raw);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+    $cv->recv;
+
+    ok $neg_err, 'received NEG-ERR';
+    is $neg_err->{sub_id}, 'neg1', 'subscription ID matches' if $neg_err;
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'NEG-OPEN replaces existing session with same sub_id' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $ev = $key->create_event(
+        kind => 1, content => 'test', tags => [], created_at => 1000,
+    );
+    $relay->store->store($ev);
+
+    my $client = Net::Nostr::Client->new;
+    my @neg_msgs;
+    $client->on(neg_msg => sub {
+        my ($sub_id, $msg) = @_;
+        push @neg_msgs, { sub_id => $sub_id, msg => $msg };
+    });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # First NEG-OPEN
+    my $ne1 = Net::Nostr::Negentropy->new;
+    $ne1->seal;
+    my $filter = Net::Nostr::Filter->new(kinds => [1]);
+    $client->neg_open('neg1', $filter, $ne1->initiate);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+    $cv->recv;
+
+    ok scalar @neg_msgs >= 1, 'got response from first NEG-OPEN';
+
+    # Second NEG-OPEN with same ID replaces session
+    @neg_msgs = ();
+    my $ne2 = Net::Nostr::Negentropy->new;
+    $ne2->seal;
+    $client->neg_open('neg1', $filter, $ne2->initiate);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+    $cv->recv;
+
+    ok scalar @neg_msgs >= 1, 'got response from replacement NEG-OPEN';
+
+    $client->neg_close('neg1');
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'relay cleans up neg sessions on disconnect' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $client = Net::Nostr::Client->new;
+    $client->on(neg_msg => sub {});
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    my $ne = Net::Nostr::Negentropy->new;
+    $ne->seal;
+    my $filter = Net::Nostr::Filter->new(kinds => [1]);
+    $client->neg_open('neg1', $filter, $ne->initiate);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+    $cv->recv;
+
+    $client->disconnect;
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Verify internal neg sessions are cleaned up
+    my $neg_sessions = $relay->{_neg_sessions} || {};
+    is scalar keys %$neg_sessions, 0, 'neg sessions cleaned up after disconnect';
+
+    $relay->stop;
+};
+
+subtest 'relay sends NEG-ERR for NEG-MSG on non-existent session' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $client = Net::Nostr::Client->new;
+    my $neg_err;
+    $client->on(neg_err => sub {
+        my ($sub_id, $reason) = @_;
+        $neg_err = { sub_id => $sub_id, reason => $reason };
+    });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Send NEG-MSG for a session that was never opened
+    $client->neg_msg('nonexistent', '61');
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+    $cv->recv;
+
+    ok $neg_err, 'received NEG-ERR for non-existent session';
+    is $neg_err->{sub_id}, 'nonexistent', 'subscription ID matches';
+    like $neg_err->{reason}, qr/closed/i, 'reason indicates closed session';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'NEG-CLOSE then NEG-MSG produces NEG-ERR' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $ev = $key->create_event(
+        kind => 1, content => 'test', tags => [], created_at => 1000,
+    );
+    $relay->store->store($ev);
+
+    my $client = Net::Nostr::Client->new;
+    my @neg_msgs;
+    my $neg_err;
+    $client->on(neg_msg => sub { push @neg_msgs, [@_] });
+    $client->on(neg_err => sub { $neg_err = { sub_id => $_[0], reason => $_[1] } });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Open a session
+    my $ne = Net::Nostr::Negentropy->new;
+    $ne->seal;
+    my $filter = Net::Nostr::Filter->new(kinds => [1]);
+    $client->neg_open('neg1', $filter, $ne->initiate);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+    $cv->recv;
+
+    ok @neg_msgs >= 1, 'got initial response';
+
+    # Close the session, then try to continue
+    $client->neg_close('neg1');
+    $neg_err = undef;
+    $client->neg_msg('neg1', '61');
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+    $cv->recv;
+
+    ok $neg_err, 'NEG-ERR received after NEG-CLOSE';
+    like $neg_err->{reason}, qr/closed/i, 'reason indicates closed session';
+
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'multiple concurrent negentropy sessions' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $key = Net::Nostr::Key->new;
+    my $ev1 = $key->create_event(
+        kind => 1, content => 'kind1', tags => [], created_at => 1000,
+    );
+    my $ev2 = $key->create_event(
+        kind => 2, content => 'kind2', tags => [], created_at => 2000,
+    );
+    $relay->store->store($ev1);
+    $relay->store->store($ev2);
+
+    my $client = Net::Nostr::Client->new;
+    my %neg_msgs;
+    $client->on(neg_msg => sub {
+        my ($sub_id, $msg) = @_;
+        push @{$neg_msgs{$sub_id}}, $msg;
+    });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Open two sessions with different filters
+    my $ne1 = Net::Nostr::Negentropy->new;
+    $ne1->seal;
+    my $ne2 = Net::Nostr::Negentropy->new;
+    $ne2->seal;
+
+    $client->neg_open('kind1_sync', Net::Nostr::Filter->new(kinds => [1]), $ne1->initiate);
+    $client->neg_open('kind2_sync', Net::Nostr::Filter->new(kinds => [2]), $ne2->initiate);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.3, cb => sub { $cv->send });
+    $cv->recv;
+
+    ok exists $neg_msgs{kind1_sync}, 'session 1 received response';
+    ok exists $neg_msgs{kind2_sync}, 'session 2 received response';
+
+    # Process each independently
+    my ($r1, $have1, $need1) = $ne1->reconcile($neg_msgs{kind1_sync}[0]);
+    my ($r2, $have2, $need2) = $ne2->reconcile($neg_msgs{kind2_sync}[0]);
+
+    is scalar @$need1, 1, 'session 1: needs one event';
+    is $need1->[0], $ev1->id, 'session 1: needs the kind=1 event';
+    is scalar @$need2, 1, 'session 2: needs one event';
+    is $need2->[0], $ev2->id, 'session 2: needs the kind=2 event';
+
+    # Close one, the other should still work
+    $client->neg_close('kind1_sync');
+
+    $client->neg_close('kind2_sync');
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'negentropy sync with empty relay result set' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    # Relay has no events
+
+    my $client = Net::Nostr::Client->new;
+    my @neg_msgs;
+    $client->on(neg_msg => sub { push @neg_msgs, [@_] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Client has one event, relay has none
+    my $ne = Net::Nostr::Negentropy->new;
+    $ne->add_item(1000, 'ab' x 32);
+    $ne->seal;
+
+    $client->neg_open('neg1', Net::Nostr::Filter->new(kinds => [1]), $ne->initiate);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+    $cv->recv;
+
+    ok @neg_msgs >= 1, 'relay responded even with no matching events';
+
+    my ($next, $have, $need) = $ne->reconcile($neg_msgs[0][1]);
+    is scalar @$have, 1, 'client has one event relay lacks';
+    is $have->[0], 'ab' x 32, 'correct ID';
+    is scalar @$need, 0, 'client needs nothing';
+
+    $client->neg_close('neg1');
+    $client->disconnect;
+    $relay->stop;
+};
+
+subtest 'relay strips filter limit for negentropy (needs ALL events)' => sub {
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    # Store 5 events in the relay
+    my $key = Net::Nostr::Key->new;
+    my @relay_events;
+    for my $i (1 .. 5) {
+        my $ev = $key->create_event(
+            kind => 1, content => "event $i", tags => [], created_at => 1000 + $i,
+        );
+        $relay->store->store($ev);
+        push @relay_events, $ev;
+    }
+
+    my $client = Net::Nostr::Client->new;
+    my @neg_msgs;
+    $client->on(neg_msg => sub { push @neg_msgs, [@_] });
+    $client->connect("ws://127.0.0.1:$port");
+
+    my $cv = AnyEvent->condvar;
+    my $w = AnyEvent->timer(after => 0.1, cb => sub { $cv->send });
+    $cv->recv;
+
+    # Client has none, sends filter with limit=2
+    # Relay must still use ALL 5 events for negentropy
+    my $ne = Net::Nostr::Negentropy->new;
+    $ne->seal;
+
+    my $filter = Net::Nostr::Filter->new(kinds => [1], limit => 2);
+    $client->neg_open('neg1', $filter, $ne->initiate);
+
+    $cv = AnyEvent->condvar;
+    $w = AnyEvent->timer(after => 0.2, cb => sub { $cv->send });
+    $cv->recv;
+
+    ok @neg_msgs >= 1, 'got response';
+
+    my ($next, $have, $need) = $ne->reconcile($neg_msgs[0][1]);
+    is scalar @$need, 5, 'client needs all 5 events despite limit=2 in filter';
+
+    $client->neg_close('neg1');
+    $client->disconnect;
+    $relay->stop;
+};
+
 done_testing;

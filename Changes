@@ -1,5 +1,9 @@
 1.000000   TBD
 
+  - New: NIP-77 negentropy syncing now fully integrated into Client and
+    Relay. Client gains neg_open, neg_msg, neg_close methods and neg_msg,
+    neg_err callbacks. Relay handles NEG-OPEN/NEG-MSG/NEG-CLOSE messages
+    and drives server-side reconciliation.
   - Fix: NIP-42 relay URL matching now supports bracketed IPv6 addresses
     (e.g. ws://[::1]:8080). Previously these failed to parse and were
     always rejected.

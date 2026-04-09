@@ -589,4 +589,26 @@ subtest 'new() rejects unknown arguments' => sub {
     );
 };
 
+###############################################################################
+# neg_open / neg_msg / neg_close: require connection
+###############################################################################
+
+subtest 'neg_open croaks when not connected' => sub {
+    my $client = Net::Nostr::Client->new;
+    like dies { $client->neg_open('sub1', Net::Nostr::Filter->new(kinds => [1]), 'ab') },
+        qr/not connected/i, 'not connected';
+};
+
+subtest 'neg_msg croaks when not connected' => sub {
+    my $client = Net::Nostr::Client->new;
+    like dies { $client->neg_msg('sub1', 'ab') },
+        qr/not connected/i, 'not connected';
+};
+
+subtest 'neg_close croaks when not connected' => sub {
+    my $client = Net::Nostr::Client->new;
+    like dies { $client->neg_close('sub1') },
+        qr/not connected/i, 'not connected';
+};
+
 done_testing;
