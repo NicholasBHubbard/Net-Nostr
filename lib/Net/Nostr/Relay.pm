@@ -545,7 +545,7 @@ sub _handle_event {
     }
 
     # Tag count limit
-    if (defined $self->max_event_tags && scalar(@{$event->tags}) > $self->max_event_tags) {
+    if (defined $self->max_event_tags && scalar(@{$event->_tags}) > $self->max_event_tags) {
         $conn->send(Net::Nostr::Message->new(type => 'OK', event_id => $event->id, accepted => 0, message => 'invalid: too many tags')->serialize);
         return;
     }
@@ -705,7 +705,7 @@ sub _handle_auth {
     # Relay tag must match (if relay_url is configured)
     if (defined $self->relay_url) {
         my $got_relay;
-        for my $tag (@{$event->tags}) {
+        for my $tag (@{$event->_tags}) {
             if ($tag->[0] eq 'relay') {
                 $got_relay = $tag->[1];
                 last;
@@ -720,7 +720,7 @@ sub _handle_auth {
     # Challenge tag must match
     my $expected_challenge = $self->_challenges->{$conn_id};
     my $got_challenge;
-    for my $tag (@{$event->tags}) {
+    for my $tag (@{$event->_tags}) {
         if ($tag->[0] eq 'challenge') {
             $got_challenge = $tag->[1];
             last;

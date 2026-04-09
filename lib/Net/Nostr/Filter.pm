@@ -133,7 +133,7 @@ sub matches {
             my $filter_values = $self->{_tag_filters}{$letter};
             # Build hash set of event's tag values for this letter
             my %event_vals;
-            for my $tag (@{ $event->tags }) {
+            for my $tag (@{ $event->_tags }) {
                 $event_vals{$tag->[1]} = 1 if $tag->[0] eq $letter;
             }
             my $found = 0;

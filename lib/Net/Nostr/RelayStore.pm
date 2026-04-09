@@ -69,7 +69,7 @@ sub store {
     }
 
     # tag index
-    for my $tag (@{$event->tags}) {
+    for my $tag (@{$event->_tags}) {
         next unless defined $tag->[0] && defined $tag->[1];
         my $key = $tag->[0] . ':' . $tag->[1];
         $self->{_by_tag}{$key}{$id} = $event;
@@ -139,7 +139,7 @@ sub delete_by_id {
     }
 
     # tag index
-    for my $tag (@{$event->tags}) {
+    for my $tag (@{$event->_tags}) {
         next unless defined $tag->[0] && defined $tag->[1];
         my $key = $tag->[0] . ':' . $tag->[1];
         delete $self->{_by_tag}{$key}{$id};

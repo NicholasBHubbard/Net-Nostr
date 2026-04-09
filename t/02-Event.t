@@ -657,4 +657,28 @@ subtest 'from_wire round-trips with to_hash' => sub {
     is $h2, $h, 'round-trip preserves all fields';
 };
 
+###############################################################################
+# _tags: internal no-copy accessor
+###############################################################################
+
+subtest '_tags returns raw arrayref without copying' => sub {
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'test',
+        tags => [['p', 'b' x 64], ['e', 'c' x 64]],
+    );
+
+    # _tags returns the same reference every time (no deep copy)
+    my $raw1 = $event->_tags;
+    my $raw2 = $event->_tags;
+    ok ref($raw1) eq 'ARRAY', '_tags returns an arrayref';
+    ok $raw1 == $raw2, '_tags returns the same reference on repeated calls';
+
+    # tags() returns a different reference (deep copy)
+    my $copy = $event->tags;
+    ok $copy != $raw1, 'tags() returns a different reference than _tags()';
+
+    # content is equivalent
+    is $copy, $raw1, 'tags() and _tags() have equivalent content';
+};
+
 done_testing;

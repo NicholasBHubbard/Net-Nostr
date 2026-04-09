@@ -190,7 +190,7 @@ sub difficulty {
 
 sub committed_target_difficulty {
     my ($self) = @_;
-    for my $tag (@{$self->tags}) {
+    for my $tag (@{$self->{tags}}) {
         if ($tag->[0] eq 'nonce' && defined $tag->[2]) {
             return $tag->[2] + 0;
         }
@@ -203,7 +203,7 @@ sub mine {
     croak "target difficulty required" unless defined $target;
 
     # Build tags: replace existing nonce tag or add one
-    my @tags = grep { $_->[0] ne 'nonce' } @{$self->tags};
+    my @tags = grep { $_->[0] ne 'nonce' } @{$self->{tags}};
 
     my $nonce = 0;
     while (1) {
@@ -223,7 +223,7 @@ sub mine {
 
 sub d_tag {
     my ($self) = @_;
-    for my $tag (@{$self->tags}) {
+    for my $tag (@{$self->{tags}}) {
         return ($tag->[1] // '') if $tag->[0] eq 'd';
     }
     return '';
@@ -231,7 +231,7 @@ sub d_tag {
 
 sub expiration {
     my ($self) = @_;
-    for my $tag (@{$self->tags}) {
+    for my $tag (@{$self->{tags}}) {
         return $tag->[1] + 0 if $tag->[0] eq 'expiration';
     }
     return undef;
@@ -245,6 +245,8 @@ sub is_expired {
     return $now > $exp;
 }
 
+sub _tags { $_[0]->{tags} }
+
 sub is_protected {
     my ($self) = @_;
     for my $tag (@{$self->{tags}}) {
@@ -255,7 +257,7 @@ sub is_protected {
 
 sub content_warning {
     my ($self) = @_;
-    for my $tag (@{$self->tags}) {
+    for my $tag (@{$self->{tags}}) {
         return ($tag->[1] // '') if $tag->[0] eq 'content-warning';
     }
     return undef;
