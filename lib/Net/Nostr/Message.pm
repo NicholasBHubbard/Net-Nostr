@@ -19,6 +19,12 @@ sub _validate_subscription_id {
         unless length($sub_id) <= 64;
 }
 
+sub _validate_non_negative_int {
+    my ($value, $name) = @_;
+    croak "$name must be a non-negative integer"
+        unless defined $value && !ref($value) && $value =~ /\A[0-9]+\z/;
+}
+
 sub _extract_prefix {
     my ($message) = @_;
     return undef unless defined $message && $message =~ /^([a-z-]+): /;
@@ -86,6 +92,7 @@ sub new {
         _validate_subscription_id($args{subscription_id});
         $self->subscription_id($args{subscription_id});
         if (defined $args{count}) {
+            _validate_non_negative_int($args{count}, 'count');
             $self->count(0 + $args{count});
             $self->approximate($args{approximate} ? 1 : 0) if $args{approximate};
         } else {
@@ -138,7 +145,10 @@ sub new {
         $self->subscription_id($args{subscription_id});
         $self->message($args{message});
         $self->prefix(_extract_prefix($self->message));
-        $self->neg_limit(0 + $args{neg_limit}) if defined $args{neg_limit};
+        if (defined $args{neg_limit}) {
+            _validate_non_negative_int($args{neg_limit}, 'neg_limit');
+            $self->neg_limit(0 + $args{neg_limit});
+        }
     } else {
         croak "unknown message type: $type";
     }
@@ -284,6 +294,7 @@ my %PARSERS = (
         croak "COUNT message requires at least 3 elements\n" unless @$arr >= 3;
         # Relay-to-client: ["COUNT", sub_id, {"count": N}]
         if (ref($arr->[2]) eq 'HASH' && exists $arr->[2]{count}) {
+            _validate_non_negative_int($arr->[2]{count}, 'count');
             return (
                 subscription_id => $arr->[1],
                 count           => $arr->[2]{count},
@@ -361,6 +372,9 @@ my %PARSERS = (
             if ref($arr->[1]);
         croak "NEG-ERR message must be a string\n"
             if ref($arr->[2]);
+        if (@$arr == 4) {
+            _validate_non_negative_int($arr->[3], 'neg_limit');
+        }
         return (
             subscription_id => $arr->[1],
             message         => $arr->[2],
@@ -450,12 +464,12 @@ Required fields by type:
     EOSE   - subscription_id
     NOTICE - message (string)
     CLOSED - subscription_id, message (string)
-    COUNT     - subscription_id, filters (client-to-relay) or count (relay-to-client)
+    COUNT     - subscription_id, filters (client-to-relay) or count (non-negative integer, relay-to-client)
     AUTH       - challenge (string) or event (Net::Nostr::Event object)
     NEG-OPEN  - subscription_id, filter (Net::Nostr::Filter), neg_msg (hex string)
     NEG-MSG   - subscription_id, neg_msg (hex string)
     NEG-CLOSE - subscription_id
-    NEG-ERR   - subscription_id, message (string), optional neg_limit (integer)
+    NEG-ERR   - subscription_id, message (string), optional neg_limit (non-negative integer)
 
 C<subscription_id> must be a non-empty string of at most 64 characters
 for REQ, CLOSE, and COUNT messages. For EOSE and CLOSED, subscription_id
@@ -555,9 +569,11 @@ C<invalid>, C<restricted>, C<auth-required>, C<mute>, C<error>.
 
 =head2 count
 
-    my $count = $msg->count;  # integer
+    my $count = $msg->count;  # non-negative integer
 
-The event count. Present on COUNT response messages (NIP-45).
+The event count. Present on COUNT response messages (NIP-45). Must be
+a non-negative integer; croaks on references, non-numeric strings,
+negative values, or floats.
 
     my $msg = Net::Nostr::Message->parse('["COUNT","q1",{"count":42}]');
     say $msg->count;  # 42
@@ -599,10 +615,12 @@ A single NIP-01 filter. Present on NEG-OPEN messages.
 
 =head2 neg_limit
 
-    my $limit = $msg->neg_limit;  # integer or undef
+    my $limit = $msg->neg_limit;  # non-negative integer or undef
 
 Optional maximum number of records the relay will process. Present on
-NEG-ERR messages when the relay rejects a query as too large.
+NEG-ERR messages when the relay rejects a query as too large. Must be
+a non-negative integer; croaks on references, non-numeric strings,
+negative values, or floats.
 
     my $msg = Net::Nostr::Message->parse('["NEG-ERR","x","blocked: too big",100000]');
     say $msg->neg_limit;  # 100000

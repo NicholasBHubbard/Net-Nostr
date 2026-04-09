@@ -1,5 +1,8 @@
 1.000000   TBD
 
+  - BREAKING: Message COUNT count and NEG-ERR neg_limit fields now
+    validate as non-negative integers. Previously these were silently
+    coerced via Perl numeric conversion from untrusted wire data.
   - BREAKING: Identifier->parse() now rejects domains containing
     whitespace, /, :, ?, #, [], or control characters. Previously these
     were silently accepted and interpolated into fetch URLs.

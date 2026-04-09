@@ -768,4 +768,133 @@ subtest 'parse() COUNT rejects non-scalar subscription_id' => sub {
         'COUNT rejects non-scalar subscription_id');
 };
 
+###############################################################################
+# COUNT count field validation
+###############################################################################
+
+subtest 'new() COUNT validates count is a non-negative integer' => sub {
+    ok(lives {
+        Net::Nostr::Message->new(type => 'COUNT', subscription_id => 'q1', count => 0)
+    }, 'count 0 accepted');
+    ok(lives {
+        Net::Nostr::Message->new(type => 'COUNT', subscription_id => 'q1', count => 42)
+    }, 'count 42 accepted');
+    ok(lives {
+        Net::Nostr::Message->new(type => 'COUNT', subscription_id => 'q1', count => 93412452)
+    }, 'large count accepted (spec example)');
+    like(dies {
+        Net::Nostr::Message->new(type => 'COUNT', subscription_id => 'q1', count => -1)
+    }, qr/count must be a non-negative integer/, 'negative count rejected');
+    like(dies {
+        Net::Nostr::Message->new(type => 'COUNT', subscription_id => 'q1', count => 'abc')
+    }, qr/count must be a non-negative integer/, 'string count rejected');
+    like(dies {
+        Net::Nostr::Message->new(type => 'COUNT', subscription_id => 'q1', count => 3.5)
+    }, qr/count must be a non-negative integer/, 'float count rejected');
+    like(dies {
+        Net::Nostr::Message->new(type => 'COUNT', subscription_id => 'q1', count => [42])
+    }, qr/count must be a non-negative integer/, 'arrayref count rejected');
+    like(dies {
+        Net::Nostr::Message->new(type => 'COUNT', subscription_id => 'q1', count => {})
+    }, qr/count must be a non-negative integer/, 'hashref count rejected');
+};
+
+subtest 'parse() COUNT rejects non-integer count from wire' => sub {
+    my $raw = JSON->new->utf8->encode(['COUNT', 'q1', { count => 'abc' }]);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/count must be a non-negative integer/,
+        'string count from wire rejected');
+    $raw = JSON->new->utf8->encode(['COUNT', 'q1', { count => -1 }]);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/count must be a non-negative integer/,
+        'negative count from wire rejected');
+    $raw = JSON->new->utf8->encode(['COUNT', 'q1', { count => 3.5 }]);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/count must be a non-negative integer/,
+        'float count from wire rejected');
+    $raw = JSON->new->utf8->encode(['COUNT', 'q1', { count => [5] }]);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/count must be a non-negative integer/,
+        'array count from wire rejected');
+};
+
+subtest 'parse() COUNT accepts valid integer counts from wire' => sub {
+    my $raw = JSON->new->utf8->encode(['COUNT', 'q1', { count => 0 }]);
+    my $msg = Net::Nostr::Message->parse($raw);
+    is $msg->count, 0, 'zero count accepted';
+
+    $raw = JSON->new->utf8->encode(['COUNT', 'q1', { count => 93412452 }]);
+    $msg = Net::Nostr::Message->parse($raw);
+    is $msg->count, 93412452, 'large count accepted (NIP-45 spec example)';
+};
+
+###############################################################################
+# NEG-ERR neg_limit field validation
+###############################################################################
+
+subtest 'new() NEG-ERR validates neg_limit is a non-negative integer' => sub {
+    ok(lives {
+        Net::Nostr::Message->new(
+            type => 'NEG-ERR', subscription_id => 'x',
+            message => 'blocked: too big', neg_limit => 100000,
+        )
+    }, 'neg_limit 100000 accepted');
+    ok(lives {
+        Net::Nostr::Message->new(
+            type => 'NEG-ERR', subscription_id => 'x',
+            message => 'blocked: too big', neg_limit => 0,
+        )
+    }, 'neg_limit 0 accepted');
+    like(dies {
+        Net::Nostr::Message->new(
+            type => 'NEG-ERR', subscription_id => 'x',
+            message => 'blocked: too big', neg_limit => -1,
+        )
+    }, qr/neg_limit must be a non-negative integer/, 'negative neg_limit rejected');
+    like(dies {
+        Net::Nostr::Message->new(
+            type => 'NEG-ERR', subscription_id => 'x',
+            message => 'blocked: too big', neg_limit => 'abc',
+        )
+    }, qr/neg_limit must be a non-negative integer/, 'string neg_limit rejected');
+    like(dies {
+        Net::Nostr::Message->new(
+            type => 'NEG-ERR', subscription_id => 'x',
+            message => 'blocked: too big', neg_limit => 3.5,
+        )
+    }, qr/neg_limit must be a non-negative integer/, 'float neg_limit rejected');
+    like(dies {
+        Net::Nostr::Message->new(
+            type => 'NEG-ERR', subscription_id => 'x',
+            message => 'blocked: too big', neg_limit => [100],
+        )
+    }, qr/neg_limit must be a non-negative integer/, 'arrayref neg_limit rejected');
+};
+
+subtest 'parse() NEG-ERR rejects non-integer neg_limit from wire' => sub {
+    my $raw = JSON->new->utf8->encode(['NEG-ERR', 'x', 'blocked: too big', 'abc']);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/neg_limit must be a non-negative integer/,
+        'string neg_limit from wire rejected');
+    $raw = JSON->new->utf8->encode(['NEG-ERR', 'x', 'blocked: too big', -5]);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/neg_limit must be a non-negative integer/,
+        'negative neg_limit from wire rejected');
+    $raw = JSON->new->utf8->encode(['NEG-ERR', 'x', 'blocked: too big', [100]]);
+    like(dies { Net::Nostr::Message->parse($raw) },
+        qr/neg_limit must be a non-negative integer/,
+        'array neg_limit from wire rejected');
+};
+
+subtest 'parse() NEG-ERR accepts valid neg_limit from wire' => sub {
+    my $raw = JSON->new->utf8->encode(['NEG-ERR', 'x', 'blocked: too big', 100000]);
+    my $msg = Net::Nostr::Message->parse($raw);
+    is $msg->neg_limit, 100000, 'neg_limit 100000 parsed';
+};
+
+subtest 'POD: NEG-ERR neg_limit parse' => sub {
+    my $msg = Net::Nostr::Message->parse('["NEG-ERR","x","blocked: too big",100000]');
+    is $msg->neg_limit, 100000, 'neg_limit parsed from POD example';
+};
+
 done_testing;
