@@ -1,3 +1,7 @@
+1.000001   2026-04-09
+
+  - Fix dependency declarations to use top-level CPAN distributions only
+
 1.000000   2026-04-09
 
   First stable release. Perl implementation of the Nostr protocol with
