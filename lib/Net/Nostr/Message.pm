@@ -100,6 +100,8 @@ sub new {
         # Bidirectional: client sends filters, relay sends count
         _validate_subscription_id($args{subscription_id});
         $self->subscription_id($args{subscription_id});
+        croak "COUNT count and filters are mutually exclusive"
+            if defined $args{count} && $args{filters};
         if (defined $args{count}) {
             _validate_non_negative_int($args{count}, 'count');
             $self->count(0 + $args{count});
@@ -112,6 +114,8 @@ sub new {
         }
     } elsif ($type eq 'AUTH') {
         # Bidirectional: relay sends challenge string, client sends signed event
+        croak "AUTH event and challenge are mutually exclusive"
+            if defined $args{event} && defined $args{challenge};
         if (defined $args{event}) {
             croak "event must be a Net::Nostr::Event object"
                 unless blessed($args{event}) && $args{event}->isa('Net::Nostr::Event');
@@ -474,8 +478,8 @@ Required fields by type:
     EOSE   - subscription_id
     NOTICE - message (string)
     CLOSED - subscription_id, message (string)
-    COUNT     - subscription_id, filters (client-to-relay) or count (non-negative integer, relay-to-client)
-    AUTH       - challenge (string) or event (Net::Nostr::Event object)
+    COUNT     - subscription_id, filters (client-to-relay) or count (non-negative integer, relay-to-client); mutually exclusive
+    AUTH       - challenge (string) or event (Net::Nostr::Event object); mutually exclusive
     NEG-OPEN  - subscription_id, filter (Net::Nostr::Filter), neg_msg (hex string)
     NEG-MSG   - subscription_id, neg_msg (hex string)
     NEG-CLOSE - subscription_id
@@ -489,8 +493,10 @@ lowercase hex. C<event> must be a L<Net::Nostr::Event> object.
 C<filters> must be an arrayref of L<Net::Nostr::Filter> objects.
 C<message> and C<challenge> must be non-reference scalars.
 
-Croaks on missing required fields, invalid field formats, type mismatches,
-unknown type, or unknown arguments.
+For C<AUTH>, passing both C<event> and C<challenge> is rejected. For
+C<COUNT>, passing both C<count> and C<filters> is rejected. Croaks on
+missing required fields, invalid field formats, mutually exclusive
+arguments, type mismatches, unknown type, or unknown arguments.
 
 =head1 METHODS
 

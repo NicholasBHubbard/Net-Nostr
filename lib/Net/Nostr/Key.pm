@@ -15,6 +15,8 @@ sub new {
     my %known_args = map { $_ => 1 } qw(privkey pubkey);
     my @unknown = grep { !exists $known_args{$_} } keys %args;
     croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
+    croak "privkey and pubkey are mutually exclusive"
+        if defined $args{privkey} && defined $args{pubkey};
     my $self = bless {}, $class;
     my @key_arg = defined $args{privkey} ? ($args{privkey})
                 : defined $args{pubkey}  ? ($args{pubkey})
@@ -271,8 +273,10 @@ the entropy size: C<128> (default) produces 12 words, C<256> produces
 
 Without arguments, generates a new secp256k1 keypair. Pass C<privkey> or
 C<pubkey> as a scalar reference to key data (DER or PEM), or as a filename
-string to load from a file (PEM or DER format). When only a public key is
-loaded, signing operations will fail. Croaks on unknown arguments.
+string to load from a file (PEM or DER format). C<privkey> and C<pubkey>
+are mutually exclusive. When only a public key is loaded, signing operations
+will fail. Croaks on unknown arguments or if both C<privkey> and C<pubkey>
+are provided.
 
     # Save a key to a file and load it back
     $key->save_privkey('my_key.pem');

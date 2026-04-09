@@ -1,5 +1,9 @@
 1.000000   TBD
 
+  - BREAKING: Key->new now rejects passing both privkey and pubkey
+    (previously silently preferred privkey). Message->new now rejects
+    AUTH with both event and challenge, and COUNT with both count and
+    filters. All three cases now croak immediately.
   - BREAKING: Message REQ and COUNT constructors now validate that each
     element in the filters array is a Net::Nostr::Filter object. Previously
     non-Filter values were silently accepted and failed during serialization.

@@ -259,4 +259,18 @@ subtest 'new() rejects unknown arguments' => sub {
     );
 };
 
+subtest 'new() rejects both privkey and pubkey' => sub {
+    my $key = Net::Nostr::Key->new;
+    like(
+        dies {
+            Net::Nostr::Key->new(
+                privkey => \$key->privkey_der,
+                pubkey  => \$key->pubkey_der,
+            )
+        },
+        qr/mutually exclusive/i,
+        'privkey + pubkey rejected'
+    );
+};
+
 done_testing;

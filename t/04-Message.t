@@ -937,4 +937,32 @@ subtest 'new() COUNT rejects non-Filter filter elements' => sub {
     }, qr/filter.*Net::Nostr::Filter/i, 'mixed valid and invalid rejected';
 };
 
+###############################################################################
+# new() rejects mutually-exclusive arguments
+###############################################################################
+
+subtest 'new() AUTH rejects both event and challenge' => sub {
+    like dies {
+        Net::Nostr::Message->new(
+            type      => 'AUTH',
+            event     => Net::Nostr::Event->new(
+                id => 'a' x 64, pubkey => 'b' x 64, kind => 22242,
+                created_at => 1, content => '', tags => [], sig => 'c' x 128,
+            ),
+            challenge => 'test-challenge',
+        )
+    }, qr/mutually exclusive/i, 'event + challenge rejected';
+};
+
+subtest 'new() COUNT rejects both count and filters' => sub {
+    like dies {
+        Net::Nostr::Message->new(
+            type            => 'COUNT',
+            subscription_id => 'sub1',
+            count           => 42,
+            filters         => [Net::Nostr::Filter->new(kinds => [1])],
+        )
+    }, qr/mutually exclusive/i, 'count + filters rejected';
+};
+
 done_testing;
