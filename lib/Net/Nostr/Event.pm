@@ -38,6 +38,7 @@ for my $field (qw(id pubkey created_at kind tags content)) {
 }
 my $HEX64  = qr/\A[0-9a-f]{64}\z/;
 my $HEX128 = qr/\A[0-9a-f]{128}\z/;
+my $JSON   = JSON->new->utf8;
 
 # sig is the only writable field -- it does not participate in the event
 # ID computation, so mutating it (e.g. after signing) is safe.
@@ -121,7 +122,7 @@ sub from_wire {
 
 sub json_serialize {
     my ($self) = @_;
-    my $json_serialized = JSON->new->utf8->encode([ # see how Perl is converted to JSON - https://metacpan.org/pod/JSON#PERL-%3E-JSON
+    return $JSON->encode([
         0,
         $self->pubkey . '',
         $self->created_at + 0,
@@ -129,7 +130,6 @@ sub json_serialize {
         $self->{tags},
         $self->content . ''
     ]);
-    return $json_serialized;
 }
 
 
