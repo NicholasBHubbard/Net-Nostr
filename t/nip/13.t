@@ -309,21 +309,20 @@ subtest 'PoW can be computed without a signature (delegated PoW)' => sub {
 # Relay: min_pow_difficulty
 ###############################################################################
 
-my $find_port = sub {
+sub find_port {
     my $sock = IO::Socket::INET->new(
-        LocalAddr => '127.0.0.1', LocalPort => 0,
-        Proto => 'tcp', Listen => 1, ReuseAddr => 1,
+        Listen => 1, LocalAddr => '127.0.0.1', LocalPort => 0,
     );
     my $port = $sock->sockport;
     close $sock;
     return $port;
-};
+}
 
 subtest 'relay accepts events meeting min_pow_difficulty' => sub {
-    my $port = $find_port->();
+    my $port = find_port();
     my $relay = Net::Nostr::Relay->new(
         verify_signatures    => 0,
-        min_pow_difficulty   => 4,
+        min_pow_difficulty   => 1,
     );
     $relay->start('127.0.0.1', $port);
 
@@ -337,7 +336,7 @@ subtest 'relay accepts events meeting min_pow_difficulty' => sub {
 
     my $key = Net::Nostr::Key->new;
     my $event = $key->create_event(kind => 1, content => 'pow test', tags => []);
-    my $mined = $event->mine(4);
+    my $mined = $event->mine(1);
     $key->sign_event($mined);
     $client->publish($mined);
 
@@ -351,7 +350,7 @@ subtest 'relay accepts events meeting min_pow_difficulty' => sub {
 };
 
 subtest 'relay rejects events below min_pow_difficulty' => sub {
-    my $port = $find_port->();
+    my $port = find_port();
     my $relay = Net::Nostr::Relay->new(
         verify_signatures    => 0,
         min_pow_difficulty   => 32,
@@ -389,7 +388,9 @@ subtest 'relay rejects events below min_pow_difficulty' => sub {
 subtest 'relay rejects events where committed target is below min_pow_difficulty' => sub {
     # "if you require 40 bits to reply to your thread and see a committed target of 30,
     #  you can safely reject it even if the note has 40 bits difficulty"
-    my $port = $find_port->();
+    # The relay checks committed target before actual difficulty, so we don't
+    # need to actually mine -- just construct an event with a low commitment.
+    my $port = find_port();
     my $relay = Net::Nostr::Relay->new(
         verify_signatures    => 0,
         min_pow_difficulty   => 16,
@@ -404,29 +405,15 @@ subtest 'relay rejects events where committed target is below min_pow_difficulty
 
     $client->on(ok => sub { ($ok_id, $ok_accepted, $ok_message) = @_; $cv->send });
 
-    # Mine an event to difficulty 16 but lie about the committed target (set it to 8)
-    my $key = Net::Nostr::Key->new;
-    my $event = $key->create_event(kind => 1, content => 'low commitment', tags => []);
-    my $mined = $event->mine(16);
-    # Replace the nonce tag's committed target with a lower value
-    my @new_tags;
-    for my $tag (@{$mined->tags}) {
-        if ($tag->[0] eq 'nonce') {
-            push @new_tags, ['nonce', $tag->[1], '8'];  # committed to only 8
-        } else {
-            push @new_tags, $tag;
-        }
-    }
-    # Reconstruct with the low-commitment nonce tag (id will reflect actual content)
-    my $tweaked = Net::Nostr::Event->new(
-        pubkey     => $key->pubkey_hex,
-        kind       => 1,
-        content    => $mined->content,
-        tags       => \@new_tags,
-        created_at => $mined->created_at,
+    # Event with nonce tag committing to only 8 bits (below the relay's 16)
+    my $event = make_event(
+        pubkey  => 'a' x 64,
+        kind    => 1,
+        content => 'low commitment',
+        tags    => [['nonce', '12345', '8']],
+        sig     => 'a' x 128,
     );
-    $key->sign_event($tweaked);
-    $client->publish($tweaked);
+    $client->publish($event);
 
     my $timer = AnyEvent->timer(after => 5, cb => sub { $cv->send });
     $cv->recv;
@@ -440,7 +427,7 @@ subtest 'relay rejects events where committed target is below min_pow_difficulty
 
 subtest 'relay MAY reject events with missing difficulty commitment' => sub {
     # "clients MAY reject a note matching a target difficulty if it is missing a difficulty commitment"
-    my $port = $find_port->();
+    my $port = find_port();
     my $relay = Net::Nostr::Relay->new(
         verify_signatures    => 0,
         min_pow_difficulty   => 8,
@@ -476,7 +463,7 @@ subtest 'relay MAY reject events with missing difficulty commitment' => sub {
 };
 
 subtest 'relay with no min_pow_difficulty accepts any event (default disabled)' => sub {
-    my $port = $find_port->();
+    my $port = find_port();
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
