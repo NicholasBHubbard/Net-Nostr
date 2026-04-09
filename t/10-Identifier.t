@@ -142,6 +142,64 @@ subtest 'lookup croaks without on_failure' => sub {
 };
 
 ###############################################################################
+# callback type validation
+###############################################################################
+
+subtest 'verify croaks if on_success is not a code ref' => sub {
+    my $ident = Net::Nostr::Identifier->new;
+    like dies {
+        $ident->verify(
+            identifier => 'bob@example.com',
+            pubkey     => 'a' x 64,
+            on_success => 'not a sub',
+            on_failure => sub {},
+        )
+    }, qr/on_success.*code/i, 'string on_success rejected';
+    like dies {
+        $ident->verify(
+            identifier => 'bob@example.com',
+            pubkey     => 'a' x 64,
+            on_success => [1, 2],
+            on_failure => sub {},
+        )
+    }, qr/on_success.*code/i, 'arrayref on_success rejected';
+};
+
+subtest 'verify croaks if on_failure is not a code ref' => sub {
+    my $ident = Net::Nostr::Identifier->new;
+    like dies {
+        $ident->verify(
+            identifier => 'bob@example.com',
+            pubkey     => 'a' x 64,
+            on_success => sub {},
+            on_failure => 'not a sub',
+        )
+    }, qr/on_failure.*code/i, 'string on_failure rejected';
+};
+
+subtest 'lookup croaks if on_success is not a code ref' => sub {
+    my $ident = Net::Nostr::Identifier->new;
+    like dies {
+        $ident->lookup(
+            identifier => 'bob@example.com',
+            on_success => { hash => 1 },
+            on_failure => sub {},
+        )
+    }, qr/on_success.*code/i, 'hashref on_success rejected';
+};
+
+subtest 'lookup croaks if on_failure is not a code ref' => sub {
+    my $ident = Net::Nostr::Identifier->new;
+    like dies {
+        $ident->lookup(
+            identifier => 'bob@example.com',
+            on_success => sub {},
+            on_failure => 42,
+        )
+    }, qr/on_failure.*code/i, 'numeric on_failure rejected';
+};
+
+###############################################################################
 # parse: domain validation
 ###############################################################################
 

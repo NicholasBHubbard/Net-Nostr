@@ -94,7 +94,9 @@ sub verify {
     my $identifier = $args{identifier} // croak "identifier required";
     my $pubkey     = $args{pubkey}     // croak "pubkey required";
     my $on_success = $args{on_success} // croak "on_success callback required";
+    croak "on_success must be a CODE ref" unless ref($on_success) eq 'CODE';
     my $on_failure = $args{on_failure} // croak "on_failure callback required";
+    croak "on_failure must be a CODE ref" unless ref($on_failure) eq 'CODE';
 
     my ($url, $local) = $self->_build_fetch_url($identifier);
 
@@ -131,7 +133,9 @@ sub lookup {
     my ($self, %args) = @_;
     my $identifier = $args{identifier} // croak "identifier required";
     my $on_success = $args{on_success} // croak "on_success callback required";
+    croak "on_success must be a CODE ref" unless ref($on_success) eq 'CODE';
     my $on_failure = $args{on_failure} // croak "on_failure callback required";
+    croak "on_failure must be a CODE ref" unless ref($on_failure) eq 'CODE';
 
     my ($url, $local) = $self->_build_fetch_url($identifier);
 
@@ -317,7 +321,8 @@ this URL instead of C<https://E<lt>domainE<gt>>.
 
 Asynchronously fetches the well-known URL and verifies that the identifier
 maps to the given pubkey. HTTP redirects are ignored per the spec. Requires
-an L<AnyEvent> event loop to be running.
+an L<AnyEvent> event loop to be running. Croaks if any required argument is
+missing or if C<on_success>/C<on_failure> are not CODE refs.
 
 The C<on_success> callback receives an arrayref of relay URLs (may be empty).
 The C<on_failure> callback receives an error reason string.
@@ -332,7 +337,8 @@ The C<on_failure> callback receives an error reason string.
 
 Asynchronously fetches the well-known URL and returns the pubkey associated
 with the identifier. HTTP redirects are ignored per the spec. Requires
-an L<AnyEvent> event loop to be running.
+an L<AnyEvent> event loop to be running. Croaks if any required argument is
+missing or if C<on_success>/C<on_failure> are not CODE refs.
 
 The C<on_success> callback receives the hex pubkey and an arrayref of relay
 URLs. The C<on_failure> callback receives an error reason string.

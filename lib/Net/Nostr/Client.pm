@@ -28,6 +28,7 @@ sub new {
 sub connect {
     my ($self, $url, $cb) = @_;
     croak "url is required" unless defined $url;
+    croak "callback must be a CODE ref" if defined $cb && ref($cb) ne 'CODE';
 
     my $cv = AnyEvent->condvar;
     $self->_ws_client->connect($url)->cb(sub {
@@ -120,6 +121,7 @@ sub authenticate {
 
 sub on {
     my ($self, $type, $cb) = @_;
+    croak "callback must be a CODE ref" unless defined $cb && ref($cb) eq 'CODE';
     $self->_callbacks->{$type} = $cb;
 }
 
@@ -238,7 +240,8 @@ C<connect> is called. Croaks on unknown arguments.
 
 Connects to the relay at the given WebSocket URL. Blocks until the
 connection is established and returns C<$self> for chaining. Croaks
-if the connection fails or C<$url> is not provided.
+if the connection fails, C<$url> is not provided, or the callback
+is not a CODE ref.
 
 If a callback is provided, connects asynchronously and returns
 immediately without blocking. The callback receives a single argument:
@@ -339,7 +342,10 @@ or C<undef> if no challenge has been received.
 
     $client->on($event_type => sub { ... });
 
-Registers a callback for relay messages. Supported event types:
+Registers a callback for relay messages. The callback must be a CODE
+ref; croaks otherwise. Only one callback may be registered per event
+type -- calling C<on> again for the same type replaces the previous
+callback. Supported event types:
 
 =over 4
 

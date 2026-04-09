@@ -536,6 +536,51 @@ subtest 'async connect callback receives error on failure' => sub {
     like($got_err, qr/connect failed/, 'error message describes failure');
 };
 
+###############################################################################
+# on() callback validation
+###############################################################################
+
+subtest 'on() croaks if callback is not a code ref' => sub {
+    my $client = Net::Nostr::Client->new;
+    like(dies { $client->on('event', 'not a sub') },
+        qr/callback.*code/i, 'string callback rejected');
+    like(dies { $client->on('ok', [1, 2]) },
+        qr/callback.*code/i, 'arrayref callback rejected');
+    like(dies { $client->on('notice', { hash => 1 }) },
+        qr/callback.*code/i, 'hashref callback rejected');
+    like(dies { $client->on('eose', 42) },
+        qr/callback.*code/i, 'numeric callback rejected');
+    like(dies { $client->on('auth', undef) },
+        qr/callback.*code/i, 'undef callback rejected');
+};
+
+subtest 'on() accepts code ref' => sub {
+    my $client = Net::Nostr::Client->new;
+    ok(lives { $client->on('event', sub { }) }, 'code ref accepted');
+};
+
+subtest 'on() replaces previous callback for same type' => sub {
+    my $client = Net::Nostr::Client->new;
+    my @calls;
+    $client->on('notice', sub { push @calls, 'first' });
+    $client->on('notice', sub { push @calls, 'second' });
+    # Trigger via _emit to verify only second fires
+    $client->_emit('notice', 'test');
+    is \@calls, ['second'], 'second callback replaced first';
+};
+
+###############################################################################
+# connect() callback validation
+###############################################################################
+
+subtest 'connect() croaks if callback is not a code ref' => sub {
+    my $client = Net::Nostr::Client->new;
+    like(dies { $client->connect('ws://localhost:9999', 'not a sub') },
+        qr/callback.*code/i, 'string callback rejected');
+    like(dies { $client->connect('ws://localhost:9999', [1]) },
+        qr/callback.*code/i, 'arrayref callback rejected');
+};
+
 subtest 'new() rejects unknown arguments' => sub {
     like(
         dies { Net::Nostr::Client->new(bogus => 'value') },
