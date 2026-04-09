@@ -2929,4 +2929,95 @@ subtest 'idle_timeout: cleanup after disconnect removes timer state' => sub {
     $relay->stop;
 };
 
+###############################################################################
+# _relay_host_matches: URL normalization
+###############################################################################
+
+subtest '_relay_host_matches: exact match' => sub {
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'ws://relay.example.com', 'ws://relay.example.com'),
+        'exact match');
+};
+
+subtest '_relay_host_matches: scheme case-insensitive' => sub {
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'WS://relay.example.com', 'ws://relay.example.com'),
+        'WS vs ws');
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'WSS://relay.example.com', 'wss://relay.example.com'),
+        'WSS vs wss');
+};
+
+subtest '_relay_host_matches: host case-insensitive' => sub {
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'wss://Relay.Example.COM', 'wss://relay.example.com'),
+        'mixed case host');
+};
+
+subtest '_relay_host_matches: default ports' => sub {
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'ws://relay.example.com:80', 'ws://relay.example.com'),
+        'ws explicit 80 vs implicit');
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'wss://relay.example.com:443', 'wss://relay.example.com'),
+        'wss explicit 443 vs implicit');
+    ok(!Net::Nostr::Relay::_relay_host_matches(
+        'ws://relay.example.com:443', 'ws://relay.example.com'),
+        'ws 443 vs implicit 80 does not match');
+};
+
+subtest '_relay_host_matches: path normalization' => sub {
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'wss://relay.example.com', 'wss://relay.example.com/'),
+        'no path vs trailing slash');
+    ok(!Net::Nostr::Relay::_relay_host_matches(
+        'wss://relay.example.com/custom', 'wss://relay.example.com/'),
+        'different paths do not match');
+};
+
+subtest '_relay_host_matches: mismatches' => sub {
+    ok(!Net::Nostr::Relay::_relay_host_matches(
+        'ws://relay.example.com', 'wss://relay.example.com'),
+        'scheme mismatch');
+    ok(!Net::Nostr::Relay::_relay_host_matches(
+        'ws://relay.example.com', 'ws://other.example.com'),
+        'host mismatch');
+    ok(!Net::Nostr::Relay::_relay_host_matches(
+        'ws://relay.example.com:8080', 'ws://relay.example.com:9090'),
+        'port mismatch');
+};
+
+subtest '_relay_host_matches: invalid URLs return false' => sub {
+    ok(!Net::Nostr::Relay::_relay_host_matches(
+        'http://relay.example.com', 'ws://relay.example.com'),
+        'http scheme rejected');
+    ok(!Net::Nostr::Relay::_relay_host_matches(
+        '', 'ws://relay.example.com'),
+        'empty string rejected');
+    ok(!Net::Nostr::Relay::_relay_host_matches(
+        'not a url', 'ws://relay.example.com'),
+        'garbage rejected');
+};
+
+subtest '_relay_host_matches: bracketed IPv6' => sub {
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'ws://[::1]:8080', 'ws://[::1]:8080'),
+        'IPv6 loopback exact match');
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'wss://[2001:db8::1]', 'wss://[2001:db8::1]'),
+        'IPv6 global address');
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'wss://[2001:DB8::1]', 'wss://[2001:db8::1]'),
+        'IPv6 case-insensitive');
+    ok(!Net::Nostr::Relay::_relay_host_matches(
+        'ws://[::1]:8080', 'ws://[::1]:9090'),
+        'IPv6 port mismatch');
+    ok(!Net::Nostr::Relay::_relay_host_matches(
+        'ws://[::1]', 'ws://[::2]'),
+        'IPv6 address mismatch');
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'ws://[::1]:80', 'ws://[::1]'),
+        'IPv6 default port normalization');
+};
+
 done_testing;

@@ -1,5 +1,8 @@
 1.000000   TBD
 
+  - Fix: NIP-42 relay URL matching now supports bracketed IPv6 addresses
+    (e.g. ws://[::1]:8080). Previously these failed to parse and were
+    always rejected.
   - BREAKING: Callback arguments (on_success, on_failure, Client->on,
     Client->connect callback) now require CODE refs. Previously non-code
     values were silently accepted and would fail at invocation time.

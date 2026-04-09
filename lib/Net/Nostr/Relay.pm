@@ -459,8 +459,9 @@ sub _on_connection {
 
 sub _relay_host_matches {
     my ($expected, $got) = @_;
-    my ($es, $eh, $ep, $epath) = $expected =~ m{^(wss?)://([^:/]+)(?::(\d+))?(/.*)?\z}i;
-    my ($gs, $gh, $gp, $gpath) = $got      =~ m{^(wss?)://([^:/]+)(?::(\d+))?(/.*)?\z}i;
+    my $host_re = qr{ ( \[ [^\]]+ \] | [^:/]+ ) }x;
+    my ($es, $eh, $ep, $epath) = $expected =~ m{^(wss?)://$host_re(?::(\d+))?(/.*)?\z}i;
+    my ($gs, $gh, $gp, $gpath) = $got      =~ m{^(wss?)://$host_re(?::(\d+))?(/.*)?\z}i;
     return 0 unless defined $es && defined $gs;
     return 0 unless lc($es) eq lc($gs);
     return 0 unless lc($eh) eq lc($gh);
@@ -963,7 +964,9 @@ at the TCP level. Default: C<undef> (unlimited).
 
 =item C<relay_url> - The relay's own WebSocket URL (e.g. C<wss://relay.example.com/>).
 When set, NIP-42 AUTH events are validated to ensure the C<relay> tag matches
-this URL (scheme, host, port, and path comparison; case-insensitive host).
+this URL. Comparison normalizes scheme and host case, default ports (80 for
+C<ws>, 443 for C<wss>), and treats a missing path as C</>. Bracketed IPv6
+addresses (e.g. C<ws://[::1]:8080>) are supported.
 Default: C<undef> (relay tag not validated).
 
 =item C<min_pow_difficulty> - Minimum Proof of Work difficulty required for

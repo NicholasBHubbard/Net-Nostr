@@ -851,4 +851,38 @@ subtest 'relay rejects AUTH when path differs' => sub {
     $relay->stop;
 };
 
+###############################################################################
+# AUTH relay URL matching: NIP-42 normalization (bracketed IPv6, case, ports)
+###############################################################################
+
+# "URL normalization techniques can be applied. For most cases just checking
+# if the domain name is correct should be enough."
+
+subtest 'relay URL matching supports bracketed IPv6 addresses' => sub {
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'ws://[::1]:8080', 'ws://[::1]:8080'),
+        'bracketed IPv6 exact match');
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'wss://[2001:db8::1]:443', 'wss://[2001:db8::1]'),
+        'bracketed IPv6 with default port normalization');
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'wss://[2001:DB8::1]', 'wss://[2001:db8::1]'),
+        'bracketed IPv6 case-insensitive');
+};
+
+subtest 'relay URL matching normalizes scheme and host case' => sub {
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'WSS://Relay.Example.COM', 'wss://relay.example.com'),
+        'scheme and host case-insensitive');
+};
+
+subtest 'relay URL matching normalizes default ports' => sub {
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'ws://relay.example.com:80', 'ws://relay.example.com'),
+        'ws default port 80');
+    ok(Net::Nostr::Relay::_relay_host_matches(
+        'wss://relay.example.com:443', 'wss://relay.example.com'),
+        'wss default port 443');
+};
+
 done_testing;
