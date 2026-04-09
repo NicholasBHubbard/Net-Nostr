@@ -79,3 +79,7 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 - [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) - Blossom media
 
 NIP-04 (legacy encrypted DMs) is deprecated and not supported.
+
+## Contributing
+
+Do not hesitate to open an [issue](https://github.com/NicholasBHubbard/Net-Nostr/issues) or [pull request](https://github.com/NicholasBHubbard/Net-Nostr/pulls)!
