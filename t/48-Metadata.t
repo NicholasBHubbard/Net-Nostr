@@ -106,4 +106,23 @@ subtest 'public methods available' => sub {
            name display_name about picture website banner bot birthday));
 };
 
+###############################################################################
+# Round-trip: to_event() -> from_event()
+###############################################################################
+
+subtest 'round-trip: to_event -> from_event' => sub {
+    my $event = Net::Nostr::Metadata->to_event(
+        pubkey  => $PK,
+        name    => 'alice',
+        about   => 'Nostr enthusiast',
+        picture => 'https://example.com/avatar.jpg',
+    );
+
+    my $meta = Net::Nostr::Metadata->from_event($event);
+
+    is($meta->name, 'alice', 'name preserved');
+    is($meta->about, 'Nostr enthusiast', 'about preserved');
+    is($meta->picture, 'https://example.com/avatar.jpg', 'picture preserved');
+};
+
 done_testing;

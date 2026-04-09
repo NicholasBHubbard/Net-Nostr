@@ -116,4 +116,107 @@ subtest 'callback_url with existing query params' => sub {
     like $url, qr{amount=1000}, 'amount added';
 };
 
+###############################################################################
+# new_request validation
+###############################################################################
+
+subtest 'new_request rejects missing p' => sub {
+    like(dies { Net::Nostr::Zap->new_request(relays => ['wss://r.com']) },
+        qr/p is required/, 'p is required');
+};
+
+subtest 'new_request rejects missing relays' => sub {
+    like(dies { Net::Nostr::Zap->new_request(p => 'b' x 64) },
+        qr/relays is required/, 'relays is required');
+};
+
+###############################################################################
+# new_receipt validation
+###############################################################################
+
+subtest 'new_receipt rejects missing p' => sub {
+    like(dies { Net::Nostr::Zap->new_receipt(bolt11 => 'lnbc1test', description => '{}') },
+        qr/p is required/, 'p is required');
+};
+
+subtest 'new_receipt rejects missing bolt11' => sub {
+    like(dies { Net::Nostr::Zap->new_receipt(p => 'b' x 64, description => '{}') },
+        qr/bolt11 is required/, 'bolt11 is required');
+};
+
+subtest 'new_receipt rejects missing description' => sub {
+    like(dies { Net::Nostr::Zap->new_receipt(p => 'b' x 64, bolt11 => 'lnbc1test') },
+        qr/description is required/, 'description is required');
+};
+
+###############################################################################
+# Round-trip tests
+###############################################################################
+
+subtest 'Round-trip: request to_event -> request_from_event' => sub {
+    my $zap = Net::Nostr::Zap->new_request(
+        p       => 'b' x 64,
+        relays  => ['wss://r1.com', 'wss://r2.com'],
+        amount  => '21000',
+        lnurl   => 'lnurl1test',
+        content => 'Great post!',
+        e       => 'c' x 64,
+        a       => '30023:' . ('d' x 64) . ':my-slug',
+    );
+    my $event = $zap->to_event(pubkey => 'a' x 64);
+    my $parsed = Net::Nostr::Zap->request_from_event($event);
+
+    is $parsed->p, 'b' x 64, 'p round-trips';
+    is $parsed->relays, ['wss://r1.com', 'wss://r2.com'], 'relays round-trip';
+    is $parsed->amount, '21000', 'amount round-trips';
+    is $parsed->lnurl, 'lnurl1test', 'lnurl round-trips';
+    is $parsed->e, 'c' x 64, 'e round-trips';
+    is $parsed->a, '30023:' . ('d' x 64) . ':my-slug', 'a round-trips';
+};
+
+subtest 'Round-trip: receipt to_event -> receipt_from_event' => sub {
+    my $zap = Net::Nostr::Zap->new_receipt(
+        p           => 'b' x 64,
+        bolt11      => 'lnbc10u1test',
+        description => '{"kind":9734}',
+        preimage    => 'f' x 64,
+        e           => 'c' x 64,
+    );
+    my $event = $zap->to_event(pubkey => 'a' x 64);
+    my $parsed = Net::Nostr::Zap->receipt_from_event($event);
+
+    is $parsed->p, 'b' x 64, 'p round-trips';
+    is $parsed->bolt11, 'lnbc10u1test', 'bolt11 round-trips';
+    is $parsed->description, '{"kind":9734}', 'description round-trips';
+    is $parsed->preimage, 'f' x 64, 'preimage round-trips';
+    is $parsed->e, 'c' x 64, 'e round-trips';
+};
+
+###############################################################################
+# from_event wrong kind
+###############################################################################
+
+subtest 'request_from_event rejects wrong kind' => sub {
+    my $event = make_event(kind => 1, pubkey => 'a' x 64, content => '', tags => []);
+    like(dies { Net::Nostr::Zap->request_from_event($event) },
+        qr/kind 9734/, 'rejects non-9734 event');
+};
+
+subtest 'receipt_from_event rejects wrong kind' => sub {
+    my $event = make_event(kind => 1, pubkey => 'a' x 64, content => '', tags => []);
+    like(dies { Net::Nostr::Zap->receipt_from_event($event) },
+        qr/kind 9735/, 'rejects non-9735 event');
+};
+
+###############################################################################
+# encode/decode lnurl round-trip
+###############################################################################
+
+subtest 'decode_lnurl round-trips with encode_lnurl' => sub {
+    my $url = 'https://example.com/.well-known/lnurlp/alice';
+    my $encoded = encode_lnurl($url);
+    my $decoded = decode_lnurl($encoded);
+    is $decoded, $url, 'decode(encode(url)) == url';
+};
+
 done_testing;

@@ -203,4 +203,24 @@ subtest 'new() rejects unknown arguments' => sub {
     );
 };
 
+###############################################################################
+# Round-trip: label() -> from_event()
+###############################################################################
+
+subtest 'round-trip: label -> from_event' => sub {
+    my $event = Net::Nostr::Label->label(
+        pubkey    => $pubkey,
+        namespace => 'com.example.ontology',
+        labels    => ['VI-hum'],
+        targets   => [['p', $target_pk, $relay]],
+        content   => 'Explanation of the label',
+    );
+
+    my $info = Net::Nostr::Label->from_event($event);
+
+    is($info->namespaces, ['com.example.ontology'], 'namespace preserved');
+    is($info->labels, [['VI-hum', 'com.example.ontology']], 'label_value preserved');
+    is($event->content, 'Explanation of the label', 'content preserved');
+};
+
 done_testing;

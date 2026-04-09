@@ -142,4 +142,23 @@ subtest 'public methods available' => sub {
            event_author));
 };
 
+###############################################################################
+# Round-trip: date_event() -> from_event()
+###############################################################################
+
+subtest 'round-trip: date_event -> from_event' => sub {
+    my $event = Net::Nostr::Calendar->date_event(
+        pubkey     => $PK,
+        identifier => 'vacation-2024',
+        title      => 'Summer Vacation',
+        start      => '2024-07-01',
+    );
+
+    my $parsed = Net::Nostr::Calendar->from_event($event);
+
+    is($parsed->title, 'Summer Vacation', 'title preserved');
+    is($parsed->identifier, 'vacation-2024', 'identifier preserved');
+    is($parsed->start, '2024-07-01', 'start preserved');
+};
+
 done_testing;

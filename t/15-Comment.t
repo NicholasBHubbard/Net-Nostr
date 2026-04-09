@@ -160,4 +160,144 @@ subtest 'new() rejects unknown arguments' => sub {
     );
 };
 
+###############################################################################
+# comment() validation
+###############################################################################
+
+subtest 'comment() rejects missing pubkey' => sub {
+    my $blog = make_event(
+        id => $event_id, pubkey => $alice_pk, kind => 30023,
+        content => '', tags => [['d', 'slug']],
+    );
+    like(
+        dies { Net::Nostr::Comment->comment(content => 'x', event => $blog) },
+        qr/pubkey/,
+        'missing pubkey croaks'
+    );
+};
+
+subtest 'comment() rejects missing content' => sub {
+    my $blog = make_event(
+        id => $event_id, pubkey => $alice_pk, kind => 30023,
+        content => '', tags => [['d', 'slug']],
+    );
+    like(
+        dies { Net::Nostr::Comment->comment(pubkey => $bob_pk, event => $blog) },
+        qr/content/,
+        'missing content croaks'
+    );
+};
+
+subtest 'comment() rejects kind 1 event' => sub {
+    my $note = make_event(
+        id => $event_id, pubkey => $alice_pk, kind => 1, content => 'hello',
+    );
+    like(
+        dies { Net::Nostr::Comment->comment(event => $note, pubkey => $bob_pk, content => 'hi') },
+        qr/kind 1/,
+        'kind 1 event rejected'
+    );
+};
+
+subtest 'comment() rejects missing event and identifier' => sub {
+    like(
+        dies { Net::Nostr::Comment->comment(pubkey => $bob_pk, content => 'hi') },
+        qr/event.*identifier/,
+        'neither event nor identifier croaks'
+    );
+};
+
+subtest 'comment() rejects identifier without kind' => sub {
+    like(
+        dies { Net::Nostr::Comment->comment(identifier => 'https://example.com', pubkey => $bob_pk, content => 'hi') },
+        qr/kind/,
+        'identifier without kind croaks'
+    );
+};
+
+###############################################################################
+# validate() rejection
+###############################################################################
+
+subtest 'validate() rejects missing root scope tag' => sub {
+    my $bad = make_event(
+        pubkey => $bob_pk, kind => 1111, content => 'hi',
+        tags => [
+            ['e', $event_id, '', $alice_pk],
+            ['k', '1063'],
+            ['p', $alice_pk],
+        ],
+    );
+    like(
+        dies { Net::Nostr::Comment->validate($bad) },
+        qr/root scope/,
+        'missing root scope tag rejected'
+    );
+};
+
+subtest 'validate() rejects missing K tag' => sub {
+    my $bad = make_event(
+        pubkey => $bob_pk, kind => 1111, content => 'hi',
+        tags => [
+            ['E', $event_id, '', $alice_pk],
+            ['P', $alice_pk],
+            ['e', $event_id, '', $alice_pk],
+            ['k', '1063'],
+            ['p', $alice_pk],
+        ],
+    );
+    like(
+        dies { Net::Nostr::Comment->validate($bad) },
+        qr/K tag/,
+        'missing K tag rejected'
+    );
+};
+
+###############################################################################
+# from_event
+###############################################################################
+
+subtest 'from_event returns undef for non-1111' => sub {
+    my $note = make_event(
+        pubkey => $alice_pk, kind => 1, content => 'hello', tags => [],
+    );
+    my $result = Net::Nostr::Comment->from_event($note);
+    is $result, undef, 'returns undef';
+};
+
+###############################################################################
+# Round-trip tests
+###############################################################################
+
+subtest 'Round-trip: comment on nostr event -> from_event' => sub {
+    my $blog = make_event(
+        id => $event_id, pubkey => $alice_pk, kind => 30023,
+        content => '', tags => [['d', 'slug']],
+    );
+    my $comment = Net::Nostr::Comment->comment(
+        event   => $blog,
+        pubkey  => $bob_pk,
+        content => 'Nice post!',
+    );
+    my $info = Net::Nostr::Comment->from_event($comment);
+    ok defined $info, 'from_event returned object';
+    is $info->root_kind, '30023', 'root_kind matches';
+    my $coord = '30023:' . $alice_pk . ':slug';
+    is $info->root_value, $coord, 'root_value is event coordinate';
+    is $info->root_pubkey, $alice_pk, 'root_pubkey matches';
+};
+
+subtest 'Round-trip: comment on external identifier -> from_event' => sub {
+    my $comment = Net::Nostr::Comment->comment(
+        identifier => 'https://example.com',
+        kind       => 'web',
+        pubkey     => $bob_pk,
+        content    => 'Nice site!',
+    );
+    my $info = Net::Nostr::Comment->from_event($comment);
+    ok defined $info, 'from_event returned object';
+    is $info->root_kind, 'web', 'root_kind is web';
+    is $info->root_value, 'https://example.com', 'root_value is identifier';
+};
+
 done_testing;

@@ -121,4 +121,23 @@ subtest 'public methods available' => sub {
            identifier name description image thumbs badge awardees badges badge_sets));
 };
 
+###############################################################################
+# Round-trip: definition() -> from_event()
+###############################################################################
+
+subtest 'round-trip: definition -> from_event' => sub {
+    my $event = Net::Nostr::Badge->definition(
+        pubkey      => $PK,
+        identifier  => 'bravery',
+        name        => 'Medal of Bravery',
+        description => 'Awarded to users demonstrating bravery',
+    );
+
+    my $badge = Net::Nostr::Badge->from_event($event);
+
+    is($badge->identifier, 'bravery', 'identifier preserved');
+    is($badge->name, 'Medal of Bravery', 'name preserved');
+    is($badge->description, 'Awarded to users demonstrating bravery', 'description preserved');
+};
+
 done_testing;
