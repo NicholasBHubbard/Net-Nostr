@@ -77,6 +77,7 @@ sub from_event {
     my @hashtags;
 
     for my $tag (@{$event->tags}) {
+        next unless @$tag >= 2;
         my $name = $tag->[0];
         if ($name eq 'd')            { $identifier   = $tag->[1] // '' }
         elsif ($name eq 'title')     { $title        = $tag->[1] }

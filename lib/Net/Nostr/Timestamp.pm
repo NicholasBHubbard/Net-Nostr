@@ -52,9 +52,10 @@ sub from_event {
     my ($event_id, $relay_url, $kind);
 
     for my $tag (@{$event->tags}) {
+        next unless @$tag >= 2;
         if ($tag->[0] eq 'e') {
             $event_id = $tag->[1];
-            $relay_url = $tag->[2] if defined $tag->[2];
+            $relay_url = $tag->[2] if @$tag > 2 && defined $tag->[2];
         } elsif ($tag->[0] eq 'k') {
             $kind = 0 + $tag->[1];
         }

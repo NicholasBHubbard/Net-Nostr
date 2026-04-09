@@ -975,4 +975,44 @@ subtest 'hex64 validation rejects invalid pubkeys' => sub {
     like $@, qr/client_pubkey must be 64-char lowercase hex/, 'create_nostrconnect_uri rejects bad pubkey';
 };
 
+###############################################################################
+# URI parsers: pubkey case normalization
+###############################################################################
+
+subtest 'parse_bunker_uri: mixed-case pubkey is lowercased' => sub {
+    my $upper = uc($remote_signer_pubkey);
+    my $uri = "bunker://${upper}?relay=wss%3A%2F%2Frelay1.example.com&secret=s";
+    my $conn = Net::Nostr::RemoteSigning->parse_bunker_uri($uri);
+    is $conn->remote_signer_pubkey, $remote_signer_pubkey, 'pubkey lowercased';
+};
+
+subtest 'parse_nostrconnect_uri: mixed-case pubkey is lowercased' => sub {
+    my $upper = uc($client_pubkey);
+    my $uri = "nostrconnect://${upper}?relay=wss%3A%2F%2Frelay1.example.com&secret=s";
+    my $nc = Net::Nostr::RemoteSigning->parse_nostrconnect_uri($uri);
+    is $nc->client_pubkey, $client_pubkey, 'pubkey lowercased';
+};
+
+###############################################################################
+# parse_discovery_event: short tags are safely skipped
+###############################################################################
+
+subtest 'parse_discovery_event: short tags are skipped' => sub {
+    my $event = Net::Nostr::Event->new(
+        kind    => 31990,
+        pubkey  => $remote_signer_pubkey,
+        content => '',
+        tags    => [
+            ['k', '24133'],
+            ['relay'],               # too short, skipped
+            [],                      # empty, skipped
+            ['relay', 'wss://relay1.example.com'],
+            ['nostrconnect_url'],    # too short, skipped
+        ],
+    );
+    my $disc = Net::Nostr::RemoteSigning->parse_discovery_event($event);
+    is $disc->relays, ['wss://relay1.example.com'], 'short relay tag skipped';
+    is $disc->nostrconnect_url, undef, 'short nostrconnect_url tag skipped';
+};
+
 done_testing;

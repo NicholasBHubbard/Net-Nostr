@@ -1,5 +1,23 @@
 1.000000   TBD
 
+  - Fix: Tag parsers (from_event, reply, validate) across Article,
+    LiveActivity, AppHandler, Reaction, Thread, Timestamp, Zap,
+    WalletConnect, and RemoteSigning now guard against short/malformed
+    tags. Previously accessing $tag->[1] etc. on a short tag would
+    produce uninitialized-value warnings and undef fields.
+  - Fix: RemoteSigning->parse_bunker_uri and parse_nostrconnect_uri now
+    lowercase the pubkey captured from the URI. Previously mixed-case hex
+    was stored as-is, breaking consistency with builders that require
+    lowercase.
+  - Docs: Client.pm neg_err callback parameter renamed $reason to $message
+    to match the actual value passed from $msg->message.
+  - Docs: Relay.pm SEE ALSO now links NIP-42, NIP-45, and NIP-77.
+  - Docs: Filter.pm accessor POD now includes descriptions for ids,
+    authors, kinds, since, until, and limit.
+  - Docs: Client.pm authenticate() documents all croak conditions.
+  - Tests: Expanded Negentropy, HttpAuth, RelayMonitor, and Identifier
+    test suites with validation rejection, round-trip, boundary, and
+    error path coverage.
   - BREAKING: Encryption->get_conversation_key now validates both hex
     arguments before calling pack(). Previously malformed hex was
     silently truncated, producing wrong-length keys and opaque crypto

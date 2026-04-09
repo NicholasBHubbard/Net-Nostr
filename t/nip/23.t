@@ -438,4 +438,28 @@ subtest 'Article->new() rejects unknown arguments' => sub {
     );
 };
 
+###############################################################################
+# from_event: short/malformed tags are safely skipped
+###############################################################################
+
+subtest 'from_event: short tags are skipped' => sub {
+    my $event = Net::Nostr::Event->new(
+        kind    => 30023,
+        pubkey  => $PUBKEY,
+        content => 'content',
+        tags    => [
+            ['d', 'my-article'],
+            ['title'],           # too short, skipped
+            [],                  # empty, skipped
+            ['t', 'nostr'],
+            ['summary'],         # too short, skipped
+        ],
+    );
+    my $info = Net::Nostr::Article->from_event($event);
+    is $info->identifier, 'my-article', 'identifier parsed';
+    is $info->title, undef, 'short title tag skipped';
+    is $info->summary, undef, 'short summary tag skipped';
+    is $info->hashtags, ['nostr'], 'valid t tag parsed';
+};
+
 done_testing;

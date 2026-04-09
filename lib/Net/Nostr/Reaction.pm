@@ -83,11 +83,12 @@ sub from_event {
 
     # e and p: spec says target should be last if multiple exist
     for my $tag (@{$event->tags}) {
+        next unless @$tag >= 2;
         my $name = $tag->[0];
         if ($name eq 'e') {
             $event_id      = $tag->[1];
-            $relay_url     = $tag->[2] // '';
-            $author_pubkey = $tag->[3] if defined $tag->[3];
+            $relay_url     = @$tag > 2 ? ($tag->[2] // '') : '';
+            $author_pubkey = $tag->[3] if @$tag > 3 && defined $tag->[3];
         } elsif ($name eq 'p') {
             $author_pubkey = $tag->[1];
         } elsif ($name eq 'k' && !defined $reacted_kind) {

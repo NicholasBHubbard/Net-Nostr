@@ -1249,4 +1249,42 @@ subtest 'constructor: unknown args rejected' => sub {
     );
 };
 
+###############################################################################
+# from_event: short/malformed tags are safely skipped
+###############################################################################
+
+subtest 'from_event: short tags are skipped' => sub {
+    my $event = Net::Nostr::Event->new(
+        kind    => 30311,
+        pubkey  => $PK,
+        content => '',
+        tags    => [
+            ['d', 'stream-1'],
+            ['title'],           # too short
+            [],                  # empty
+            ['status', 'live'],
+            ['a'],               # too short for a tag
+        ],
+    );
+    my $parsed = Net::Nostr::LiveActivity->from_event($event);
+    is $parsed->identifier, 'stream-1', 'identifier parsed';
+    is $parsed->title, undef, 'short title tag skipped';
+    is $parsed->status, 'live', 'valid status tag parsed';
+    is $parsed->activity, undef, 'short a tag skipped';
+};
+
+subtest 'from_event: a tag relay_hint needs bounds check' => sub {
+    my $event = Net::Nostr::Event->new(
+        kind    => 1311,
+        pubkey  => $PK,
+        content => 'hi',
+        tags    => [
+            ['a', "30311:${PK}:stream-1"],  # no relay hint element
+        ],
+    );
+    my $parsed = Net::Nostr::LiveActivity->from_event($event);
+    is $parsed->activity, "30311:${PK}:stream-1", 'activity parsed';
+    is $parsed->relay_hint, undef, 'no relay_hint when a tag has only 2 elements';
+};
+
 done_testing;

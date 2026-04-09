@@ -73,7 +73,7 @@ sub reply {
 
     push @p_candidates, $to->pubkey;
     for my $tag (@{$to->tags}) {
-        next unless $tag->[0] eq 'p';
+        next unless @$tag >= 2 && $tag->[0] eq 'p';
         push @p_candidates, $tag->[1];
     }
 
@@ -112,15 +112,15 @@ sub quote {
 sub from_event {
     my ($class, $event) = @_;
 
-    my @e_tags = grep { $_->[0] eq 'e' } @{$event->tags};
+    my @e_tags = grep { @$_ >= 2 && $_->[0] eq 'e' } @{$event->tags};
     return undef unless @e_tags;
 
     # Check for marked tags
     my ($root_tag, $reply_tag);
     for my $tag (@e_tags) {
-        if (defined $tag->[3] && $tag->[3] eq 'root') {
+        if (@$tag > 3 && defined $tag->[3] && $tag->[3] eq 'root') {
             $root_tag = $tag;
-        } elsif (defined $tag->[3] && $tag->[3] eq 'reply') {
+        } elsif (@$tag > 3 && defined $tag->[3] && $tag->[3] eq 'reply') {
             $reply_tag = $tag;
         }
     }
@@ -130,11 +130,11 @@ sub from_event {
         return $class->new(
             root_id      => $root_tag->[1],
             root_relay   => $root_tag->[2] // '',
-            root_pubkey  => $root_tag->[4] // '',
+            root_pubkey  => (@$root_tag > 4 ? ($root_tag->[4] // '') : ''),
             ($reply_tag ? (
                 reply_id     => $reply_tag->[1],
                 reply_relay  => $reply_tag->[2] // '',
-                reply_pubkey => $reply_tag->[4] // '',
+                reply_pubkey => (@$reply_tag > 4 ? ($reply_tag->[4] // '') : ''),
             ) : ()),
         );
     }

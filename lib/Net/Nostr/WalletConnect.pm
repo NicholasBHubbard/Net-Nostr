@@ -92,6 +92,7 @@ sub parse_info {
     my (@encryption, @notification_types);
 
     for my $tag (@{$event->tags}) {
+        next unless @$tag >= 2;
         if ($tag->[0] eq 'encryption') {
             @encryption = split / /, $tag->[1];
         } elsif ($tag->[0] eq 'notifications') {
@@ -273,7 +274,7 @@ sub validate_response {
 sub is_expired {
     my ($class, $event) = @_;
     for my $tag (@{$event->tags}) {
-        if ($tag->[0] eq 'expiration') {
+        if (@$tag >= 2 && $tag->[0] eq 'expiration') {
             return time() >= $tag->[1];
         }
     }

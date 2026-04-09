@@ -396,8 +396,8 @@ L<Net::Nostr::Key> object used to sign the authentication event,
 and C<$relay_url> is the relay's URL for the C<relay> tag.
 
 The client must have received an AUTH challenge from the relay first
-(stored in C<challenge>). Croaks if not connected or no challenge
-has been received.
+(stored in C<challenge>). Croaks if not connected, if C<$key> or
+C<$relay_url> is missing, or if no challenge has been received.
 
     $client->on(auth => sub {
         my ($challenge) = @_;
@@ -458,7 +458,7 @@ should respond by calling C<authenticate>.
 Called when the relay sends a NEG-MSG response (NIP-77). C<$msg> is the
 hex-encoded negentropy message to pass to L<Net::Nostr::Negentropy/reconcile>.
 
-=item C<neg_err> - C<sub { my ($subscription_id, $reason) = @_; }>
+=item C<neg_err> - C<sub { my ($subscription_id, $message) = @_; }>
 
 Called when the relay sends a NEG-ERR (NIP-77). The negentropy session
 is considered closed after this.

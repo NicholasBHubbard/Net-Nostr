@@ -596,4 +596,43 @@ subtest 'react validates event has valid hex id and pubkey' => sub {
     like($@, qr/id must be 64-char lowercase hex/, 'cannot construct event with bad id');
 };
 
+###############################################################################
+# from_event: short/malformed tags are safely skipped
+###############################################################################
+
+subtest 'from_event: short tags are skipped' => sub {
+    my $event = make_event(
+        kind    => 7,
+        pubkey  => $pubkey,
+        content => '+',
+        tags    => [
+            ['e'],               # too short
+            [],                  # empty
+            ['e', 'c' x 64],    # valid but no relay/author hint
+            ['p', $other_pubkey],
+            ['k'],               # too short
+        ],
+    );
+    my $info = Net::Nostr::Reaction->from_event($event);
+    is $info->event_id, 'c' x 64, 'event_id from valid e tag';
+    is $info->relay_url, '', 'relay_url empty when e tag has no relay element';
+    is $info->author_pubkey, $other_pubkey, 'author_pubkey from p tag';
+    is $info->reacted_kind, undef, 'short k tag skipped';
+};
+
+subtest 'from_event: e tag with only 2 elements has no author_pubkey from e' => sub {
+    my $event = make_event(
+        kind    => 7,
+        pubkey  => $pubkey,
+        content => '+',
+        tags    => [
+            ['e', 'c' x 64, 'wss://relay.example.com'],  # no [3] pubkey
+        ],
+    );
+    my $info = Net::Nostr::Reaction->from_event($event);
+    is $info->event_id, 'c' x 64, 'event_id parsed';
+    is $info->relay_url, 'wss://relay.example.com', 'relay_url parsed';
+    is $info->author_pubkey, undef, 'no author_pubkey when e tag has only 3 elements';
+};
+
 done_testing;

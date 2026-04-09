@@ -111,13 +111,14 @@ sub _parse_recommendation {
     my @apps;
 
     for my $tag (@{$event->tags}) {
+        next unless @$tag >= 2;
         my $name = $tag->[0];
         if ($name eq 'd') {
             $event_kind = $tag->[1] // '';
         } elsif ($name eq 'a') {
             my %app = (coordinate => $tag->[1]);
-            $app{relay}    = $tag->[2] if defined $tag->[2];
-            $app{platform} = $tag->[3] if defined $tag->[3];
+            $app{relay}    = $tag->[2] if @$tag > 2 && defined $tag->[2];
+            $app{platform} = $tag->[3] if @$tag > 3 && defined $tag->[3];
             push @apps, \%app;
         }
     }
@@ -134,6 +135,7 @@ sub _parse_handler {
     my ($identifier, @kinds, @platforms);
 
     for my $tag (@{$event->tags}) {
+        next unless @$tag >= 2;
         my $name = $tag->[0];
         if ($name eq 'd') {
             $identifier = $tag->[1] // '';
@@ -141,7 +143,7 @@ sub _parse_handler {
             push @kinds, $tag->[1];
         } elsif ($PLATFORM_TAGS{$name}) {
             my %p = (platform => $name, url => $tag->[1]);
-            $p{entity} = $tag->[2] if defined $tag->[2];
+            $p{entity} = $tag->[2] if @$tag > 2 && defined $tag->[2];
             push @platforms, \%p;
         }
     }

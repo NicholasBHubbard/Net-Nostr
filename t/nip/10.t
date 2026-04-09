@@ -465,4 +465,55 @@ subtest 'new() rejects unknown arguments' => sub {
     );
 };
 
+###############################################################################
+# from_event: short/malformed tags are safely skipped
+###############################################################################
+
+subtest 'from_event: short e tags are skipped' => sub {
+    my $event = make_event(
+        kind => 1,
+        tags => [
+            ['e'],                                           # too short, skipped
+            [],                                              # empty, skipped
+            ['e', $root_id, '', 'root', $alice_pk],          # valid
+        ],
+    );
+    my $thread = Net::Nostr::Thread->from_event($event);
+    ok $thread, 'parsed despite short tags';
+    is $thread->root_id, $root_id, 'root_id from valid tag';
+};
+
+subtest 'from_event: e tags without marker field fall back to positional' => sub {
+    my $event = make_event(
+        kind => 1,
+        tags => [
+            ['e', $root_id],           # 2 elements, no relay or marker
+        ],
+    );
+    my $thread = Net::Nostr::Thread->from_event($event);
+    is $thread->root_id, $root_id, 'positional parse works with minimal e tag';
+    is $thread->root_relay, '', 'root_relay defaults to empty string';
+};
+
+subtest 'reply: short p tags in parent are skipped' => sub {
+    my $parent = make_event(
+        kind   => 1,
+        pubkey => $bob_pk,
+        tags   => [
+            ['p'],                # too short, skipped
+            ['p', $carol_pk],     # valid
+        ],
+    );
+    my $reply = Net::Nostr::Thread->reply(
+        to      => $parent,
+        pubkey  => $alice_pk,
+        content => 'test',
+    );
+    my @p_tags = grep { $_->[0] eq 'p' } @{$reply->tags};
+    my @pks = map { $_->[1] } @p_tags;
+    ok !(grep { !defined $_ } @pks), 'no undef pubkeys from short p tags';
+    ok scalar(grep { $_ eq $carol_pk } @pks), 'valid p tag preserved';
+    ok scalar(grep { $_ eq $bob_pk } @pks), 'parent pubkey included';
+};
+
 done_testing;

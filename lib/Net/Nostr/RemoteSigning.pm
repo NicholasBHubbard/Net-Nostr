@@ -17,7 +17,7 @@ sub parse_bunker_uri {
     croak "URI must use bunker:// protocol"
         unless $uri =~ m{^bunker://([0-9a-f]{64})\?(.+)$}i;
 
-    my ($pubkey, $query) = ($1, $2);
+    my ($pubkey, $query) = (lc($1), $2);
 
     my (@relays, $secret);
     for my $pair (split /&/, $query) {
@@ -63,7 +63,7 @@ sub parse_nostrconnect_uri {
     croak "URI must use nostrconnect:// protocol"
         unless $uri =~ m{^nostrconnect://([0-9a-f]{64})\?(.+)$}i;
 
-    my ($pubkey, $query) = ($1, $2);
+    my ($pubkey, $query) = (lc($1), $2);
 
     my (@relays, $secret, $perms, $name, $url, $image);
     for my $pair (split /&/, $query) {
@@ -316,12 +316,13 @@ sub parse_discovery_event {
     my ($class, $event) = @_;
     croak "discovery event MUST be kind 31990" unless $event->kind == 31990;
 
-    my $has_k = grep { $_->[0] eq 'k' && $_->[1] eq '24133' } @{$event->tags};
+    my $has_k = grep { @$_ >= 2 && $_->[0] eq 'k' && $_->[1] eq '24133' } @{$event->tags};
     croak "discovery event MUST have k tag with value 24133" unless $has_k;
 
     my @relays;
     my $nostrconnect_url;
     for my $tag (@{$event->tags}) {
+        next unless @$tag >= 2;
         if ($tag->[0] eq 'relay') {
             push @relays, $tag->[1];
         } elsif ($tag->[0] eq 'nostrconnect_url') {

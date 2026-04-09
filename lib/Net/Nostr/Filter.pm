@@ -316,25 +316,40 @@ includes fields that were set.
 
     my $ids = $filter->ids;  # arrayref or undef
 
+Event id prefixes to match. Events whose id starts with any of these
+hex strings are included.
+
 =head2 authors
 
     my $authors = $filter->authors;  # arrayref or undef
+
+Pubkey prefixes to match. Events whose pubkey starts with any of these
+hex strings are included.
 
 =head2 kinds
 
     my $kinds = $filter->kinds;  # arrayref or undef
 
+Event kinds to match. Events with any of these kinds are included.
+
 =head2 since
 
     my $since = $filter->since;  # Unix timestamp or undef
+
+Lower bound (inclusive) on C<created_at>.
 
 =head2 until
 
     my $until = $filter->until;  # Unix timestamp or undef
 
+Upper bound (inclusive) on C<created_at>.
+
 =head2 limit
 
     my $limit = $filter->limit;  # integer or undef
+
+Maximum number of events to return. Applied after sorting by C<created_at>
+descending.
 
 =head2 search
 

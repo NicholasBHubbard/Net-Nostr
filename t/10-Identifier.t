@@ -274,4 +274,172 @@ subtest 'new() rejects unknown arguments' => sub {
     );
 };
 
+###############################################################################
+# parse: local-part validation
+###############################################################################
+
+subtest 'parse: rejects missing @' => sub {
+    like dies { Net::Nostr::Identifier->parse('bobexample.com') },
+        qr/missing.*\@/i, 'no @ rejected';
+};
+
+subtest 'parse: rejects multiple @' => sub {
+    like dies { Net::Nostr::Identifier->parse('bob@relay@example.com') },
+        qr/multiple.*\@/i, 'multiple @ rejected';
+};
+
+subtest 'parse: rejects empty local-part' => sub {
+    like dies { Net::Nostr::Identifier->parse('@example.com') },
+        qr/empty local/i, 'empty local-part rejected';
+};
+
+subtest 'parse: rejects empty domain' => sub {
+    like dies { Net::Nostr::Identifier->parse('bob@') },
+        qr/empty domain/i, 'empty domain rejected';
+};
+
+subtest 'parse: rejects uppercase local-part' => sub {
+    like dies { Net::Nostr::Identifier->parse('Bob@example.com') },
+        qr/invalid.*local/i, 'uppercase local-part rejected';
+};
+
+subtest 'parse: rejects special chars in local-part' => sub {
+    like dies { Net::Nostr::Identifier->parse('bob!@example.com') },
+        qr/invalid.*local/i, '! in local-part rejected';
+    like dies { Net::Nostr::Identifier->parse('bob @example.com') },
+        qr/invalid.*local/i, 'space in local-part rejected';
+};
+
+subtest 'parse: accepts valid local-parts' => sub {
+    my ($l, $d) = Net::Nostr::Identifier->parse('alice@example.com');
+    is $l, 'alice', 'simple name';
+    ($l, $d) = Net::Nostr::Identifier->parse('_@example.com');
+    is $l, '_', 'underscore (root identifier)';
+    ($l, $d) = Net::Nostr::Identifier->parse('bob-smith@example.com');
+    is $l, 'bob-smith', 'hyphenated';
+    ($l, $d) = Net::Nostr::Identifier->parse('user.name@example.com');
+    is $l, 'user.name', 'dotted';
+    ($l, $d) = Net::Nostr::Identifier->parse('user123@example.com');
+    is $l, 'user123', 'with digits';
+};
+
+###############################################################################
+# url: positive tests
+###############################################################################
+
+subtest 'url: returns well-known URL' => sub {
+    is(Net::Nostr::Identifier->url('alice@example.com'),
+        'https://example.com/.well-known/nostr.json?name=alice',
+        'standard URL');
+    is(Net::Nostr::Identifier->url('_@relay.example.com'),
+        'https://relay.example.com/.well-known/nostr.json?name=_',
+        'root identifier URL');
+};
+
+###############################################################################
+# display_name
+###############################################################################
+
+subtest 'display_name: root identifier shows domain only' => sub {
+    is(Net::Nostr::Identifier->display_name('_@example.com'),
+        'example.com', 'root shows domain');
+};
+
+subtest 'display_name: non-root shows full identifier' => sub {
+    is(Net::Nostr::Identifier->display_name('alice@example.com'),
+        'alice@example.com', 'non-root shows full');
+};
+
+###############################################################################
+# verify_response
+###############################################################################
+
+my $test_pk  = 'ab' x 32;
+my $other_pk = 'cd' x 32;
+
+subtest 'verify_response: returns 1 on match' => sub {
+    my $response = { names => { alice => $test_pk } };
+    is(Net::Nostr::Identifier->verify_response($response, 'alice', $test_pk),
+        1, 'matching pubkey returns 1');
+};
+
+subtest 'verify_response: returns 0 on pubkey mismatch' => sub {
+    my $response = { names => { alice => $other_pk } };
+    is(Net::Nostr::Identifier->verify_response($response, 'alice', $test_pk),
+        0, 'different pubkey returns 0');
+};
+
+subtest 'verify_response: returns 0 when name not found' => sub {
+    my $response = { names => { bob => $test_pk } };
+    is(Net::Nostr::Identifier->verify_response($response, 'alice', $test_pk),
+        0, 'missing name returns 0');
+};
+
+subtest 'verify_response: returns 0 for non-HASH response' => sub {
+    is(Net::Nostr::Identifier->verify_response('string', 'alice', $test_pk),
+        0, 'string response');
+    is(Net::Nostr::Identifier->verify_response(undef, 'alice', $test_pk),
+        0, 'undef response');
+    is(Net::Nostr::Identifier->verify_response([], 'alice', $test_pk),
+        0, 'arrayref response');
+};
+
+subtest 'verify_response: returns 0 when names is not a HASH' => sub {
+    is(Net::Nostr::Identifier->verify_response({ names => 'bad' }, 'alice', $test_pk),
+        0, 'string names');
+    is(Net::Nostr::Identifier->verify_response({ names => [] }, 'alice', $test_pk),
+        0, 'arrayref names');
+    is(Net::Nostr::Identifier->verify_response({}, 'alice', $test_pk),
+        0, 'missing names key');
+};
+
+subtest 'verify_response: rejects invalid hex pubkey in response' => sub {
+    my $response = { names => { alice => 'ZZZZ' } };
+    is(Net::Nostr::Identifier->verify_response($response, 'alice', 'ZZZZ'),
+        0, 'non-hex rejected');
+    $response = { names => { alice => 'AB' x 32 } };
+    is(Net::Nostr::Identifier->verify_response($response, 'alice', 'AB' x 32),
+        0, 'uppercase hex rejected');
+};
+
+###############################################################################
+# extract_relays
+###############################################################################
+
+subtest 'extract_relays: returns relay list' => sub {
+    my $response = {
+        relays => {
+            $test_pk => ['wss://relay1.example.com', 'wss://relay2.example.com'],
+        },
+    };
+    is(Net::Nostr::Identifier->extract_relays($response, $test_pk),
+        ['wss://relay1.example.com', 'wss://relay2.example.com'],
+        'relays extracted');
+};
+
+subtest 'extract_relays: returns [] when no relays key' => sub {
+    is(Net::Nostr::Identifier->extract_relays({}, $test_pk),
+        [], 'missing relays key');
+};
+
+subtest 'extract_relays: returns [] when relays not HASH' => sub {
+    is(Net::Nostr::Identifier->extract_relays({ relays => 'bad' }, $test_pk),
+        [], 'string relays');
+};
+
+subtest 'extract_relays: returns [] when pubkey not in relays' => sub {
+    is(Net::Nostr::Identifier->extract_relays({ relays => { $other_pk => [] } }, $test_pk),
+        [], 'different pubkey');
+};
+
+subtest 'extract_relays: returns [] when relay list not ARRAY' => sub {
+    is(Net::Nostr::Identifier->extract_relays({ relays => { $test_pk => 'bad' } }, $test_pk),
+        [], 'string instead of array');
+};
+
+subtest 'extract_relays: returns [] for non-HASH response' => sub {
+    is(Net::Nostr::Identifier->extract_relays(undef, $test_pk), [], 'undef');
+    is(Net::Nostr::Identifier->extract_relays([], $test_pk), [], 'arrayref');
+};
+
 done_testing;

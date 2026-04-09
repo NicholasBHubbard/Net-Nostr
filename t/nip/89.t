@@ -627,4 +627,48 @@ subtest 'handler: android platform tag' => sub {
     is($info->platforms->[0]{platform}, 'android', 'android platform round-trips');
 };
 
+###############################################################################
+# from_event: short/malformed tags are safely skipped
+###############################################################################
+
+subtest 'from_event recommendation: short tags are skipped' => sub {
+    my $event = Net::Nostr::Event->new(
+        kind    => 31989,
+        pubkey  => $PUBKEY,
+        content => '',
+        tags    => [
+            ['d', '31337'],
+            ['a'],                    # too short
+            [],                       # empty
+            ['a', "31990:$APP_PK:x"], # no relay/platform (valid, just 2 elements)
+        ],
+    );
+    my $info = Net::Nostr::AppHandler->from_event($event);
+    is $info->event_kind, '31337', 'event_kind parsed';
+    is scalar @{$info->apps}, 1, 'short a tag skipped, valid one kept';
+    is $info->apps->[0]{coordinate}, "31990:$APP_PK:x", 'coordinate parsed';
+    ok !exists $info->apps->[0]{relay}, 'no relay when a tag has only 2 elements';
+    ok !exists $info->apps->[0]{platform}, 'no platform when a tag has only 2 elements';
+};
+
+subtest 'from_event handler: short tags are skipped' => sub {
+    my $event = Net::Nostr::Event->new(
+        kind    => 31990,
+        pubkey  => $APP_PK,
+        content => '',
+        tags    => [
+            ['d', 'myapp'],
+            ['k'],               # too short
+            ['k', '1'],
+            ['web'],             # too short
+            ['web', 'https://app.example.com/<bech32>'],  # no entity
+        ],
+    );
+    my $info = Net::Nostr::AppHandler->from_event($event);
+    is $info->identifier, 'myapp', 'identifier parsed';
+    is $info->kinds, ['1'], 'short k tag skipped, valid one kept';
+    is scalar @{$info->platforms}, 1, 'short web tag skipped';
+    ok !exists $info->platforms->[0]{entity}, 'no entity when platform tag has only 2 elements';
+};
+
 done_testing;

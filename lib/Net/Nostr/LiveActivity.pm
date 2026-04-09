@@ -237,6 +237,7 @@ sub from_event {
     my (@hashtags, @participants, @relays, @pinned);
 
     for my $tag (@{$event->tags}) {
+        next unless @$tag >= 2;
         my $t = $tag->[0];
         if    ($t eq 'd')                    { $attrs{identifier} = $tag->[1] }
         elsif ($t eq 'title')                { $attrs{title} = $tag->[1] }
@@ -258,7 +259,7 @@ sub from_event {
                 $attrs{space_ref} = [@{$tag}[1 .. $#$tag]];
             } else {
                 $attrs{activity}   = $tag->[1];
-                $attrs{relay_hint} = $tag->[2] if defined $tag->[2] && $tag->[2] ne '';
+                $attrs{relay_hint} = $tag->[2] if @$tag > 2 && defined $tag->[2] && $tag->[2] ne '';
             }
         }
         elsif ($t eq 'e')        { $attrs{reply_to} = $tag->[1] }

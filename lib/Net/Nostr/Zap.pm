@@ -62,6 +62,7 @@ sub request_from_event {
     my %args = (content => $event->content);
     my @relays;
     for my $tag (@{$event->tags}) {
+        next unless @$tag >= 2;
         my $name = $tag->[0];
         if ($name eq 'p')      { $args{p}      = $tag->[1] }
         elsif ($name eq 'e')   { $args{e}      = $tag->[1] }
@@ -81,6 +82,7 @@ sub receipt_from_event {
 
     my %args = (content => $event->content);
     for my $tag (@{$event->tags}) {
+        next unless @$tag >= 2;
         my $name = $tag->[0];
         if ($name eq 'p')           { $args{p}           = $tag->[1] }
         elsif ($name eq 'P')        { $args{sender}      = $tag->[1] }
