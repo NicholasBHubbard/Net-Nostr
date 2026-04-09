@@ -1,5 +1,8 @@
 1.000000   TBD
 
+  - BREAKING: Identifier->parse() now rejects domains containing
+    whitespace, /, :, ?, #, [], or control characters. Previously these
+    were silently accepted and interpolated into fetch URLs.
   - BREAKING: Relay connections(), subscriptions(), and
     authenticated_pubkeys() now return snapshots (copies) instead of
     live internal references. Mutating the returned hashrefs no longer

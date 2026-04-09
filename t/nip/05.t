@@ -73,6 +73,25 @@ subtest 'parse rejects special characters in local-part' => sub {
         qr/invalid/i, 'plus rejected';
 };
 
+subtest 'parse rejects domain with URL-unsafe characters' => sub {
+    # Domain is interpolated into https://<domain>/.well-known/nostr.json
+    # so must not contain characters that alter URL structure
+    like dies { Net::Nostr::Identifier->parse('bob@example.com/evil') },
+        qr/invalid.*domain/i, 'slash would inject path';
+    like dies { Net::Nostr::Identifier->parse('bob@example.com?x=1') },
+        qr/invalid.*domain/i, 'question mark would inject query';
+    like dies { Net::Nostr::Identifier->parse('bob@example.com#frag') },
+        qr/invalid.*domain/i, 'hash would inject fragment';
+    like dies { Net::Nostr::Identifier->parse('bob@example.com:8080') },
+        qr/invalid.*domain/i, 'colon would inject port';
+};
+
+subtest 'parse rejects non-DNS domains' => sub {
+    # NIP-05 is "Mapping Nostr keys to DNS-based internet identifiers"
+    like dies { Net::Nostr::Identifier->parse('bob@[::1]') },
+        qr/invalid.*domain/i, 'IPv6 literal rejected (DNS-based only)';
+};
+
 ###############################################################################
 # URL construction
 ###############################################################################

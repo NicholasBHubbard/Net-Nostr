@@ -142,6 +142,62 @@ subtest 'lookup croaks without on_failure' => sub {
 };
 
 ###############################################################################
+# parse: domain validation
+###############################################################################
+
+subtest 'parse rejects domain with whitespace' => sub {
+    like dies { Net::Nostr::Identifier->parse('bob@ example.com') },
+        qr/invalid.*domain/i, 'space in domain rejected';
+    like dies { Net::Nostr::Identifier->parse("bob\@example\t.com") },
+        qr/invalid.*domain/i, 'tab in domain rejected';
+    like dies { Net::Nostr::Identifier->parse("bob\@example\n.com") },
+        qr/invalid.*domain/i, 'newline in domain rejected';
+};
+
+subtest 'parse rejects domain with URL-unsafe characters' => sub {
+    like dies { Net::Nostr::Identifier->parse('bob@example.com/path') },
+        qr/invalid.*domain/i, 'slash in domain rejected';
+    like dies { Net::Nostr::Identifier->parse('bob@example.com?query') },
+        qr/invalid.*domain/i, 'question mark in domain rejected';
+    like dies { Net::Nostr::Identifier->parse('bob@example.com#frag') },
+        qr/invalid.*domain/i, 'hash in domain rejected';
+};
+
+subtest 'parse rejects domain with colon (port)' => sub {
+    like dies { Net::Nostr::Identifier->parse('bob@example.com:8080') },
+        qr/invalid.*domain/i, 'colon in domain rejected';
+};
+
+subtest 'parse rejects bracketed IPv6' => sub {
+    like dies { Net::Nostr::Identifier->parse('bob@[::1]') },
+        qr/invalid.*domain/i, 'bracketed IPv6 rejected';
+};
+
+subtest 'parse rejects domain with control characters' => sub {
+    like dies { Net::Nostr::Identifier->parse("bob\@example\x00.com") },
+        qr/invalid.*domain/i, 'null byte in domain rejected';
+    like dies { Net::Nostr::Identifier->parse("bob\@example\x7f.com") },
+        qr/invalid.*domain/i, 'DEL in domain rejected';
+};
+
+subtest 'parse accepts valid domains' => sub {
+    my ($l, $d) = Net::Nostr::Identifier->parse('bob@example.com');
+    is $d, 'example.com', 'simple domain';
+
+    ($l, $d) = Net::Nostr::Identifier->parse('bob@sub.example.com');
+    is $d, 'sub.example.com', 'subdomain';
+
+    ($l, $d) = Net::Nostr::Identifier->parse('bob@example.co.uk');
+    is $d, 'example.co.uk', 'multi-label TLD';
+
+    ($l, $d) = Net::Nostr::Identifier->parse('bob@123.456.789.0');
+    is $d, '123.456.789.0', 'numeric/IP-like domain';
+
+    ($l, $d) = Net::Nostr::Identifier->parse('bob@my-relay.example.com');
+    is $d, 'my-relay.example.com', 'hyphenated domain';
+};
+
+###############################################################################
 # new() POD example
 ###############################################################################
 

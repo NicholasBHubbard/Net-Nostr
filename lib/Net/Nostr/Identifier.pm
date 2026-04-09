@@ -32,6 +32,8 @@ sub parse {
         unless length $domain;
     croak "invalid NIP-05 identifier: local-part contains invalid characters (must be a-z0-9-_.)"
         unless $local =~ /\A[a-z0-9\-_.]+\z/;
+    croak "invalid NIP-05 identifier: domain contains invalid characters"
+        if $domain =~ m{[\s/:?\#\[\]\x00-\x1f\x7f]};
     return ($local, $domain);
 }
 
@@ -238,8 +240,24 @@ may be displayed as just the domain.
 
     my ($local_part, $domain) = Net::Nostr::Identifier->parse('bob@example.com');
 
-Splits an identifier into its local-part and domain. Croaks if the
-identifier is invalid (missing C<@>, invalid characters, etc.).
+Splits an identifier into its local-part and domain. Strictly validates
+both parts. Croaks if the identifier is invalid:
+
+=over 4
+
+=item * missing or multiple C<@>
+
+=item * empty local-part or domain
+
+=item * local-part contains characters outside C<a-z0-9-_.>
+
+=item * domain contains whitespace, C</>, C<:>, C<?>, C<#>, C<[>, C<]>, or control characters
+
+=back
+
+Bracketed IPv6 addresses (e.g. C<[::1]>) are rejected because NIP-05 is
+DNS-based. Ports are rejected because the spec constructs HTTPS URLs from
+the domain directly.
 
 =head2 url
 
