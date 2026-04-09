@@ -897,4 +897,44 @@ subtest 'POD: NEG-ERR neg_limit parse' => sub {
     is $msg->neg_limit, 100000, 'neg_limit parsed from POD example';
 };
 
+###############################################################################
+# new() REQ and COUNT reject non-Filter elements in filters array
+###############################################################################
+
+subtest 'new() REQ rejects non-Filter filter elements' => sub {
+    like dies {
+        Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'sub1',
+            filters => [{ kinds => [1] }],
+        )
+    }, qr/filter.*Net::Nostr::Filter/i, 'hashref filter rejected';
+    like dies {
+        Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'sub1',
+            filters => ['not a filter'],
+        )
+    }, qr/filter.*Net::Nostr::Filter/i, 'string filter rejected';
+    like dies {
+        Net::Nostr::Message->new(
+            type => 'REQ', subscription_id => 'sub1',
+            filters => [undef],
+        )
+    }, qr/filter.*Net::Nostr::Filter/i, 'undef filter rejected';
+};
+
+subtest 'new() COUNT rejects non-Filter filter elements' => sub {
+    like dies {
+        Net::Nostr::Message->new(
+            type => 'COUNT', subscription_id => 'sub1',
+            filters => [{ kinds => [1] }],
+        )
+    }, qr/filter.*Net::Nostr::Filter/i, 'hashref filter rejected';
+    like dies {
+        Net::Nostr::Message->new(
+            type => 'COUNT', subscription_id => 'sub1',
+            filters => [Net::Nostr::Filter->new(kinds => [1]), 'bad'],
+        )
+    }, qr/filter.*Net::Nostr::Filter/i, 'mixed valid and invalid rejected';
+};
+
 done_testing;

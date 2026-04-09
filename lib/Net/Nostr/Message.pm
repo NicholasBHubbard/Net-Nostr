@@ -25,6 +25,14 @@ sub _validate_non_negative_int {
         unless defined $value && !ref($value) && $value =~ /\A[0-9]+\z/;
 }
 
+sub _validate_filters {
+    my ($filters) = @_;
+    for my $f (@$filters) {
+        croak "each filter must be a Net::Nostr::Filter object"
+            unless blessed($f) && $f->isa('Net::Nostr::Filter');
+    }
+}
+
 sub _extract_prefix {
     my ($message) = @_;
     return undef unless defined $message && $message =~ /^([a-z-]+): /;
@@ -55,6 +63,7 @@ sub new {
         $self->subscription_id($args{subscription_id});
         croak "req requires at least one filter"
             unless $args{filters} && @{$args{filters}};
+        _validate_filters($args{filters});
         $self->filters($args{filters});
     } elsif ($type eq 'CLOSE') {
         _validate_subscription_id($args{subscription_id});
@@ -98,6 +107,7 @@ sub new {
         } else {
             croak "COUNT requires at least one filter"
                 unless $args{filters} && @{$args{filters}};
+            _validate_filters($args{filters});
             $self->filters($args{filters});
         }
     } elsif ($type eq 'AUTH') {
@@ -476,6 +486,7 @@ for REQ, CLOSE, and COUNT messages. For EOSE and CLOSED, subscription_id
 must be defined but is not length-validated (relay-to-client messages echo
 back whatever the client sent). C<event_id> must be 64-character
 lowercase hex. C<event> must be a L<Net::Nostr::Event> object.
+C<filters> must be an arrayref of L<Net::Nostr::Filter> objects.
 C<message> and C<challenge> must be non-reference scalars.
 
 Croaks on missing required fields, invalid field formats, type mismatches,

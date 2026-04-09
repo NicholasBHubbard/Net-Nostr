@@ -1,5 +1,8 @@
 1.000000   TBD
 
+  - BREAKING: Message REQ and COUNT constructors now validate that each
+    element in the filters array is a Net::Nostr::Filter object. Previously
+    non-Filter values were silently accepted and failed during serialization.
   - New: NIP-77 negentropy syncing now fully integrated into Client and
     Relay. Client gains neg_open, neg_msg, neg_close methods and neg_msg,
     neg_err callbacks. Relay handles NEG-OPEN/NEG-MSG/NEG-CLOSE messages
