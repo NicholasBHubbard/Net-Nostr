@@ -393,4 +393,21 @@ subtest 'WC Info: accessor mutation of notification_types does not affect object
     is scalar @{$info->notification_types}, 1, 'notification_types unaffected';
 };
 
+###############################################################################
+# parse_uri lowercases pubkey from URI
+###############################################################################
+
+subtest 'parse_uri lowercases pubkey from URI' => sub {
+    my $uc_pubkey = uc($wallet_pubkey);
+    my $uri = "nostr+walletconnect://${uc_pubkey}?relay=" . _uri_encode('wss://relay.damus.io') . "&secret=$client_secret";
+    my $conn = Net::Nostr::WalletConnect->parse_uri($uri);
+    is($conn->wallet_pubkey, $wallet_pubkey, 'parsed pubkey is lowercase');
+};
+
+sub _uri_encode {
+    my ($str) = @_;
+    $str =~ s/([^A-Za-z0-9\-_.~])/sprintf("%%%02X", ord($1))/ge;
+    return $str;
+}
+
 done_testing;

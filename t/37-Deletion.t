@@ -441,4 +441,21 @@ subtest 'POD: from_event iteration example' => sub {
     is(\@collected, [$event_id, $other_id], 'iteration works');
 };
 
+###############################################################################
+# from_event skips short tags
+###############################################################################
+
+subtest 'from_event skips tags with missing value' => sub {
+    my $pubkey = 'aa' x 32;
+    my $event = Net::Nostr::Event->new(
+        pubkey  => $pubkey,
+        kind    => 5,
+        content => '',
+        tags    => [['e'], ['a'], ['k'], ['e', 'bb' x 32]],
+    );
+    my $del = Net::Nostr::Deletion->from_event($event);
+    is($del->event_ids, ['bb' x 32], 'only well-formed e tag collected');
+    is($del->addresses, [], 'no addresses from short a tag');
+};
+
 done_testing;

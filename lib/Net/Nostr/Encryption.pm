@@ -25,6 +25,11 @@ use constant {
 sub get_conversation_key {
     my ($class, $privkey_hex, $pubkey_hex) = @_;
 
+    croak "privkey_hex must be 64-char lowercase hex"
+        unless defined $privkey_hex && $privkey_hex =~ /\A[0-9a-f]{64}\z/;
+    croak "pubkey_hex must be 64-char lowercase hex"
+        unless defined $pubkey_hex && $pubkey_hex =~ /\A[0-9a-f]{64}\z/;
+
     my $priv_raw = pack('H*', $privkey_hex);
     my $pub_raw  = pack('H*', $pubkey_hex);
 
@@ -229,8 +234,9 @@ produces the same key as C<get_conversation_key(b_priv, A_pub)>.
     my $key = Net::Nostr::Encryption->get_conversation_key($privkey_hex, $pubkey_hex);
 
 Computes the shared conversation key between two users via ECDH and
-HKDF-extract. Both keys are 64-character hex strings. The private key
-is a secp256k1 scalar, the public key is a 32-byte x-only coordinate.
+HKDF-extract. Both keys must be 64-character lowercase hex strings;
+croaks if either is missing or malformed. The private key is a
+secp256k1 scalar, the public key is a 32-byte x-only coordinate.
 Returns 32 raw bytes.
 
     my $conv = Net::Nostr::Encryption->get_conversation_key(

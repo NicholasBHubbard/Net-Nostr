@@ -69,6 +69,7 @@ sub from_event {
 
     my $self = $class->new(reason => $event->content);
     for my $tag (@{$event->tags}) {
+        next unless @$tag >= 2 && defined $tag->[1];
         if ($tag->[0] eq 'e') {
             push @{$self->_events}, $tag->[1];
         } elsif ($tag->[0] eq 'a') {
@@ -164,8 +165,8 @@ event's C<content> field. Croaks on unknown arguments.
 
     my $del = Net::Nostr::Deletion->from_event($event);
 
-Parses a kind 5 event into a Deletion object. Croaks if the event is
-not kind 5.
+Parses a kind 5 event into a Deletion object. Tags with fewer than
+two elements are silently skipped. Croaks if the event is not kind 5.
 
     my $del = Net::Nostr::Deletion->from_event($event);
     for my $id (@{$del->event_ids}) {

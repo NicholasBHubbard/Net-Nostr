@@ -1,5 +1,15 @@
 1.000000   TBD
 
+  - BREAKING: Encryption->get_conversation_key now validates both hex
+    arguments before calling pack(). Previously malformed hex was
+    silently truncated, producing wrong-length keys and opaque crypto
+    errors.
+  - Fix: WalletConnect->parse_uri now lowercases the pubkey from the
+    URI. Previously uppercase hex in the URI was stored as-is, breaking
+    round-trip consistency with create_uri which requires lowercase.
+  - Fix: Deletion->from_event now skips tags with fewer than two
+    elements. Previously short tags like ['e'] would push undef into
+    the event_ids list.
   - BREAKING: AppHandler->client_tag now croaks on missing name or
     coordinate. Previously these were silently passed as undef into the
     tag array.

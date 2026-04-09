@@ -17,7 +17,7 @@ sub parse_uri {
     croak "URI must use nostr+walletconnect:// protocol"
         unless $uri =~ m{^nostr\+walletconnect://([0-9a-f]{64})\?(.+)$}i;
 
-    my ($wallet_pubkey, $query) = ($1, $2);
+    my ($wallet_pubkey, $query) = (lc($1), $2);
 
     my (@relays, $secret, $lud16);
     for my $pair (split /&/, $query) {
@@ -511,8 +511,9 @@ C<make_hold_invoice>, C<cancel_hold_invoice>, C<settle_hold_invoice>.
     my $conn = Net::Nostr::WalletConnect->parse_uri($uri_string);
 
 Parses a C<nostr+walletconnect://> connection URI. Returns a
-L</Connection> object. Croaks if the URI is malformed or missing
-required parameters (C<relay>, C<secret>).
+L</Connection> object. The pubkey is lowercased during parsing to
+ensure consistency. Croaks if the URI is malformed or missing required
+parameters (C<relay>, C<secret>).
 
 =head2 create_uri
 

@@ -339,4 +339,26 @@ subtest 'get_message_keys: POD example' => sub {
     is(length($hmac_key),     32, 'hmac_key 32 bytes');
 };
 
+###############################################################################
+# get_conversation_key rejects invalid hex
+###############################################################################
+
+subtest 'get_conversation_key rejects non-hex privkey' => sub {
+    my $key = Net::Nostr::Key->new;
+    like(
+        dies { $E->get_conversation_key('not_hex_at_all!', $key->pubkey_hex) },
+        qr/privkey_hex must be 64-char lowercase hex/,
+        'non-hex privkey rejected'
+    );
+};
+
+subtest 'get_conversation_key rejects non-hex pubkey' => sub {
+    my $key = Net::Nostr::Key->new;
+    like(
+        dies { $E->get_conversation_key($key->privkey_hex, 'ZZZZ' x 16) },
+        qr/pubkey_hex must be 64-char lowercase hex/,
+        'non-hex pubkey rejected'
+    );
+};
+
 done_testing;
