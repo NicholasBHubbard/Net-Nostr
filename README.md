@@ -2,8 +2,8 @@
 
 A [Nostr](https://nostr.org/) library for Perl.
 
-Net::Nostr provides both client and relay functionality, implementing 35+
-NIPs covering identity, messaging, encryption, social features, and more.
+Net::Nostr provides both client and relay functionality, with broad NIP support
+covering identity, messaging, encryption, social features, and more.
 
 ## Installation
 
