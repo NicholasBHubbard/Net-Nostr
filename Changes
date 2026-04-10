@@ -1,4 +1,4 @@
-1.000002   2026-04-09
+1.000002   TBD
 
   - Catch dying user callbacks in Client to prevent breaking the connection
 
