@@ -1,5 +1,9 @@
 1.001000   2026-04-15
 
+  - Reject malformed NIP-77 negentropy hex and truncated range payloads
+  - Enforce Negentropy frame_size_limit on encoded protocol frames
+  - Tighten NIP-17 DirectMessage validation for recipients, file hashes,
+    encryption algorithm, and relay URIs
   - Add multi-letter tag filter support to Net::Nostr::Filter
   - Preserve NIP-11 extension fields in Net::Nostr::RelayInfo
   - Ensure relay HTTP and NIP-11 responses are fully written
