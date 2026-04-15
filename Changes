@@ -1,6 +1,8 @@
-1.002000   2026-04-15
+1.003000   {{$NEXT}}
 
   - Add native TLS listener support to Net::Nostr::Relay for wss:// clients
+  - Expose TLS client options in Net::Nostr::Client for secure relay connections
+  - Declare IO::Socket::SSL as a test prerequisite for TLS coverage
 
 1.001000   2026-04-15
 
