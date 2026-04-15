@@ -177,6 +177,16 @@ sub _establish_ws {
     });
 }
 
+sub _syswrite_all {
+    my ($fh, $data) = @_;
+    my $off = 0;
+    while ($off < length $data) {
+        my $n = syswrite($fh, $data, length($data) - $off, $off);
+        last unless defined $n && $n > 0;
+        $off += $n;
+    }
+}
+
 sub _handle_nip11_or_ws {
     my ($self, $fh, $peer_host) = @_;
     my $fileno = fileno($fh);
@@ -192,7 +202,7 @@ sub _handle_nip11_or_ws {
     my $dispatch = sub {
         if ($buf =~ /^OPTIONS\s/i) {
             sysread($fh, my $discard, 8192);
-            syswrite($fh, Net::Nostr::RelayInfo->cors_preflight_response);
+            _syswrite_all($fh, Net::Nostr::RelayInfo->cors_preflight_response);
             close $fh;
             $self->_conn_count_by_ip->{$peer_host}--;
             return;
@@ -201,7 +211,7 @@ sub _handle_nip11_or_ws {
         if ($buf =~ /Accept:\s*application\/nostr\+json/i
             && $buf !~ /Upgrade:\s*websocket/i) {
             sysread($fh, my $discard, 8192);
-            syswrite($fh, $self->relay_info->to_http_response);
+            _syswrite_all($fh, $self->relay_info->to_http_response);
             close $fh;
             $self->_conn_count_by_ip->{$peer_host}--;
             return;

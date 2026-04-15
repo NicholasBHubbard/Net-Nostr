@@ -860,6 +860,42 @@ subtest 'relay sends AUTH challenge on new connection' => sub {
     $relay->stop;
 };
 
+subtest 'relay accepts first EVENT sent immediately after connect' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'immediate event',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $client = AnyEvent::WebSocket::Client->new;
+    my $conn_ref;
+    $client->connect("ws://127.0.0.1:$port")->cb(sub {
+        my $conn = eval { shift->recv };
+        die $@ if $@;
+        $conn_ref = $conn; # keep alive
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            $cv->send($parsed) if $parsed->[0] eq 'OK';
+        });
+
+        # Send immediately, without the delayed helper, to catch handler-ordering races.
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    my $parsed = $cv->recv;
+    is($parsed->[0], 'OK', 'response is OK');
+    is($parsed->[1], $event->id, 'OK references event id');
+    is($parsed->[2], JSON::true, 'event accepted');
+
+    $relay->stop;
+};
+
 subtest 'relay rejects kind 22242 via EVENT (must use AUTH)' => sub {
     my $port = free_port();
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
@@ -3060,6 +3096,92 @@ subtest '_relay_host_matches: bracketed IPv6' => sub {
     ok(Net::Nostr::Relay::_relay_host_matches(
         'ws://[::1]:80', 'ws://[::1]'),
         'IPv6 default port normalization');
+};
+
+###############################################################################
+# Multi-letter tag filters via REQ
+###############################################################################
+
+subtest 'REQ with multi-letter tag filter matches stored events' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my @messages;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        my $phase = 'store';
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($phase eq 'store') {
+                $phase = 'query';
+                $c->send($JSON->encode([
+                    'REQ', 'mlsub', { '#overnet_et' => ['chat'] },
+                ]));
+            } else {
+                push @messages, $parsed;
+                $cv->send() if $parsed->[0] eq 'EOSE';
+            }
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'hello',
+            sig => 'b' x 128, created_at => 1000,
+            tags => [['overnet_et', 'chat'], ['overnet_ot', 'msg']],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    $cv->recv;
+    is(scalar @messages, 2, 'got EVENT + EOSE');
+    is($messages[0][0], 'EVENT', 'first message is EVENT');
+    is($messages[0][2]{tags}[0][0], 'overnet_et', 'event has multi-letter tag');
+    is($messages[1][0], 'EOSE', 'second message is EOSE');
+
+    $relay->stop;
+};
+
+subtest 'REQ with multi-letter tag filter rejects non-matching events' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my @messages;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        my $phase = 'store';
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON->decode($msg->body);
+            if ($phase eq 'store') {
+                $phase = 'query';
+                $c->send($JSON->encode([
+                    'REQ', 'mlsub', { '#overnet_et' => ['relay'] },
+                ]));
+            } else {
+                push @messages, $parsed;
+                $cv->send() if $parsed->[0] eq 'EOSE';
+            }
+        });
+
+        my $event = Net::Nostr::Event->new(
+            pubkey => 'a' x 64, kind => 1, content => 'hello',
+            sig => 'b' x 128, created_at => 1000,
+            tags => [['overnet_et', 'chat']],
+        );
+        $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+    });
+
+    $cv->recv;
+    is(scalar @messages, 1, 'got only EOSE');
+    is($messages[0][0], 'EOSE', 'no matching events returned');
+
+    $relay->stop;
 };
 
 done_testing;
