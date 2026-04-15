@@ -1,4 +1,4 @@
-1.000003   TBD
+1.000003   2026-04-15
 
   - Add nostr:// clone URL support to Net::Nostr::Git (NIP-34)
   - Defer relay message processing to prevent re-entrant WebSocket callbacks
