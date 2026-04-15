@@ -5,8 +5,9 @@ use Test2::V0 -no_srand => 1;
 use AnyEvent;
 use AnyEvent::WebSocket::Client;
 use JSON;
-use File::Temp qw(tempfile);
+use File::Temp qw(tempdir tempfile);
 use IO::Socket::INET;
+use IO::Socket::SSL::Utils qw(CERT_create PEM_cert2file PEM_key2file);
 
 use Net::Nostr::Relay;
 use Net::Nostr::Event;
@@ -28,9 +29,15 @@ sub free_port {
 # Returns the client connection (must be stored to prevent GC).
 sub connect_to_relay {
     my ($port, $cv_or_cb) = @_;
-    my $client = AnyEvent::WebSocket::Client->new;
+    return connect_to_relay_url("ws://127.0.0.1:$port", {}, $cv_or_cb);
+}
+
+sub connect_to_relay_url {
+    my ($url, $client_args, $cv_or_cb) = @_;
+    $client_args ||= {};
+    my $client = AnyEvent::WebSocket::Client->new(%$client_args);
     my $client_conn;
-    $client->connect("ws://127.0.0.1:$port")->cb(sub {
+    $client->connect($url)->cb(sub {
         $client_conn = eval { shift->recv };
         return unless $client_conn;
         # delay to let server establish handler
@@ -40,6 +47,18 @@ sub connect_to_relay {
         });
     });
     return \$client_conn; # return ref to keep alive
+}
+
+sub create_tls_material {
+    my $dir = tempdir(CLEANUP => 1);
+    my ($cert, $key) = CERT_create(
+        subject => { commonName => '127.0.0.1' },
+    );
+    my $cert_file = "$dir/cert.pem";
+    my $key_file  = "$dir/key.pem";
+    PEM_cert2file($cert, $cert_file);
+    PEM_key2file($key, $key_file);
+    return ($dir, $cert_file, $key_file);
 }
 
 ###############################################################################
@@ -70,6 +89,28 @@ subtest 'start accepts WebSocket connections' => sub {
     my $ref = connect_to_relay($port, sub { $cv->send(1) });
 
     ok($cv->recv, 'client connects successfully');
+    $relay->stop;
+};
+
+subtest 'start accepts secure WebSocket connections' => sub {
+    my $port = free_port();
+    my ($tmpdir, $cert_file, $key_file) = create_tls_material();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        ssl_cert_file     => $cert_file,
+        ssl_key_file      => $key_file,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay_url(
+        "wss://127.0.0.1:$port",
+        { ssl_no_verify => 1 },
+        sub { $cv->send(1) },
+    );
+
+    ok($cv->recv, 'client connects successfully over wss');
     $relay->stop;
 };
 
@@ -146,6 +187,46 @@ subtest 'relay responds OK to EVENT' => sub {
 
         $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
     });
+
+    my $response = $cv->recv;
+    ok(defined $response, 'got response');
+    my $parsed = $JSON->decode($response);
+    is($parsed->[0], 'OK', 'response type is OK');
+    is($parsed->[1], $event->id, 'OK references event id');
+    is($parsed->[2], JSON::true, 'event accepted');
+
+    $relay->stop;
+};
+
+subtest 'relay responds OK to EVENT over secure WebSocket' => sub {
+    my $port = free_port();
+    my ($tmpdir, $cert_file, $key_file) = create_tls_material();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        ssl_cert_file     => $cert_file,
+        ssl_key_file      => $key_file,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $event = Net::Nostr::Event->new(
+        pubkey => 'a' x 64, kind => 1, content => 'hello over tls',
+        sig => 'b' x 128, created_at => 1000, tags => [],
+    );
+    my $ref = connect_to_relay_url(
+        "wss://127.0.0.1:$port",
+        { ssl_no_verify => 1 },
+        sub {
+            my ($conn) = @_;
+            $conn->on(each_message => sub {
+                my ($c, $msg) = @_;
+                $cv->send($msg->body);
+            });
+
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+        },
+    );
 
     my $response = $cv->recv;
     ok(defined $response, 'got response');
@@ -1071,6 +1152,31 @@ subtest 'relay with relay_info still accepts WebSocket' => sub {
     $relay->stop;
 };
 
+subtest 'relay with relay_info still accepts secure WebSocket' => sub {
+    use Net::Nostr::RelayInfo;
+
+    my $port = free_port();
+    my ($tmpdir, $cert_file, $key_file) = create_tls_material();
+    my $relay = Net::Nostr::Relay->new(
+        verify_signatures => 0,
+        relay_info        => Net::Nostr::RelayInfo->new(name => 'Test'),
+        ssl_cert_file     => $cert_file,
+        ssl_key_file      => $key_file,
+    );
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+    my $ref = connect_to_relay_url(
+        "wss://127.0.0.1:$port",
+        { ssl_no_verify => 1 },
+        sub { $cv->send('connected') },
+    );
+
+    is($cv->recv, 'connected', 'WebSocket connects with relay_info set over wss');
+    $relay->stop;
+};
+
 ###############################################################################
 # Per-filter limit semantics (NIP-01)
 ###############################################################################
@@ -1193,6 +1299,14 @@ subtest 'new() rejects unknown arguments' => sub {
         dies { Net::Nostr::Relay->new(bogus => 'value') },
         qr/unknown.+bogus/i,
         'unknown argument rejected'
+    );
+};
+
+subtest 'new() rejects ssl_key_file without ssl_cert_file' => sub {
+    like(
+        dies { Net::Nostr::Relay->new(ssl_key_file => 'key.pem') },
+        qr/ssl_key_file requires ssl_cert_file/,
+        'ssl_key_file requires ssl_cert_file',
     );
 };
 

@@ -16,4 +16,5 @@ on 'test' => sub {
     requires 'Test::Pod';
     requires 'Test::Pod::Coverage';
     requires 'Clone';
+    requires 'IO::Socket::SSL';
 };

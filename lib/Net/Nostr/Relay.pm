@@ -53,6 +53,8 @@ use Class::Tiny qw(
     on_event
     idle_timeout
     shutdown_timeout
+    ssl_cert_file
+    ssl_key_file
     _idle_timers
     _sub_by_kind
     _sub_no_kind
@@ -101,6 +103,10 @@ sub new {
             unless ref($self->on_event) eq 'CODE';
     }
 
+    if (defined $self->ssl_key_file && !defined $self->ssl_cert_file) {
+        croak "ssl_key_file requires ssl_cert_file";
+    }
+
     # Initialize store: use provided store, or build default
     if (!$self->store) {
         my %store_args;
@@ -120,7 +126,10 @@ sub new {
     $self->_idle_timers({});
     $self->_sub_by_kind({});
     $self->_sub_no_kind({});
-    $self->_server(AnyEvent::WebSocket::Server->new());
+    $self->_server(AnyEvent::WebSocket::Server->new(
+        (defined $self->ssl_cert_file ? (ssl_cert_file => $self->ssl_cert_file) : ()),
+        (defined $self->ssl_key_file  ? (ssl_key_file  => $self->ssl_key_file)  : ()),
+    ));
     return $self;
 }
 
@@ -156,7 +165,9 @@ sub start {
         }
         $self->_conn_count_by_ip->{$peer_host}++;
 
-        if ($self->relay_info) {
+        if (defined $self->ssl_cert_file || defined $self->ssl_key_file) {
+            $self->_establish_ws($fh, $peer_host);
+        } elsif ($self->relay_info) {
             $self->_handle_nip11_or_ws($fh, $peer_host);
         } else {
             $self->_establish_ws($fh, $peer_host);
@@ -1110,6 +1121,10 @@ Supports all NIP-01 event semantics:
     my $relay = Net::Nostr::Relay->new(max_connections_per_ip => 10);
     my $relay = Net::Nostr::Relay->new(relay_url => 'wss://relay.example.com/');
     my $relay = Net::Nostr::Relay->new(relay_info => $info);
+    my $relay = Net::Nostr::Relay->new(
+        ssl_cert_file => 'cert.pem',
+        ssl_key_file  => 'key.pem',
+    );
     my $relay = Net::Nostr::Relay->new(min_pow_difficulty => 16);
     my $relay = Net::Nostr::Relay->new(max_events => 10000);
     my $relay = Net::Nostr::Relay->new(event_rate_limit => '10/60');
@@ -1146,6 +1161,12 @@ relay serves the information document in response to HTTP requests with
 C<Accept: application/nostr+json>, and handles CORS preflight OPTIONS requests.
 Default: C<undef> (NIP-11 disabled).
 
+For plain listeners, the relay serves this document directly on the same port.
+TLS listeners accept secure WebSocket traffic natively, but do not perform the
+raw HTTP pre-read needed for direct NIP-11 document serving on that same
+socket. If you want HTTPS for the relay information document, terminate TLS in
+front of the relay or serve the document separately.
+
     use Net::Nostr::RelayInfo;
 
     my $relay = Net::Nostr::Relay->new(
@@ -1154,6 +1175,18 @@ Default: C<undef> (NIP-11 disabled).
             supported_nips => [1, 9, 11, 42],
             version        => '1.0.0',
         ),
+    );
+
+=item C<ssl_cert_file> - Path to a PEM certificate file used to accept secure
+WebSocket listeners (C<wss://>). The PEM file may contain both the certificate
+and private key. Default: C<undef> (plain C<ws://> listener).
+
+=item C<ssl_key_file> - Optional path to a PEM private key file used with
+C<ssl_cert_file>. Default: C<undef>. If set, C<ssl_cert_file> is required.
+
+    my $relay = Net::Nostr::Relay->new(
+        ssl_cert_file => 'cert.pem',
+        ssl_key_file  => 'key.pem',
     );
 
 =item C<store> - A pluggable storage backend object. Must implement the same
@@ -1304,6 +1337,15 @@ process, or compose with other AnyEvent watchers.
     my $client = Net::Nostr::Client->new;
     $client->connect('ws://127.0.0.1:8080');
 
+    my $secure = Net::Nostr::Relay->new(
+        ssl_cert_file => 'cert.pem',
+        ssl_key_file  => 'key.pem',
+    );
+    $secure->start('127.0.0.1', 8443);
+
+    my $secure_client = Net::Nostr::Client->new;
+    $secure_client->connect('wss://127.0.0.1:8443');
+
 =head2 stop
 
     $relay->stop;
@@ -1451,6 +1493,9 @@ Returns the L<Net::Nostr::RelayInfo> object (NIP-11), or C<undef> if not set.
     $relay->start('0.0.0.0', 8080);
 
     # Clients can now fetch: curl -H 'Accept: application/nostr+json' http://localhost:8080/
+
+On TLS listeners, L</relay_info> metadata can still describe the relay, but the
+built-in direct NIP-11 HTTP response path is only available on plain listeners.
 
 =head2 max_subscriptions
 
