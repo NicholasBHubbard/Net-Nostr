@@ -5,6 +5,7 @@ use Test2::V0 -no_srand => 1;
 use AnyEvent;
 use AnyEvent::WebSocket::Client;
 use JSON;
+use File::Temp qw(tempfile);
 use IO::Socket::INET;
 
 use Net::Nostr::Relay;
@@ -894,6 +895,52 @@ subtest 'relay accepts first EVENT sent immediately after connect' => sub {
     is($parsed->[2], JSON::true, 'event accepted');
 
     $relay->stop;
+};
+
+subtest '_syswrite_all helper writes full payload to filehandle' => sub {
+    my ($fh, $path) = tempfile();
+
+    my $written = Net::Nostr::Relay::_syswrite_all($fh, 'hello world');
+    close $fh;
+
+    open my $rfh, '<', $path or die "open temp file for read: $!";
+    local $/;
+    my $buf = <$rfh>;
+    close $rfh;
+
+    is($written, 11, 'returns number of bytes written');
+    is($buf, 'hello world', 'full payload written');
+};
+
+subtest '_write_all helper advances across partial writes' => sub {
+    my @offsets;
+    my $written = '';
+    my @returns = (2, 1, 3);
+
+    my $count = Net::Nostr::Relay::_write_all(sub {
+        my ($buf, $off) = @_;
+        push @offsets, $off;
+        my $n = shift @returns;
+        $written .= substr($buf, $off, $n) if defined $n && $n > 0;
+        return $n;
+    }, 'abcdef');
+
+    is($count, 6, 'returns bytes written across partial writes');
+    is($written, 'abcdef', 'all data segments written in order');
+    is(\@offsets, [0, 2, 3], 'writer called with advancing offsets');
+};
+
+subtest '_write_all helper stops on zero-byte write' => sub {
+    my $calls = 0;
+
+    my $count = Net::Nostr::Relay::_write_all(sub {
+        my ($buf, $off) = @_;
+        $calls++;
+        return 0;
+    }, 'abcdef');
+
+    is($count, 0, 'zero-byte write stops without progress');
+    is($calls, 1, 'writer called once');
 };
 
 subtest 'relay rejects kind 22242 via EVENT (must use AUTH)' => sub {

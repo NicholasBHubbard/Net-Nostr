@@ -177,14 +177,23 @@ sub _establish_ws {
     });
 }
 
-sub _syswrite_all {
-    my ($fh, $data) = @_;
+sub _write_all {
+    my ($writer, $data) = @_;
     my $off = 0;
     while ($off < length $data) {
-        my $n = syswrite($fh, $data, length($data) - $off, $off);
+        my $n = $writer->($data, $off);
         last unless defined $n && $n > 0;
         $off += $n;
     }
+    return $off;
+}
+
+sub _syswrite_all {
+    my ($fh, $data) = @_;
+    return _write_all(sub {
+        my ($buf, $off) = @_;
+        return syswrite($fh, $buf, length($buf) - $off, $off);
+    }, $data);
 }
 
 sub _handle_nip11_or_ws {
