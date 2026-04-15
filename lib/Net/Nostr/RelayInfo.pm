@@ -247,7 +247,8 @@ subscriptions) or C<kinds> (for per-kind publication fees):
 
     my $info = Net::Nostr::RelayInfo->from_json($json_string);
 
-Parses a JSON relay information document. Unknown fields are ignored per spec.
+Parses a JSON relay information document. Unknown fields are preserved as
+extension fields and are available via L</extensions>.
 
     use HTTP::Tiny;
     my $resp = HTTP::Tiny->new->get($relay_url, {

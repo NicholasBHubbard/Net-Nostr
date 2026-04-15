@@ -309,7 +309,7 @@ Class method. Returns true if the event matches any of the given filters
     my $values = $filter->tag_filter('t');  # ['nostr'] or undef
 
 Returns the arrayref of values for a tag filter, or C<undef> if that
-tag letter was not specified.
+tag name was not specified.
 
 =head2 to_hash
 
