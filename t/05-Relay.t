@@ -2930,6 +2930,48 @@ subtest 'idle_timeout: cleanup after disconnect removes timer state' => sub {
 };
 
 ###############################################################################
+# Deferred message processing: messages for disconnected clients are dropped
+###############################################################################
+
+subtest 'deferred processing drops messages for server-removed connections' => sub {
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
+    $relay->start('127.0.0.1', $port);
+
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak("timeout") });
+
+    my $ws = AnyEvent::WebSocket::Client->new;
+    $ws->connect("ws://127.0.0.1:$port")->cb(sub {
+        my $conn = eval { shift->recv } or return;
+        my $t; $t = AnyEvent->timer(after => 0.15, cb => sub {
+            undef $t;
+            # Send a message, then forcefully remove the connection from the
+            # server side before AE::postpone fires, simulating a server-
+            # initiated disconnect during the deferral window.
+            my $event = Net::Nostr::Event->new(
+                pubkey => 'a' x 64, kind => 1, content => 'ghost',
+                sig => 'b' x 128, created_at => 1000, tags => [],
+            );
+            $conn->send(Net::Nostr::Message->new(type => 'EVENT', event => $event)->serialize);
+            # Wipe all server-side connection state before postpone runs
+            $relay->_connections({});
+            # Wait for deferred processing to run (and be skipped)
+            my $t2; $t2 = AnyEvent->timer(after => 0.3, cb => sub {
+                undef $t2;
+                $cv->send(1);
+            });
+        });
+    });
+
+    ok($cv->recv, 'no crash when processing message after server removes connection');
+    my $events = $relay->events || [];
+    is(scalar @$events, 0, 'event was not stored for removed connection');
+
+    $relay->stop;
+};
+
+###############################################################################
 # _relay_host_matches: URL normalization
 ###############################################################################
 

@@ -2,6 +2,7 @@ package Net::Nostr::Relay;
 
 use strictures 2;
 
+use AnyEvent ();
 use Carp qw(croak);
 use Net::Nostr::Message;
 use Net::Nostr::Filter;
@@ -384,105 +385,109 @@ sub _on_connection {
             $self->{_reset_idle}{$conn_id}->();
         }
 
-        if (defined $self->max_message_length && length($raw) > $self->max_message_length) {
-            $conn->send(Net::Nostr::Message->new(
-                type => 'NOTICE', message => "error: message too large",
-            )->serialize);
-            return;
-        }
+        AE::postpone {
+            return unless $self->_connections->{$conn_id};
 
-        my $arr = eval { JSON::decode_json($raw) };
-        return warn "bad message: $@\n" if $@ || ref($arr) ne 'ARRAY' || !@$arr;
-
-        my $type = $arr->[0];
-
-        if ($type eq 'REQ') {
-            my $sub_id = $arr->[1] // '';
-            my $msg = eval { Net::Nostr::Message->parse($message->body) };
-            if ($@) {
+            if (defined $self->max_message_length && length($raw) > $self->max_message_length) {
                 $conn->send(Net::Nostr::Message->new(
-                    type => 'CLOSED', subscription_id => $sub_id,
-                    message => "error: $@"
+                    type => 'NOTICE', message => "error: message too large",
                 )->serialize);
                 return;
             }
-            $self->_handle_req($conn_id, $msg->subscription_id, @{$msg->filters});
-            return;
-        }
 
-        if ($type eq 'COUNT') {
-            my $sub_id = $arr->[1] // '';
-            my $msg = eval { Net::Nostr::Message->parse($message->body) };
-            if ($@) {
-                $conn->send(Net::Nostr::Message->new(
-                    type => 'CLOSED', subscription_id => $sub_id,
-                    message => "error: $@"
-                )->serialize);
+            my $arr = eval { JSON::decode_json($raw) };
+            return warn "bad message: $@\n" if $@ || ref($arr) ne 'ARRAY' || !@$arr;
+
+            my $type = $arr->[0];
+
+            if ($type eq 'REQ') {
+                my $sub_id = $arr->[1] // '';
+                my $msg = eval { Net::Nostr::Message->parse($raw) };
+                if ($@) {
+                    $conn->send(Net::Nostr::Message->new(
+                        type => 'CLOSED', subscription_id => $sub_id,
+                        message => "error: $@"
+                    )->serialize);
+                    return;
+                }
+                $self->_handle_req($conn_id, $msg->subscription_id, @{$msg->filters});
                 return;
             }
-            $self->_handle_count($conn_id, $msg->subscription_id, @{$msg->filters});
-            return;
-        }
 
-        if ($type eq 'NEG-OPEN') {
-            my $sub_id = $arr->[1] // '';
-            my $msg = eval { Net::Nostr::Message->parse($message->body) };
-            if ($@) {
-                my $reason = $@;
-                $reason =~ s/\n\z//;
-                $conn->send(Net::Nostr::Message->new(
-                    type => 'NEG-ERR', subscription_id => $sub_id,
-                    message => "error: $reason",
-                )->serialize);
+            if ($type eq 'COUNT') {
+                my $sub_id = $arr->[1] // '';
+                my $msg = eval { Net::Nostr::Message->parse($raw) };
+                if ($@) {
+                    $conn->send(Net::Nostr::Message->new(
+                        type => 'CLOSED', subscription_id => $sub_id,
+                        message => "error: $@"
+                    )->serialize);
+                    return;
+                }
+                $self->_handle_count($conn_id, $msg->subscription_id, @{$msg->filters});
                 return;
             }
-            $self->_handle_neg_open($conn_id, $msg);
-            return;
-        }
 
-        if ($type eq 'NEG-MSG') {
-            my $sub_id = $arr->[1] // '';
-            my $msg = eval { Net::Nostr::Message->parse($message->body) };
-            if ($@) {
-                my $reason = $@;
-                $reason =~ s/\n\z//;
-                $conn->send(Net::Nostr::Message->new(
-                    type => 'NEG-ERR', subscription_id => $sub_id,
-                    message => "error: $reason",
-                )->serialize);
+            if ($type eq 'NEG-OPEN') {
+                my $sub_id = $arr->[1] // '';
+                my $msg = eval { Net::Nostr::Message->parse($raw) };
+                if ($@) {
+                    my $reason = $@;
+                    $reason =~ s/\n\z//;
+                    $conn->send(Net::Nostr::Message->new(
+                        type => 'NEG-ERR', subscription_id => $sub_id,
+                        message => "error: $reason",
+                    )->serialize);
+                    return;
+                }
+                $self->_handle_neg_open($conn_id, $msg);
                 return;
             }
-            $self->_handle_neg_msg($conn_id, $msg);
-            return;
-        }
 
-        if ($type eq 'NEG-CLOSE') {
-            $self->_handle_neg_close($conn_id, $arr->[1] // '');
-            return;
-        }
-
-        my $msg = eval { Net::Nostr::Message->parse($message->body) };
-        if ($@) {
-            if ($type eq 'EVENT' || $type eq 'AUTH') {
-                my $raw_id = (ref($arr->[1]) eq 'HASH' ? $arr->[1]{id} : '') // '';
-                my $event_id = $raw_id =~ /\A[0-9a-f]{64}\z/ ? $raw_id : ('0' x 64);
-                my $reason = $@;
-                $reason =~ s/\n\z//;
-                $conn->send(Net::Nostr::Message->new(
-                    type => 'OK', event_id => $event_id,
-                    accepted => 0, message => "invalid: $reason"
-                )->serialize);
+            if ($type eq 'NEG-MSG') {
+                my $sub_id = $arr->[1] // '';
+                my $msg = eval { Net::Nostr::Message->parse($raw) };
+                if ($@) {
+                    my $reason = $@;
+                    $reason =~ s/\n\z//;
+                    $conn->send(Net::Nostr::Message->new(
+                        type => 'NEG-ERR', subscription_id => $sub_id,
+                        message => "error: $reason",
+                    )->serialize);
+                    return;
+                }
+                $self->_handle_neg_msg($conn_id, $msg);
+                return;
             }
-            return;
-        }
 
-        if ($msg->type eq 'EVENT') {
-            $self->_handle_event($conn_id, $msg->event);
-        } elsif ($msg->type eq 'CLOSE') {
-            $self->_handle_close($conn_id, $msg->subscription_id);
-        } elsif ($msg->type eq 'AUTH') {
-            $self->_handle_auth($conn_id, $msg->event);
-        }
+            if ($type eq 'NEG-CLOSE') {
+                $self->_handle_neg_close($conn_id, $arr->[1] // '');
+                return;
+            }
+
+            my $msg = eval { Net::Nostr::Message->parse($raw) };
+            if ($@) {
+                if ($type eq 'EVENT' || $type eq 'AUTH') {
+                    my $raw_id = (ref($arr->[1]) eq 'HASH' ? $arr->[1]{id} : '') // '';
+                    my $event_id = $raw_id =~ /\A[0-9a-f]{64}\z/ ? $raw_id : ('0' x 64);
+                    my $reason = $@;
+                    $reason =~ s/\n\z//;
+                    $conn->send(Net::Nostr::Message->new(
+                        type => 'OK', event_id => $event_id,
+                        accepted => 0, message => "invalid: $reason"
+                    )->serialize);
+                }
+                return;
+            }
+
+            if ($msg->type eq 'EVENT') {
+                $self->_handle_event($conn_id, $msg->event);
+            } elsif ($msg->type eq 'CLOSE') {
+                $self->_handle_close($conn_id, $msg->subscription_id);
+            } elsif ($msg->type eq 'AUTH') {
+                $self->_handle_auth($conn_id, $msg->event);
+            }
+        };
     });
 
     $conn->on(finish => sub {
