@@ -298,10 +298,11 @@ Path to a CA file used to verify C<wss://> relay certificates.
     # Non-blocking with callback:
     $client->connect($url, sub { ... });
 
-Connects to the relay at the given WebSocket URL. Blocks until the
-connection is established and returns C<$self> for chaining. Croaks
-if the connection fails, C<$url> is not provided, or the callback
-is not a CODE ref.
+Connects to the relay at the given WebSocket URL. Supports both
+C<ws://> and C<wss://> relay URLs. Blocks until the connection is
+established and returns C<$self> for chaining. Croaks if the
+connection fails, C<$url> is not provided, or the callback is not a
+CODE ref.
 
 If a callback is provided, connects asynchronously and returns
 immediately without blocking. The callback receives a single argument:
