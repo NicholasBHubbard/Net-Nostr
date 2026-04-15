@@ -4,9 +4,6 @@
   - Preserve NIP-11 extension fields in Net::Nostr::RelayInfo
   - Ensure relay HTTP and NIP-11 responses are fully written
   - Expand relay coverage for immediate post-connect events and write-loop behavior
-
-1.000003   2026-04-15
-
   - Add nostr:// clone URL support to Net::Nostr::Git (NIP-34)
   - Defer relay message processing to prevent re-entrant WebSocket callbacks
 
