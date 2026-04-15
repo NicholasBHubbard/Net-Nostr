@@ -1,4 +1,4 @@
-{{$NEXT}}
+1.001000   2026-04-15
 
   - Add multi-letter tag filter support to Net::Nostr::Filter
   - Preserve NIP-11 extension fields in Net::Nostr::RelayInfo
