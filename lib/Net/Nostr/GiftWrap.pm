@@ -2,6 +2,8 @@ package Net::Nostr::GiftWrap;
 
 use strictures 2;
 
+use Net::Nostr::_ConstructorArgs ();
+
 use Carp qw(croak);
 use JSON ();
 use Net::Nostr::Event;
@@ -25,13 +27,15 @@ sub _rumor_hash {
 }
 
 sub create_rumor {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     delete $args{sig};  # rumors are unsigned
     return Net::Nostr::Event->new(%args);
 }
 
 sub seal {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $rumor            = $args{rumor}            // croak "rumor required";
     my $sender_key       = $args{sender_key}       // croak "sender_key required";
     my $recipient_pubkey = $args{recipient_pubkey} // croak "recipient_pubkey required";
@@ -58,7 +62,8 @@ sub seal {
 }
 
 sub wrap {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $seal             = $args{seal}             // croak "seal required";
     my $recipient_pubkey = $args{recipient_pubkey} // croak "recipient_pubkey required";
     croak "recipient_pubkey must be 64-char lowercase hex" unless $recipient_pubkey =~ $HEX64;
@@ -85,7 +90,8 @@ sub wrap {
 }
 
 sub seal_and_wrap {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $rumor            = $args{rumor}            // croak "rumor required";
     my $sender_key       = $args{sender_key}       // croak "sender_key required";
     my $recipient_pubkey = $args{recipient_pubkey} // croak "recipient_pubkey required";
@@ -105,7 +111,8 @@ sub seal_and_wrap {
 }
 
 sub unwrap {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $event         = $args{event}         // croak "event required";
     my $recipient_key = $args{recipient_key} // croak "recipient_key required";
 

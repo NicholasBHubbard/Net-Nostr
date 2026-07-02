@@ -38,6 +38,29 @@ client and relay functionality. Most of the useful functionality lives in the
 individual modules listed below -- start with L<Net::Nostr::Key> for identity
 management and L<Net::Nostr::Event> for creating events.
 
+=head1 NAMED ARGUMENTS
+
+Constructors and named-argument builder/helper APIs accept either a flat list
+or a single hash reference when their documented argument list is entirely
+named:
+
+    my $event = Net::Nostr::Event->new(
+        pubkey  => $pubkey,
+        kind    => 1,
+        content => 'hello',
+    );
+
+    my $event = Net::Nostr::Event->new({
+        pubkey  => $pubkey,
+        kind    => 1,
+        content => 'hello',
+    });
+
+Positional parser APIs, such as C<parse($json)> and C<from_event($event)>, keep
+their positional arguments. Some positional APIs also accept trailing named
+options; pass those options as shown in the method documentation unless that
+method explicitly documents hash-reference option support.
+
 =head1 CLASS METHODS
 
 =head2 client

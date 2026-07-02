@@ -2,6 +2,8 @@ package Net::Nostr::AppHandler;
 
 use strictures 2;
 
+use Net::Nostr::_ConstructorArgs ();
+
 use Carp qw(croak);
 use Net::Nostr::Event;
 
@@ -19,12 +21,12 @@ my %PLATFORM_TAGS = map { $_ => 1 } qw(web ios android);
 
 sub new {
     my $class = shift;
-    my %args = @_;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     $args{apps}      //= [];
     $args{kinds}     //= [];
     $args{platforms} //= [];
     $args{content}   //= '';
-    my $self = bless \%args, $class;
+    my $self = bless { %args }, $class;
     my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
     my @unknown = grep { !exists $known{$_} } keys %$self;
     croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
@@ -32,7 +34,8 @@ sub new {
 }
 
 sub recommendation {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $pubkey     = $args{pubkey}     // croak "recommendation requires 'pubkey'";
     my $event_kind = $args{event_kind} // croak "recommendation requires 'event_kind'";
@@ -56,7 +59,8 @@ sub recommendation {
 }
 
 sub handler {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $pubkey     = $args{pubkey}     // croak "handler requires 'pubkey'";
     my $identifier = $args{identifier} // croak "handler requires 'identifier'";
@@ -84,7 +88,8 @@ sub handler {
 }
 
 sub client_tag {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     croak "client_tag requires 'name'" unless defined $args{name};
     croak "client_tag requires 'coordinate'" unless defined $args{coordinate};
     my @tag = ('client', $args{name}, $args{coordinate});
@@ -174,7 +179,8 @@ sub validate {
 }
 
 sub recommendation_filter {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     return {
         kinds   => [31989],
         '#d'    => ["$args{event_kind}"],
@@ -183,7 +189,8 @@ sub recommendation_filter {
 }
 
 sub handler_filter {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     return {
         kinds   => [31990],
         '#k'    => ["$args{event_kind}"],
@@ -275,6 +282,8 @@ with NIP-19-encoded entities.
 =head1 CONSTRUCTOR
 
 =head2 new
+
+Accepts named arguments as either a flat list or a single hash reference.
 
     my $info = Net::Nostr::AppHandler->new(%fields);
 

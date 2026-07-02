@@ -2,6 +2,8 @@ package Net::Nostr::Relay;
 
 use strictures 2;
 
+use Net::Nostr::_ConstructorArgs ();
+
 use AnyEvent ();
 use Carp qw(croak);
 use Net::Nostr::Message;
@@ -74,7 +76,7 @@ sub subscriptions {
 
 sub new {
     my $class = shift;
-    my $self = bless { @_ }, $class;
+    my $self = bless { Net::Nostr::_ConstructorArgs::normalize(@_) }, $class;
     my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
     my @unknown = grep { !exists $known{$_} } keys %$self;
     croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
@@ -1115,6 +1117,8 @@ Supports all NIP-01 event semantics:
 =head1 CONSTRUCTOR
 
 =head2 new
+
+Accepts named arguments as either a flat list or a single hash reference.
 
     my $relay = Net::Nostr::Relay->new;
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);

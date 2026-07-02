@@ -2,6 +2,8 @@ package Net::Nostr::Git;
 
 use strictures 2;
 
+use Net::Nostr::_ConstructorArgs ();
+
 use Carp qw(croak);
 use Net::Nostr::Bech32 qw(decode_naddr);
 use Net::Nostr::Event;
@@ -26,7 +28,7 @@ use Class::Tiny qw(
 
 sub new {
     my $class = shift;
-    my $self = bless { @_ }, $class;
+    my $self = bless { Net::Nostr::_ConstructorArgs::normalize(@_) }, $class;
     my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
     my @unknown = grep { !exists $known{$_} } keys %$self;
     croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
@@ -53,7 +55,8 @@ my %NIP34_KINDS = map { $_ => 1 } (30617, 30618, 1617, 1618, 1619, 1621,
                                      1630, 1631, 1632, 1633, 10317);
 
 sub repository {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $pubkey = $args{pubkey} // croak "repository requires 'pubkey'";
     my $id     = $args{id}     // croak "repository requires 'id'";
@@ -84,7 +87,8 @@ sub repository {
 }
 
 sub repository_state {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $pubkey = $args{pubkey} // croak "repository_state requires 'pubkey'";
     my $id     = $args{id}     // croak "repository_state requires 'id'";
@@ -107,7 +111,8 @@ sub repository_state {
 }
 
 sub patch {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $pubkey     = $args{pubkey}     // croak "patch requires 'pubkey'";
     my $content    = $args{content}    // croak "patch requires 'content'";
@@ -153,7 +158,8 @@ sub patch {
 }
 
 sub pull_request {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $pubkey     = $args{pubkey}     // croak "pull_request requires 'pubkey'";
     my $content    = $args{content}    // croak "pull_request requires 'content'";
@@ -197,7 +203,8 @@ sub pull_request {
 }
 
 sub pull_request_update {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $pubkey     = $args{pubkey}     // croak "pull_request_update requires 'pubkey'";
     my $repository = $args{repository} // croak "pull_request_update requires 'repository'";
@@ -238,7 +245,8 @@ sub pull_request_update {
 }
 
 sub issue {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $pubkey     = $args{pubkey}     // croak "issue requires 'pubkey'";
     my $content    = $args{content}    // croak "issue requires 'content'";
@@ -263,7 +271,8 @@ sub issue {
 }
 
 sub status {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $pubkey        = $args{pubkey}        // croak "status requires 'pubkey'";
     my $status        = $args{status}        // croak "status requires 'status'";
@@ -330,7 +339,8 @@ sub status {
 }
 
 sub grasp_list {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $pubkey = $args{pubkey} // croak "grasp_list requires 'pubkey'";
 
@@ -491,7 +501,8 @@ sub _percent_decode {
 }
 
 sub nostr_clone_url {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     if (defined $args{naddr}) {
         decode_naddr($args{naddr});
@@ -709,6 +720,8 @@ L<Net::Nostr::Comment>).
 =head1 CONSTRUCTOR
 
 =head2 new
+
+Accepts named arguments as either a flat list or a single hash reference.
 
     my $info = Net::Nostr::Git->new(%fields);
 

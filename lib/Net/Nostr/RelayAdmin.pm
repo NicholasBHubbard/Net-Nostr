@@ -2,6 +2,8 @@ package Net::Nostr::RelayAdmin;
 
 use strictures 2;
 
+use Net::Nostr::_ConstructorArgs ();
+
 use Carp qw(croak);
 use JSON ();
 use Net::Nostr::HttpAuth qw(create_auth_header);
@@ -36,7 +38,7 @@ my %IP_METHODS = map { $_ => 1 } qw(
 );
 
 sub encode_request {
-    my (%args) = @_;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $method = $args{method};
     croak "method is required" unless defined $method && length $method;
 
@@ -66,7 +68,7 @@ sub decode_response {
 }
 
 sub request_with_auth {
-    my (%args) = @_;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $key       = $args{key}       // croak "key is required";
     my $relay_url = $args{relay_url} // croak "relay_url is required";
 

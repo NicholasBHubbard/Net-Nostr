@@ -2,6 +2,8 @@ package Net::Nostr::RelayAccess;
 
 use strictures 2;
 
+use Net::Nostr::_ConstructorArgs ();
+
 use Carp qw(croak);
 use Net::Nostr::Event;
 
@@ -22,9 +24,9 @@ my %KINDS = (
 
 sub new {
     my $class = shift;
-    my %args = @_;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     $args{members} //= [];
-    my $self = bless \%args, $class;
+    my $self = bless { %args }, $class;
     my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
     my @unknown = grep { !exists $known{$_} } keys %$self;
     croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
@@ -32,7 +34,8 @@ sub new {
 }
 
 sub membership_list {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $members = delete $args{members} // [];
 
@@ -48,7 +51,8 @@ sub membership_list {
 }
 
 sub add_member {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $member = delete $args{member}
         // croak "add_member requires 'member'";
@@ -62,7 +66,8 @@ sub add_member {
 }
 
 sub remove_member {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $member = delete $args{member}
         // croak "remove_member requires 'member'";
@@ -76,7 +81,8 @@ sub remove_member {
 }
 
 sub join_request {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $claim = delete $args{claim}
         // croak "join_request requires 'claim'";
@@ -90,7 +96,8 @@ sub join_request {
 }
 
 sub invite {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $claim = delete $args{claim}
         // croak "invite requires 'claim'";
@@ -104,7 +111,8 @@ sub invite {
 }
 
 sub leave_request {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     return Net::Nostr::Event->new(
         %args,
@@ -256,6 +264,8 @@ All six kinds MUST include a NIP-70 C<["-"]> protected tag.
 =head1 CONSTRUCTOR
 
 =head2 new
+
+Accepts named arguments as either a flat list or a single hash reference.
 
     my $ra = Net::Nostr::RelayAccess->new(
         members => [$member_pk],

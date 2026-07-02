@@ -2,6 +2,8 @@ package Net::Nostr::Repost;
 
 use strictures 2;
 
+use Net::Nostr::_ConstructorArgs ();
+
 use Carp qw(croak);
 use JSON ();
 use Net::Nostr::Event;
@@ -22,7 +24,7 @@ my $JSON = JSON->new->utf8;
 
 sub new {
     my $class = shift;
-    my $self = bless { @_ }, $class;
+    my $self = bless { Net::Nostr::_ConstructorArgs::normalize(@_) }, $class;
     my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
     my @unknown = grep { !exists $known{$_} } keys %$self;
     croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
@@ -30,7 +32,8 @@ sub new {
 }
 
 sub repost {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $event     = $args{event}     // croak "repost requires 'event'";
     my $pubkey    = $args{pubkey}    // croak "repost requires 'pubkey'";
@@ -210,6 +213,8 @@ C<["q", "E<lt>event-idE<gt>", "E<lt>relay-urlE<gt>", "E<lt>pubkeyE<gt>"]>.
 =head1 CONSTRUCTOR
 
 =head2 new
+
+Accepts named arguments as either a flat list or a single hash reference.
 
     my $info = Net::Nostr::Repost->new(%fields);
 

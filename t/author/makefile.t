@@ -8,15 +8,16 @@ use File::Copy qw(copy);
 use File::Path qw(make_path);
 use File::Temp qw(tempdir);
 
-subtest 'Makefile.PL runs nested test directories' => sub {
+subtest 'Makefile.PL runs release tests and skips author tests' => sub {
     my $tmp = tempdir(CLEANUP => 1);
     make_path("$tmp/lib/Net");
     make_path("$tmp/t/nip");
+    make_path("$tmp/t/author");
 
     copy('Makefile.PL', "$tmp/Makefile.PL") or die "copy Makefile.PL: $!";
     copy('lib/Net/Nostr.pm', "$tmp/lib/Net/Nostr.pm") or die "copy Net::Nostr: $!";
 
-    for my $path ("$tmp/t/top.t", "$tmp/t/nip/nested.t") {
+    for my $path ("$tmp/t/top.t", "$tmp/t/nip/nested.t", "$tmp/t/author/pod.t") {
         open my $tfh, '>', $path or die "open $path: $!";
         print {$tfh} "use strictures 2;\nuse Test2::V0 -no_srand => 1;\nok 1;\ndone_testing;\n";
         close $tfh;
@@ -43,8 +44,13 @@ subtest 'Makefile.PL runs nested test directories' => sub {
     );
     like(
         $test_files,
-        qr/(?:^|\s)(?:t\/\*\/\*\.t|t\/nip\/nested\.t)(?:\s|$)/,
-        'nested test included'
+        qr/(?:^|\s)(?:t\/nip\/\*\.t|t\/nip\/nested\.t)(?:\s|$)/,
+        'NIP test included'
+    );
+    unlike(
+        $test_files,
+        qr/(?:^|\s)(?:t\/author\/\*\.t|t\/author\/pod\.t|t\/\*\/\*\.t)(?:\s|$)/,
+        'author tests are excluded'
     );
 };
 

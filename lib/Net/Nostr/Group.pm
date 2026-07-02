@@ -2,6 +2,8 @@ package Net::Nostr::Group;
 
 use strictures 2;
 
+use Net::Nostr::_ConstructorArgs ();
+
 use Carp qw(croak);
 use Net::Nostr::Event;
 
@@ -21,7 +23,8 @@ sub parse_id {
 }
 
 sub format_id {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $host     = $args{host}     // croak "format_id requires 'host'";
     my $group_id = $args{group_id} // croak "format_id requires 'group_id'";
     return "${host}'${group_id}";
@@ -33,7 +36,9 @@ sub validate_group_id {
 }
 
 sub _validate_and_extract_group {
-    my ($class, $method, %args) = @_;
+    my $class = shift;
+    my $method = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $pubkey   = $args{pubkey}   // croak "$method requires 'pubkey'";
     my $group_id = $args{group_id} // croak "$method requires 'group_id'";
     croak "invalid group_id: must match $VALID_GROUP_ID"
@@ -52,7 +57,8 @@ sub _build_tags_with_h {
 
 # Kind 9000: put-user
 sub put_user {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('put_user', %args);
     my $target = $args{target} // croak "put_user requires 'target'";
     croak "target must be 64-char lowercase hex" unless $target =~ $HEX64;
@@ -72,7 +78,8 @@ sub put_user {
 
 # Kind 9001: remove-user
 sub remove_user {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('remove_user', %args);
     my $target = $args{target} // croak "remove_user requires 'target'";
     croak "target must be 64-char lowercase hex" unless $target =~ $HEX64;
@@ -87,7 +94,8 @@ sub remove_user {
 
 # Kind 9002: edit-metadata
 sub edit_metadata {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('edit_metadata', %args);
     my $reason = $args{reason} // '';
 
@@ -110,7 +118,8 @@ sub edit_metadata {
 
 # Kind 9005: delete-event
 sub delete_event {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('delete_event', %args);
     my $event_id = $args{event_id} // croak "delete_event requires 'event_id'";
     croak "event_id must be 64-char lowercase hex" unless $event_id =~ $HEX64;
@@ -125,7 +134,8 @@ sub delete_event {
 
 # Kind 9007: create-group
 sub create_group {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('create_group', %args);
     my $reason = $args{reason} // '';
 
@@ -137,7 +147,8 @@ sub create_group {
 
 # Kind 9008: delete-group
 sub delete_group {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('delete_group', %args);
     my $reason = $args{reason} // '';
 
@@ -149,7 +160,8 @@ sub delete_group {
 
 # Kind 9009: create-invite
 sub create_invite {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('create_invite', %args);
     my $code   = $args{code} // croak "create_invite requires 'code'";
     my $reason = $args{reason} // '';
@@ -163,7 +175,8 @@ sub create_invite {
 
 # Kind 9021: join-request
 sub join_request {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('join_request', %args);
     my $reason = $args{reason} // '';
 
@@ -176,7 +189,8 @@ sub join_request {
 
 # Kind 9022: leave-request
 sub leave_request {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my ($pubkey, $group_id) = $class->_validate_and_extract_group('leave_request', %args);
     my $reason = $args{reason} // '';
 
@@ -188,7 +202,8 @@ sub leave_request {
 
 # Kind 39000: group metadata (relay-generated, addressable)
 sub metadata {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $pubkey   = $args{pubkey}   // croak "metadata requires 'pubkey'";
     my $group_id = $args{group_id} // croak "metadata requires 'group_id'";
 
@@ -208,7 +223,8 @@ sub metadata {
 
 # Kind 39001: group admins (relay-generated, addressable)
 sub admins {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $pubkey   = $args{pubkey}   // croak "admins requires 'pubkey'";
     my $group_id = $args{group_id} // croak "admins requires 'group_id'";
     my $members  = $args{members}  // croak "admins requires 'members'";
@@ -226,7 +242,8 @@ sub admins {
 
 # Kind 39002: group members (relay-generated, addressable)
 sub members {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $pubkey   = $args{pubkey}   // croak "members requires 'pubkey'";
     my $group_id = $args{group_id} // croak "members requires 'group_id'";
     my $members  = $args{members}  // croak "members requires 'members'";
@@ -244,7 +261,8 @@ sub members {
 
 # Kind 39003: group roles (relay-generated, addressable)
 sub roles {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $pubkey   = $args{pubkey}   // croak "roles requires 'pubkey'";
     my $group_id = $args{group_id} // croak "roles requires 'group_id'";
     my $roles    = $args{roles}    // croak "roles requires 'roles'";

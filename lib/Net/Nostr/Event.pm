@@ -2,6 +2,8 @@ package Net::Nostr::Event;
 
 use strictures 2;
 
+use Net::Nostr::_ConstructorArgs ();
+
 use Carp qw(croak);
 use JSON ();
 use Digest::SHA qw(sha256_hex);
@@ -57,7 +59,7 @@ sub sig {
 
 sub new {
     my $class = shift;
-    my $self = bless { @_ }, $class;
+    my $self = bless { Net::Nostr::_ConstructorArgs::normalize(@_) }, $class;
 
     my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
     my @unknown = grep { !exists $known{$_} } keys %$self;
@@ -361,6 +363,8 @@ event ID and any existing signature.
 =head1 CONSTRUCTOR
 
 =head2 new
+
+Accepts named arguments as either a flat list or a single hash reference.
 
     my $event = Net::Nostr::Event->new(
         pubkey     => $hex_pubkey,

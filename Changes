@@ -1,3 +1,9 @@
+{{$NEXT}}
+
+  - Accept either a flat hash or a single hash reference for constructors and
+    named-argument builder/helper APIs
+  - Normalize supported named-argument APIs through one shared internal helper
+
 1.003001   2026-06-27
 
   - Clarify UTF-8 byte/string boundaries for event serialization and message parsing

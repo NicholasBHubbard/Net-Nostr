@@ -2,6 +2,8 @@ package Net::Nostr::Article;
 
 use strictures 2;
 
+use Net::Nostr::_ConstructorArgs ();
+
 use Carp qw(croak);
 use Net::Nostr::Event;
 use Net::Nostr::Bech32 qw(encode_naddr);
@@ -17,9 +19,9 @@ use Class::Tiny qw(
 
 sub new {
     my $class = shift;
-    my %args = @_;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     $args{hashtags} //= [];
-    my $self = bless \%args, $class;
+    my $self = bless { %args }, $class;
     my %known; @known{Class::Tiny->get_all_attributes_for($class)} = ();
     my @unknown = grep { !exists $known{$_} } keys %$self;
     croak "unknown argument(s): " . join(', ', sort @unknown) if @unknown;
@@ -27,7 +29,9 @@ sub new {
 }
 
 sub _build_event {
-    my ($class, $kind, %args) = @_;
+    my $class = shift;
+    my $kind = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
 
     my $pubkey     = $args{pubkey}     // croak "article requires 'pubkey'";
     my $content    = $args{content}    // croak "article requires 'content'";
@@ -60,12 +64,14 @@ sub _build_event {
 }
 
 sub article {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     return $class->_build_event(30023, %args);
 }
 
 sub draft {
-    my ($class, %args) = @_;
+    my $class = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     return $class->_build_event(30024, %args);
 }
 
@@ -110,7 +116,9 @@ sub validate {
 }
 
 sub to_naddr {
-    my ($class, $event, %args) = @_;
+    my $class = shift;
+    my $event = shift;
+    my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     return encode_naddr(
         identifier => $event->d_tag,
         pubkey     => $event->pubkey,
@@ -189,6 +197,8 @@ L<Net::Nostr::Comment>).
 =head1 CONSTRUCTOR
 
 =head2 new
+
+Accepts named arguments as either a flat list or a single hash reference.
 
     my $info = Net::Nostr::Article->new(%fields);
 
