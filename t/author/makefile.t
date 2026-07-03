@@ -36,11 +36,10 @@ subtest 'dist Makefile.PL files run release tests and skip author tests' => sub 
                 _write_test("$tmp/t/nip/nested.t");
             }
 
-            my $cwd = getcwd();
-            chdir $tmp or die "chdir $tmp: $!";
-            my $output = `$^X Makefile.PL 2>&1`;
-            my $exit = $? >> 8;
-            chdir $cwd or die "chdir $cwd: $!";
+            my ($output, $exit) = _run_in_dir($tmp, sub {
+                my $output = `$^X Makefile.PL 2>&1`;
+                return ($output, $? >> 8);
+            });
 
             is($exit, 0, 'Makefile.PL exits cleanly') or diag $output;
 
@@ -74,28 +73,37 @@ subtest 'dist metadata does not list modules core in Perl 5.16' => sub {
             _copy_file("$root/Makefile.PL", "$tmp/Makefile.PL");
             _copy_version_from_file($root, $tmp);
 
-            my $cwd = getcwd();
-            chdir $tmp or die "chdir $tmp: $!";
-            my $output = `$^X Makefile.PL 2>&1`;
-            my $exit = $? >> 8;
+            my (
+                $output, $exit, $manifest_output, $manifest_exit,
+                $dist_output, $dist_exit, $tarball_count, @core_prereqs
+            ) = _run_in_dir($tmp, sub {
+                my $output = `$^X Makefile.PL 2>&1`;
+                my $exit = $? >> 8;
+
+                my $make = $Config{make} || 'make';
+                my $manifest_output = `$make manifest 2>&1`;
+                my $manifest_exit = $? >> 8;
+
+                my $dist_output = `$make dist 2>&1`;
+                my $dist_exit = $? >> 8;
+
+                my @tarballs = glob('*.tar.gz');
+                my @core_prereqs = @tarballs ? _core_prereqs_in_tarball($tarballs[0]) : ();
+                return (
+                    $output, $exit, $manifest_output, $manifest_exit,
+                    $dist_output, $dist_exit, scalar @tarballs, @core_prereqs
+                );
+            });
+
             is($exit, 0, 'Makefile.PL exits cleanly') or diag $output;
 
-            my $make = $Config{make} || 'make';
-            $output = `$make manifest 2>&1`;
-            $exit = $? >> 8;
-            is($exit, 0, 'make manifest exits cleanly') or diag $output;
+            is($manifest_exit, 0, 'make manifest exits cleanly') or diag $manifest_output;
 
-            $output = `$make dist 2>&1`;
-            $exit = $? >> 8;
-            is($exit, 0, 'make dist exits cleanly') or diag $output;
+            is($dist_exit, 0, 'make dist exits cleanly') or diag $dist_output;
 
-            my @tarballs = glob('*.tar.gz');
-            is(scalar @tarballs, 1, 'one tarball created');
-            my @core_prereqs = @tarballs ? _core_prereqs_in_tarball($tarballs[0]) : ();
+            is($tarball_count, 1, 'one tarball created');
             is(\@core_prereqs, [], 'META.json has no Perl 5.16 core module prereqs')
                 or diag join "\n", @core_prereqs;
-
-            chdir $cwd or die "chdir $cwd: $!";
         };
     }
 };
@@ -134,6 +142,23 @@ sub _write_test {
     close $tfh;
 }
 
+sub _run_in_dir {
+    my ($dir, $code) = @_;
+    my $cwd = getcwd();
+    chdir $dir or die "chdir $dir: $!";
+
+    my @result;
+    my $ok = eval {
+        @result = $code->();
+        1;
+    };
+    my $error = $@;
+
+    chdir $cwd or die "chdir $cwd: $!";
+    die $error unless $ok;
+    return @result;
+}
+
 sub _core_prereqs_in_tarball {
     my ($tarball) = @_;
     my $tar = Archive::Tar->new;
@@ -148,10 +173,17 @@ sub _core_prereqs_in_tarball {
             my $modules = $meta->{prereqs}{$phase}{$relationship};
             for my $module (sort keys %$modules) {
                 next if $module eq 'perl';
-                next unless Module::CoreList::is_core($module, undef, '5.016');
+                next unless _is_core_in_perl_516($module);
                 push @core_prereqs, "$phase.$relationship:$module";
             }
         }
     }
     return @core_prereqs;
+}
+
+sub _is_core_in_perl_516 {
+    my ($module) = @_;
+    my $perl_516_core = $Module::CoreList::version{5.016}
+        or die "Module::CoreList missing Perl 5.16 data";
+    return exists $perl_516_core->{$module};
 }
