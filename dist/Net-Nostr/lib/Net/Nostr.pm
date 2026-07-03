@@ -2,7 +2,7 @@ package Net::Nostr;
 
 use strictures 2;
 
-our $VERSION = '2.001000';
+our $VERSION = '2.002000';
 
 use Net::Nostr::Client;
 use Net::Nostr::Relay;
@@ -33,10 +33,43 @@ Net::Nostr - Perl client and relay library for the Nostr protocol
 
 =head1 DESCRIPTION
 
-Net::Nostr is a Perl implementation of the Nostr protocol that provides both
-client and relay functionality. Most of the useful functionality lives in the
-individual modules listed below -- start with L<Net::Nostr::Key> for identity
-management and L<Net::Nostr::Event> for creating events.
+Net::Nostr is a compatibility shim that installs and loads both the client and
+relay distributions for the Nostr protocol. Protocol tooling lives in the
+L<Net::Nostr::Core> distribution, client functionality lives in
+L<Net::Nostr::Client>, and relay server functionality lives in
+L<Net::Nostr::Relay>.
+
+Existing public module names are preserved. For example, installing
+L<Net::Nostr::Core> provides L<Net::Nostr::Event> and L<Net::Nostr::Key>; these
+modules were not renamed under C<Net::Nostr::Core::*>.
+
+Start with L<Net::Nostr::Key> for identity management and
+L<Net::Nostr::Event> for creating events.
+
+=head1 DISTRIBUTIONS
+
+=over 4
+
+=item L<Net::Nostr::Core>
+
+Core protocol and NIP tooling. This distribution recommends C<AnyEvent::HTTP>
+for L<Net::Nostr::Identifier> network lookup and verification, but pure NIP-05
+helpers work without it.
+
+=item L<Net::Nostr::Client>
+
+WebSocket client implementation. Depends on L<Net::Nostr::Core>.
+
+=item L<Net::Nostr::Relay>
+
+WebSocket relay implementation. Depends on L<Net::Nostr::Core>.
+
+=item L<Net::Nostr>
+
+This shim distribution. Depends on Core, Client, Relay, and C<AnyEvent::HTTP>
+so the full historical install keeps NIP-05 HTTP lookup support available.
+
+=back
 
 =head1 NAMED ARGUMENTS
 

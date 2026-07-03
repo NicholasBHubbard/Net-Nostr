@@ -12,6 +12,10 @@ use Net::Nostr::Identifier;
 # Constructor and accessors
 ###############################################################################
 
+subtest 'loading Identifier does not load optional HTTP client' => sub {
+    ok(!exists $INC{'AnyEvent/HTTP.pm'}, 'AnyEvent::HTTP is not loaded by pure Identifier APIs');
+};
+
 subtest 'new creates identifier object' => sub {
     my $ident = Net::Nostr::Identifier->new;
     isa_ok($ident, 'Net::Nostr::Identifier');
@@ -139,6 +143,62 @@ subtest 'lookup croaks without on_failure' => sub {
             on_success => sub {},
         )
     }, qr/on_failure/i, 'missing on_failure';
+};
+
+subtest 'lookup and verify explain missing optional HTTP dependency' => sub {
+    my $ident = Net::Nostr::Identifier->new;
+    my %args = (
+        identifier => 'bob@example.com',
+        pubkey     => 'a' x 64,
+        on_success => sub {},
+        on_failure => sub {},
+    );
+
+    {
+        local @INC = ();
+        local $INC{'AnyEvent/HTTP.pm'};
+        delete $INC{'AnyEvent/HTTP.pm'};
+        like dies { $ident->verify(%args) },
+            qr/AnyEvent::HTTP.*optional.*Net::Nostr::Identifier::verify/,
+            'verify reports optional HTTP dependency';
+    }
+
+    {
+        local @INC = ();
+        local $INC{'AnyEvent/HTTP.pm'};
+        delete $INC{'AnyEvent/HTTP.pm'};
+        like dies { $ident->lookup(%args) },
+            qr/AnyEvent::HTTP.*optional.*Net::Nostr::Identifier::lookup/,
+            'lookup reports optional HTTP dependency';
+    }
+};
+
+subtest 'lookup and verify validate identifiers before optional HTTP dependency' => sub {
+    my $ident = Net::Nostr::Identifier->new;
+    my %args = (
+        identifier => 'not-valid',
+        pubkey     => 'a' x 64,
+        on_success => sub {},
+        on_failure => sub {},
+    );
+
+    {
+        local @INC = ();
+        local $INC{'AnyEvent/HTTP.pm'};
+        delete $INC{'AnyEvent/HTTP.pm'};
+        like dies { $ident->verify(%args) },
+            qr/invalid NIP-05 identifier/i,
+            'verify rejects invalid identifier before checking HTTP dependency';
+    }
+
+    {
+        local @INC = ();
+        local $INC{'AnyEvent/HTTP.pm'};
+        delete $INC{'AnyEvent/HTTP.pm'};
+        like dies { $ident->lookup(%args) },
+            qr/invalid NIP-05 identifier/i,
+            'lookup rejects invalid identifier before checking HTTP dependency';
+    }
 };
 
 ###############################################################################

@@ -1,0 +1,14 @@
+requires 'strictures';
+requires 'AnyEvent';
+requires 'AnyEvent::WebSocket::Server';
+requires 'Class::Tiny';
+requires 'CryptX';
+requires 'Crypt::PK::ECC::Schnorr';
+requires 'JSON';
+requires 'Net::Nostr::Core', '1.001000';
+
+on 'test' => sub {
+    requires 'Test2::V0';
+    requires 'AnyEvent::WebSocket::Client';
+    requires 'IO::Socket::SSL';
+};

@@ -1,15 +1,36 @@
-# Net::Nostr
+# Net::Nostr Monorepo
 
 A [Nostr](https://nostr.org/) library for Perl.
 
-Net::Nostr provides both client and relay functionality, with broad NIP support
-covering identity, messaging, encryption, social features, and more.
+This repository contains four Perl distributions:
+
+- `Net-Nostr-Core`: core Nostr protocol tooling such as events, keys, filters,
+  messages, encryption helpers, and NIP-specific builders.
+- `Net-Nostr-Client`: `Net::Nostr::Client`, the WebSocket client implementation.
+- `Net-Nostr-Relay`: `Net::Nostr::Relay` and relay storage.
+- `Net-Nostr`: compatibility shim that installs Core, Client, and Relay.
+
+Existing public module names are preserved. For example, `Net-Nostr-Core`
+still provides `Net::Nostr::Event`, not `Net::Nostr::Core::Event`.
 
 ## Installation
+
+For the full historical install:
 
 ```
 $ cpanm Net::Nostr
 ```
+
+For protocol tooling only:
+
+```
+$ cpanm Net::Nostr::Core
+```
+
+`Net::Nostr::Identifier` can parse and verify NIP-05 response data with only
+Core installed. Its network methods, `lookup` and `verify`, lazy-load
+`AnyEvent::HTTP`; Core recommends that dependency, while the `Net::Nostr` shim
+requires it.
 
 ## Documentation
 

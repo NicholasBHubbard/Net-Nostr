@@ -24,8 +24,8 @@ subtest 'named argument normalization is the only constructor arg pattern' => su
 };
 
 subtest 'constructor arg normalizer is internal only' => sub {
-    ok(-e 'lib/Net/Nostr/_ConstructorArgs.pm', 'internal helper module exists');
-    ok(!-e 'lib/Net/Nostr/ConstructorArgs.pm', 'public helper module does not exist');
+    ok(-e 'dist/Net-Nostr-Core/lib/Net/Nostr/_ConstructorArgs.pm', 'internal helper module exists');
+    ok(!-e 'dist/Net-Nostr-Core/lib/Net/Nostr/ConstructorArgs.pm', 'public helper module does not exist');
 };
 
 subtest 'constructor POD documents accepted argument forms' => sub {
@@ -42,16 +42,16 @@ subtest 'constructor POD documents accepted argument forms' => sub {
     }
 
     push @checks, (
-        ['lib/Net/Nostr/RemoteSigning.pm', 'BunkerConnection'],
-        ['lib/Net/Nostr/RemoteSigning.pm', 'NostrConnect'],
-        ['lib/Net/Nostr/RemoteSigning.pm', 'Nip05Metadata'],
-        ['lib/Net/Nostr/RemoteSigning.pm', 'Discovery'],
-        ['lib/Net/Nostr/RemoteSigning.pm', 'Request'],
-        ['lib/Net/Nostr/RemoteSigning.pm', 'Response'],
-        ['lib/Net/Nostr/WalletConnect.pm', 'Connection'],
-        ['lib/Net/Nostr/WalletConnect.pm', 'Info'],
-        ['lib/Net/Nostr/WalletConnect.pm', 'Response'],
-        ['lib/Net/Nostr/WalletConnect.pm', 'Notification'],
+        ['dist/Net-Nostr-Core/lib/Net/Nostr/RemoteSigning.pm', 'BunkerConnection'],
+        ['dist/Net-Nostr-Core/lib/Net/Nostr/RemoteSigning.pm', 'NostrConnect'],
+        ['dist/Net-Nostr-Core/lib/Net/Nostr/RemoteSigning.pm', 'Nip05Metadata'],
+        ['dist/Net-Nostr-Core/lib/Net/Nostr/RemoteSigning.pm', 'Discovery'],
+        ['dist/Net-Nostr-Core/lib/Net/Nostr/RemoteSigning.pm', 'Request'],
+        ['dist/Net-Nostr-Core/lib/Net/Nostr/RemoteSigning.pm', 'Response'],
+        ['dist/Net-Nostr-Core/lib/Net/Nostr/WalletConnect.pm', 'Connection'],
+        ['dist/Net-Nostr-Core/lib/Net/Nostr/WalletConnect.pm', 'Info'],
+        ['dist/Net-Nostr-Core/lib/Net/Nostr/WalletConnect.pm', 'Response'],
+        ['dist/Net-Nostr-Core/lib/Net/Nostr/WalletConnect.pm', 'Notification'],
     );
 
     my @violations;
@@ -79,7 +79,7 @@ sub _module_files {
             return unless -f $_ && /\.pm\z/;
             push @files, $File::Find::name;
         },
-        'lib',
+        sort glob('dist/*/lib'),
     );
     return @files;
 }

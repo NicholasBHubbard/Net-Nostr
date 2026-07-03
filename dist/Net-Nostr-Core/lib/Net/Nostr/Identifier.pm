@@ -6,7 +6,6 @@ use Net::Nostr::_ConstructorArgs ();
 
 use Carp qw(croak);
 use JSON ();
-use AnyEvent::HTTP;
 
 use Class::Tiny qw(
     base_url
@@ -72,14 +71,24 @@ sub extract_relays {
     return $list;
 }
 
+sub _require_http {
+    my ($method) = @_;
+    return if eval { require AnyEvent::HTTP; 1 };
+    my $error = $@ || 'unknown error';
+    chomp $error;
+    croak "AnyEvent::HTTP is an optional dependency required by Net::Nostr::Identifier::$method; install AnyEvent::HTTP or install the Net::Nostr shim distribution ($error)";
+}
+
 sub _fetch {
     my ($self, $url, $cb) = @_;
-    http_get $url,
+    AnyEvent::HTTP::http_request(
+        GET => $url,
         recurse => 0,  # MUST ignore redirects
         sub {
             my ($body, $headers) = @_;
             $cb->($body, $headers);
-        };
+        },
+    );
 }
 
 sub _build_fetch_url {
@@ -102,6 +111,8 @@ sub verify {
     croak "on_failure must be a CODE ref" unless ref($on_failure) eq 'CODE';
 
     my ($url, $local) = $self->_build_fetch_url($identifier);
+
+    _require_http('verify');
 
     $self->_fetch($url, sub {
         my ($body, $headers) = @_;
@@ -142,6 +153,8 @@ sub lookup {
     croak "on_failure must be a CODE ref" unless ref($on_failure) eq 'CODE';
 
     my ($url, $local) = $self->_build_fetch_url($identifier);
+
+    _require_http('lookup');
 
     $self->_fetch($url, sub {
         my ($body, $headers) = @_;
@@ -208,7 +221,7 @@ Net::Nostr::Identifier - Mapping Nostr keys to DNS-based internet identifiers
         print "Verified!\n";
     }
 
-    # Async verification via HTTP (requires an AnyEvent loop)
+    # Async verification via HTTP (requires AnyEvent and AnyEvent::HTTP)
     my $cv = AnyEvent->condvar;
     my $ident = Net::Nostr::Identifier->new;
     $ident->verify(
@@ -241,6 +254,16 @@ public key.
 
 The special identifier C<_@domain> is treated as a root identifier and
 may be displayed as just the domain.
+
+=head1 OPTIONAL HTTP DEPENDENCY
+
+Pure helpers such as C<parse>, C<url>, C<display_name>, C<verify_response>, and
+C<extract_relays> do not load an HTTP client.
+
+The network methods C<lookup> and C<verify> lazy-load L<AnyEvent::HTTP>. The
+L<Net::Nostr::Core> distribution recommends C<AnyEvent::HTTP> but does not
+require it. Installing the L<Net::Nostr> shim distribution pulls it in as a hard
+dependency for the full-stack install.
 
 =head1 CLASS METHODS
 
@@ -327,8 +350,9 @@ this URL instead of C<https://E<lt>domainE<gt>>.
 
 Asynchronously fetches the well-known URL and verifies that the identifier
 maps to the given pubkey. HTTP redirects are ignored per the spec. Requires
-an L<AnyEvent> event loop to be running. Croaks if any required argument is
-missing or if C<on_success>/C<on_failure> are not CODE refs.
+L<AnyEvent> and L<AnyEvent::HTTP>. Croaks if any required argument is missing,
+if C<on_success>/C<on_failure> are not CODE refs, or if C<AnyEvent::HTTP> is
+not installed.
 
 The C<on_success> callback receives an arrayref of relay URLs (may be empty).
 The C<on_failure> callback receives an error reason string.
@@ -343,8 +367,9 @@ The C<on_failure> callback receives an error reason string.
 
 Asynchronously fetches the well-known URL and returns the pubkey associated
 with the identifier. HTTP redirects are ignored per the spec. Requires
-an L<AnyEvent> event loop to be running. Croaks if any required argument is
-missing or if C<on_success>/C<on_failure> are not CODE refs.
+L<AnyEvent> and L<AnyEvent::HTTP>. Croaks if any required argument is missing,
+if C<on_success>/C<on_failure> are not CODE refs, or if C<AnyEvent::HTTP> is
+not installed.
 
 The C<on_success> callback receives the hex pubkey and an arrayref of relay
 URLs. The C<on_failure> callback receives an error reason string.

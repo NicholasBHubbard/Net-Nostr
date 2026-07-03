@@ -2,6 +2,8 @@ package Net::Nostr::Client;
 
 use strictures 2;
 
+our $VERSION = '1.001000';
+
 use Net::Nostr::_ConstructorArgs ();
 
 use Carp qw(croak);
@@ -497,7 +499,7 @@ is considered closed after this.
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
 L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md>,
 L<NIP-77|https://github.com/nostr-protocol/nips/blob/master/77.md>,
-L<Net::Nostr>, L<Net::Nostr::Event>, L<Net::Nostr::Filter>, L<Net::Nostr::Relay>,
-L<Net::Nostr::Negentropy>
+L<Net::Nostr>, L<Net::Nostr::Core>, L<Net::Nostr::Event>,
+L<Net::Nostr::Filter>, L<Net::Nostr::Relay>, L<Net::Nostr::Negentropy>
 
 =cut

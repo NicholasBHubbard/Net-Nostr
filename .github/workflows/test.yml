@@ -4,18 +4,18 @@ on:
   push:
     branches: [main]
     paths:
-      - 'lib/**'
+      - 'dist/**'
       - 't/**'
-      - 'cpanfile'
-      - 'Makefile.PL'
+      - 'Changes'
+      - 'README.md'
       - '.github/workflows/test.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'lib/**'
+      - 'dist/**'
       - 't/**'
-      - 'cpanfile'
-      - 'Makefile.PL'
+      - 'Changes'
+      - 'README.md'
       - '.github/workflows/test.yml'
 
 jobs:
@@ -40,13 +40,46 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/perl5
-          key: perl-${{ matrix.perl }}-${{ hashFiles('cpanfile', '.github/workflows/test.yml') }}
+          key: perl-${{ matrix.perl }}-${{ hashFiles('dist/*/cpanfile', '.github/workflows/test.yml') }}
 
-      - name: Install dependencies
-        run: cpanm --local-lib ~/perl5 --installdeps .
+      - name: Install author test dependencies
+        run: cpanm --local-lib ~/perl5 Test::Pod Test::Pod::Coverage
 
-      - name: Build
-        run: perl Makefile.PL && make
+      - name: Build and test Core
+        run: |
+          cpanm --local-lib ~/perl5 --installdeps dist/Net-Nostr-Core
+          cd dist/Net-Nostr-Core
+          perl Makefile.PL
+          make
+          make test
+          make install
 
-      - name: Test
-        run: prove -r -l -v t/
+      - name: Build and test Client
+        run: |
+          cpanm --local-lib ~/perl5 --installdeps dist/Net-Nostr-Client
+          cd dist/Net-Nostr-Client
+          perl Makefile.PL
+          make
+          make test
+          make install
+
+      - name: Build and test Relay
+        run: |
+          cpanm --local-lib ~/perl5 --installdeps dist/Net-Nostr-Relay
+          cd dist/Net-Nostr-Relay
+          perl Makefile.PL
+          make
+          make test
+          make install
+
+      - name: Build and test shim
+        run: |
+          cpanm --local-lib ~/perl5 --installdeps dist/Net-Nostr
+          cd dist/Net-Nostr
+          perl Makefile.PL
+          make
+          make test
+          make install
+
+      - name: Author layout checks
+        run: prove -v t/author/*.t

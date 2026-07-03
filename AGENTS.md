@@ -4,6 +4,19 @@ Perl Nostr protocol library providing both client and relay functionality. Must 
 
 Absolute compliance with supported NIPs is the highest priority for this library.
 
+## Monorepo Layout
+
+This repository contains four Perl distributions under `dist/`:
+
+- `dist/Net-Nostr-Core` - core Nostr protocol tooling (`Net::Nostr::Core`)
+- `dist/Net-Nostr-Client` - client implementation (`Net::Nostr::Client`)
+- `dist/Net-Nostr-Relay` - relay implementation (`Net::Nostr::Relay`)
+- `dist/Net-Nostr` - shim distribution that installs client and relay
+
+Keep existing module names such as `Net::Nostr::Event`; do not move core modules
+under `Net::Nostr::Core::*`. Each distribution owns its own `Makefile.PL`,
+`cpanfile`, `Changes`, `README.md`, tests, and top-level module POD.
+
 ## Priorities
 
 When rules conflict, follow this order:
@@ -28,23 +41,24 @@ When naming things, always match terminology from the spec.
 
 Implement every MAY in a spec unless there's good reason not to. Pick sane defaults (e.g. unlimited, disabled) so MAY features are opt-in without breaking existing behavior.
 
-The POD in `lib/Net/Nostr.pm` and the projects `README.md` has a list of supported NIPs. Update them when adding support for a new NIP.
+The POD in `dist/Net-Nostr/lib/Net/Nostr.pm` and the project `README.md` have a list of supported NIPs. Update them when adding support for a new NIP.
 
 ## Testing
 
 Follow TDD strictly: write tests first, run them to confirm they fail, then implement until they pass. We care very deeply about our tests.
 
-Shared test helpers live in `t/lib/TestFixtures.pm`. Use it whenever implementing something that could be re-used across multiple test files.
+Shared test helpers live in the relevant distribution's `t/lib/TestFixtures.pm`. Use it whenever implementing something that could be re-used across multiple test files.
 
 Add round-trip tests for protocol-facing types where applicable. Parsing then serializing should not introduce unintended changes, and serializing then parsing should produce an equivalent valid object.
 
-Run tests with `prove`. To run the full test suite use `prove -r t/`.
+Run tests with `prove` or the distribution's `make test`. For broad changes, run
+the affected distribution tests plus the root author tests in `t/author/`.
 
 After making changes, always run the relevant tests and fix failures before considering the work done. If a fix introduces new failures, keep iterating until all tests pass. Similarly, re-read any POD you've added or modified to verify it is accurate and complete.
 
 ## Implementing a NIP
 
-Each supported NIP has a dedicated conformance test file in `t/nip/` (e.g. `t/nip/01.t`). Unit tests for individual modules live in `t/` numbered by module (e.g. `t/05-Relay.t`). Conformance test files must fully cover the spec.
+Each supported NIP has a dedicated conformance test file in the relevant distribution's `t/nip/` directory. Unit tests for individual modules live in that distribution's `t/` directory. Conformance test files must fully cover the spec.
 
 Put great effort into making tests complete -- cover edge cases, error conditions, and every MUST/SHOULD/MAY in the relevant NIP spec. Every implemented MAY should have a test demonstrating the behavior and its default.
 
@@ -181,11 +195,11 @@ Use `croak` (from `Carp`) for public API validation errors. Use `warn` in async 
 
 ## Dependencies
 
-Dependencies are managed in `cpanfile`. Dependencies also appear in `Makefile.PL`.
+Dependencies are managed in each distribution's `cpanfile`. Dependencies also appear in that distribution's `Makefile.PL`.
 
 ## Releases
 
-The `Changes` file tracks user-facing changes. Add an entry when implementing a new NIP or making notable changes.
+Each distribution's `Changes` file tracks user-facing changes for that distribution. Add an entry when implementing a new NIP or making notable changes.
 
 ## Output Requirements
 

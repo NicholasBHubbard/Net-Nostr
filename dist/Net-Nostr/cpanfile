@@ -1,0 +1,12 @@
+requires 'strictures';
+requires 'AnyEvent::HTTP';
+requires 'Net::Nostr::Core', '1.001000';
+requires 'Net::Nostr::Client', '1.001000';
+requires 'Net::Nostr::Relay', '1.001000';
+
+on 'test' => sub {
+    requires 'Test2::V0';
+    requires 'AnyEvent';
+    requires 'AnyEvent::WebSocket::Client';
+    requires 'IO::Socket::SSL';
+};
