@@ -220,6 +220,21 @@ subtest 'supported NIP lists match conformance tests' => sub {
     );
 };
 
+subtest 'NIP conformance target is documented in public entry points' => sub {
+    my $target = '8f8444d05a8842c40211ded5d10af3521541f865';
+    for my $doc (
+        qw(
+            README.md
+            dist/Net-Nostr-Core/lib/Net/Nostr/Core.pm
+            dist/Net-Nostr/lib/Net/Nostr.pm
+        )
+    ) {
+        my $source = _slurp($doc);
+        like($source, qr/nostr-protocol\/nips/, "$doc names the NIP repository");
+        like($source, qr/\Q$target\E/, "$doc documents the exact NIP commit");
+    }
+};
+
 subtest 'docs do not explain historical Core module naming' => sub {
     for my $doc (
         qw(

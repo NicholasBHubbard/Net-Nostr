@@ -35,6 +35,9 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 
 ## Supported NIPs
 
+Conformance target: [nostr-protocol/nips commit 8f8444d0](https://github.com/nostr-protocol/nips/commit/8f8444d05a8842c40211ded5d10af3521541f865)
+(2026-07-01).
+
 - [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) - Basic protocol flow
 - [NIP-02](https://github.com/nostr-protocol/nips/blob/master/02.md) - Follow list
 - [NIP-03](https://github.com/nostr-protocol/nips/blob/master/03.md) - OpenTimestamps attestations for events

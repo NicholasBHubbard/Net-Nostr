@@ -37,6 +37,12 @@ Install L<Net::Nostr::Client> for a WebSocket relay client, L<Net::Nostr::Relay>
 for a relay server, or L<Net::Nostr> for the compatibility shim that installs
 both.
 
+=head1 NIP CONFORMANCE
+
+Net::Nostr::Core targets
+L<nostr-protocol/nips commit 8f8444d0|https://github.com/nostr-protocol/nips/commit/8f8444d05a8842c40211ded5d10af3521541f865>
+(2026-07-01). See L<Net::Nostr> for the supported NIP list.
+
 =head1 OPTIONAL DEPENDENCIES
 
 L<Net::Nostr::Identifier> includes pure NIP-05 helpers that work with only this
