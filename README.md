@@ -10,9 +10,6 @@ This repository contains four Perl distributions:
 - `Net-Nostr-Relay`: `Net::Nostr::Relay` and relay storage.
 - `Net-Nostr`: compatibility shim that installs Core, Client, and Relay.
 
-Existing public module names are preserved. For example, `Net-Nostr-Core`
-still provides `Net::Nostr::Event`, not `Net::Nostr::Core::Event`.
-
 ## Installation
 
 For the full historical install:

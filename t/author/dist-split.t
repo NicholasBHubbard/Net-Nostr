@@ -205,6 +205,37 @@ subtest 'unrecommended NIPs removed from supported surface' => sub {
     }
 };
 
+subtest 'supported NIP lists match conformance tests' => sub {
+    my @expected = _supported_nips_from_conformance_tests();
+
+    is(
+        [_readme_supported_nips('README.md')],
+        \@expected,
+        'README.md supported NIP list matches conformance tests'
+    );
+    is(
+        [_pod_supported_nips('dist/Net-Nostr/lib/Net/Nostr.pm')],
+        \@expected,
+        'Net::Nostr POD supported NIP list matches conformance tests'
+    );
+};
+
+subtest 'docs do not explain historical Core module naming' => sub {
+    for my $doc (
+        qw(
+            README.md
+            AGENTS.md
+            dist/Net-Nostr-Core/README.md
+            dist/Net-Nostr-Core/lib/Net/Nostr/Core.pm
+            dist/Net-Nostr/lib/Net/Nostr.pm
+        )
+    ) {
+        my $source = _slurp($doc);
+        unlike($source, qr/Net::Nostr::Core::\*/, "$doc does not mention Net::Nostr::Core::*");
+        unlike($source, qr/not renamed under/i, "$doc does not explain modules were not renamed");
+    }
+};
+
 done_testing;
 
 sub _slurp {
@@ -213,4 +244,37 @@ sub _slurp {
     my $source = do { local $/; <$fh> };
     close $fh;
     return $source;
+}
+
+sub _supported_nips_from_conformance_tests {
+    my %seen;
+    for my $path (glob 'dist/*/t/nip/*.t') {
+        $path =~ m{/([^/]+)\.t\z} or next;
+        $seen{$1} = 1;
+    }
+    return _sort_nips(keys %seen);
+}
+
+sub _readme_supported_nips {
+    my ($file) = @_;
+    my $source = _slurp($file);
+    return _sort_nips($source =~ /^- \[NIP-([0-9A-Z]+)\]/mg);
+}
+
+sub _pod_supported_nips {
+    my ($file) = @_;
+    my $source = _slurp($file);
+    return _sort_nips($source =~ /^=item L<NIP-([0-9A-Z]+)\|/mg);
+}
+
+sub _sort_nips {
+    return sort {
+        _nip_sort_key($a) cmp _nip_sort_key($b)
+    } @_;
+}
+
+sub _nip_sort_key {
+    my ($nip) = @_;
+    return sprintf 'B%04d', substr($nip, 1) if $nip =~ /^B[0-9]+\z/;
+    return sprintf 'A%04d', $nip;
 }

@@ -29,11 +29,9 @@ Net::Nostr::Core - Core Perl tooling for the Nostr protocol
 
 =head1 DESCRIPTION
 
-Net::Nostr::Core is the distribution that provides the protocol and NIP
-tooling used by the Nostr client and relay distributions. It intentionally
-keeps the long-standing public module names such as L<Net::Nostr::Event>,
-L<Net::Nostr::Key>, L<Net::Nostr::Filter>, and L<Net::Nostr::Message>; those
-modules are not renamed under C<Net::Nostr::Core::*>.
+Net::Nostr::Core provides protocol and NIP tooling used by the Nostr client
+and relay distributions, including L<Net::Nostr::Event>, L<Net::Nostr::Key>,
+L<Net::Nostr::Filter>, and L<Net::Nostr::Message>.
 
 Install L<Net::Nostr::Client> for a WebSocket relay client, L<Net::Nostr::Relay>
 for a relay server, or L<Net::Nostr> for the compatibility shim that installs

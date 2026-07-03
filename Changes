@@ -1,8 +1,7 @@
 2.002000   2026-07-03
 
   - Split the project into Net-Nostr-Core, Net-Nostr-Client, Net-Nostr-Relay,
-    and Net-Nostr shim distributions while preserving existing public module
-    names such as Net::Nostr::Event
+    and Net-Nostr shim distributions
   - Move protocol and NIP tooling into the Net-Nostr-Core distribution
   - Move Net::Nostr::Client into Net-Nostr-Client and Net::Nostr::Relay plus
     Net::Nostr::RelayStore into Net-Nostr-Relay

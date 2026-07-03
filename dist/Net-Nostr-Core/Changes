@@ -1,8 +1,7 @@
 1.001000   2026-07-03
 
   - First independent Net-Nostr-Core release, split from Net-Nostr
-  - Provide core protocol and NIP tooling while preserving existing public
-    module names such as Net::Nostr::Event
+  - Provide core protocol and NIP tooling
   - Make AnyEvent::HTTP optional for Core and lazy-load it only for
     Net::Nostr::Identifier network lookup and verification
   - Recommend AnyEvent::HTTP for Core installs; the Net::Nostr shim keeps it

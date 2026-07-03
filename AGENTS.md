@@ -13,9 +13,8 @@ This repository contains four Perl distributions under `dist/`:
 - `dist/Net-Nostr-Relay` - relay implementation (`Net::Nostr::Relay`)
 - `dist/Net-Nostr` - shim distribution that installs client and relay
 
-Keep existing module names such as `Net::Nostr::Event`; do not move core modules
-under `Net::Nostr::Core::*`. Each distribution owns its own `Makefile.PL`,
-`Changes`, `README.md`, tests, and top-level module POD.
+Each distribution owns its own `Makefile.PL`, `Changes`, `README.md`, tests,
+and top-level module POD.
 
 ## Priorities
 

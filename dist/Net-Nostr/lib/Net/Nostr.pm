@@ -39,10 +39,6 @@ L<Net::Nostr::Core> distribution, client functionality lives in
 L<Net::Nostr::Client>, and relay server functionality lives in
 L<Net::Nostr::Relay>.
 
-Existing public module names are preserved. For example, installing
-L<Net::Nostr::Core> provides L<Net::Nostr::Event> and L<Net::Nostr::Key>; these
-modules were not renamed under C<Net::Nostr::Core::*>.
-
 Start with L<Net::Nostr::Key> for identity management and
 L<Net::Nostr::Event> for creating events.
 
