@@ -147,6 +147,38 @@ subtest 'top-level module POD links related distributions' => sub {
     }
 };
 
+subtest 'unrecommended NIPs removed from supported surface' => sub {
+    my @removed_nips = qw(NIP-15 NIP-28 NIP-72 NIP-90);
+    my @removed_files = qw(
+        dist/Net-Nostr-Core/lib/Net/Nostr/Marketplace.pm
+        dist/Net-Nostr-Core/lib/Net/Nostr/Channel.pm
+        dist/Net-Nostr-Core/lib/Net/Nostr/Community.pm
+        dist/Net-Nostr-Core/lib/Net/Nostr/DVM.pm
+        dist/Net-Nostr-Core/t/25-Marketplace.t
+        dist/Net-Nostr-Core/t/29-Community.t
+        dist/Net-Nostr-Core/t/36-Channel.t
+        dist/Net-Nostr-Core/t/56-DVM.t
+        dist/Net-Nostr-Core/t/nip/15.t
+        dist/Net-Nostr-Core/t/nip/28.t
+        dist/Net-Nostr-Core/t/nip/72.t
+        dist/Net-Nostr-Core/t/nip/90.t
+    );
+    my @removed_modules = qw(
+        Net::Nostr::Marketplace
+        Net::Nostr::Channel
+        Net::Nostr::Community
+        Net::Nostr::DVM
+    );
+
+    ok(!-e $_, "$_ removed") for @removed_files;
+
+    for my $doc (qw(README.md dist/Net-Nostr/lib/Net/Nostr.pm)) {
+        my $source = _slurp($doc);
+        unlike($source, qr/\Q$_\E/, "$doc does not list $_") for @removed_nips;
+        unlike($source, qr/\Q$_\E/, "$doc does not list $_") for @removed_modules;
+    }
+};
+
 done_testing;
 
 sub _slurp {

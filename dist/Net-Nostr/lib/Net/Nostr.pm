@@ -128,21 +128,15 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 
 =item L<Net::Nostr::Calendar> - NIP-52 calendar events
 
-=item L<Net::Nostr::Channel> - NIP-28 public chat channels
-
 =item L<Net::Nostr::ClassifiedListing> - NIP-99 classified listings
 
 =item L<Net::Nostr::Client> - WebSocket client for connecting to Nostr relays
 
 =item L<Net::Nostr::Comment> - NIP-22 comment threading
 
-=item L<Net::Nostr::Community> - NIP-72 moderated communities
-
 =item L<Net::Nostr::Deletion> - NIP-09 event deletion requests
 
 =item L<Net::Nostr::DirectMessage> - NIP-17 private direct messages
-
-=item L<Net::Nostr::DVM> - NIP-90 data vending machine
 
 =item L<Net::Nostr::Encryption> - NIP-44 versioned encrypted payloads
 
@@ -175,8 +169,6 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 =item L<Net::Nostr::List> - NIP-51 lists and sets
 
 =item L<Net::Nostr::LiveActivity> - NIP-53 live activities
-
-=item L<Net::Nostr::Marketplace> - NIP-15 Nostr Marketplace
 
 =item L<Net::Nostr::MediaAttachment> - NIP-92 media attachments
 
@@ -256,8 +248,6 @@ L<nostr-protocol/nips commit 8f8444d0|https://github.com/nostr-protocol/nips/com
 
 =item L<NIP-13|https://github.com/nostr-protocol/nips/blob/master/13.md> - Proof of Work
 
-=item L<NIP-15|https://github.com/nostr-protocol/nips/blob/master/15.md> - Nostr Marketplace
-
 =item L<NIP-17|https://github.com/nostr-protocol/nips/blob/master/17.md> - Private direct messages
 
 =item L<NIP-18|https://github.com/nostr-protocol/nips/blob/master/18.md> - Reposts
@@ -275,8 +265,6 @@ L<nostr-protocol/nips commit 8f8444d0|https://github.com/nostr-protocol/nips/com
 =item L<NIP-25|https://github.com/nostr-protocol/nips/blob/master/25.md> - Reactions
 
 =item L<NIP-27|https://github.com/nostr-protocol/nips/blob/master/27.md> - Text note references
-
-=item L<NIP-28|https://github.com/nostr-protocol/nips/blob/master/28.md> - Public chat
 
 =item L<NIP-29|https://github.com/nostr-protocol/nips/blob/master/29.md> - Relay-based groups
 
@@ -332,8 +320,6 @@ L<nostr-protocol/nips commit 8f8444d0|https://github.com/nostr-protocol/nips/com
 
 =item L<NIP-70|https://github.com/nostr-protocol/nips/blob/master/70.md> - Protected Events
 
-=item L<NIP-72|https://github.com/nostr-protocol/nips/blob/master/72.md> - Moderated Communities
-
 =item L<NIP-73|https://github.com/nostr-protocol/nips/blob/master/73.md> - External Content IDs
 
 =item L<NIP-77|https://github.com/nostr-protocol/nips/blob/master/77.md> - Negentropy Syncing
@@ -345,8 +331,6 @@ L<nostr-protocol/nips commit 8f8444d0|https://github.com/nostr-protocol/nips/com
 =item L<NIP-87|https://github.com/nostr-protocol/nips/blob/master/87.md> - Ecash Mint Discoverability
 
 =item L<NIP-89|https://github.com/nostr-protocol/nips/blob/master/89.md> - Recommended Application Handlers
-
-=item L<NIP-90|https://github.com/nostr-protocol/nips/blob/master/90.md> - Data Vending Machine
 
 =item L<NIP-92|https://github.com/nostr-protocol/nips/blob/master/92.md> - Media Attachments
 
