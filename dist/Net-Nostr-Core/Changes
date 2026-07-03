@@ -10,3 +10,4 @@
   - Remove support for unrecommended NIPs 15, 28, 72, and 90, including
     Net::Nostr::Marketplace, Net::Nostr::Channel, Net::Nostr::Community, and
     Net::Nostr::DVM
+  - Use Makefile.PL as the single dependency source of truth

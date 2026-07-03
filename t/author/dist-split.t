@@ -28,7 +28,7 @@ subtest 'distribution roots exist with expected modules' => sub {
         my $root = "dist/$dist";
         ok(-d $root, "$dist root exists");
         ok(-e "$root/Makefile.PL", "$dist has Makefile.PL");
-        ok(-e "$root/cpanfile", "$dist has cpanfile");
+        ok(!-e "$root/cpanfile", "$dist does not have cpanfile");
         ok(-e "$root/Changes", "$dist has Changes");
 
         for my $file (@{ $expected{$dist} }) {
@@ -68,12 +68,12 @@ subtest 'distribution versions are aligned' => sub {
     like($shim_changes, qr/^2\.002000\s+2026-07-03/m, 'shim Changes stays at 2.002000');
 
     my %dependency_versions = (
-        'Net-Nostr-Client/cpanfile'  => [qr/^requires 'Net::Nostr::Core', '1\.001000';/m],
-        'Net-Nostr-Relay/cpanfile'   => [qr/^requires 'Net::Nostr::Core', '1\.001000';/m],
-        'Net-Nostr/cpanfile'         => [
-            qr/^requires 'Net::Nostr::Core', '1\.001000';/m,
-            qr/^requires 'Net::Nostr::Client', '1\.001000';/m,
-            qr/^requires 'Net::Nostr::Relay', '1\.001000';/m,
+        'Net-Nostr-Client/Makefile.PL' => [qr/'Net::Nostr::Core'\s*=>\s*'1\.001000'/],
+        'Net-Nostr-Relay/Makefile.PL'  => [qr/'Net::Nostr::Core'\s*=>\s*'1\.001000'/],
+        'Net-Nostr/Makefile.PL'        => [
+            qr/'Net::Nostr::Core'\s*=>\s*'1\.001000'/,
+            qr/'Net::Nostr::Client'\s*=>\s*'1\.001000'/,
+            qr/'Net::Nostr::Relay'\s*=>\s*'1\.001000'/,
         ],
     );
 
@@ -84,18 +84,6 @@ subtest 'distribution versions are aligned' => sub {
 };
 
 subtest 'NIP-05 HTTP dependency is optional in Core and required by shim' => sub {
-    my $core_cpanfile = _slurp('dist/Net-Nostr-Core/cpanfile');
-    like(
-        $core_cpanfile,
-        qr/^recommends 'AnyEvent::HTTP';/m,
-        'Core recommends AnyEvent::HTTP'
-    );
-    unlike(
-        $core_cpanfile,
-        qr/^requires 'AnyEvent::HTTP';/m,
-        'Core does not require AnyEvent::HTTP'
-    );
-
     my $core_makefile = _slurp('dist/Net-Nostr-Core/Makefile.PL');
     like(
         $core_makefile,
@@ -115,11 +103,49 @@ subtest 'NIP-05 HTTP dependency is optional in Core and required by shim' => sub
         'Core Makefile.PL does not require AnyEvent::HTTP at runtime'
     );
 
-    my $shim_cpanfile = _slurp('dist/Net-Nostr/cpanfile');
+    my $shim_makefile = _slurp('dist/Net-Nostr/Makefile.PL');
     like(
-        $shim_cpanfile,
-        qr/^requires 'AnyEvent::HTTP';/m,
-        'shim requires AnyEvent::HTTP'
+        $shim_makefile,
+        qr/'AnyEvent::HTTP'\s*=>\s*0/,
+        'shim Makefile.PL requires AnyEvent::HTTP'
+    );
+};
+
+subtest 'Makefile.PL is dependency source of truth' => sub {
+    for my $dist (sort keys %expected) {
+        my $root = "dist/$dist";
+        ok(!-e "$root/cpanfile", "$dist has no cpanfile");
+
+        my $manifest_skip = _slurp("$root/MANIFEST.SKIP");
+        unlike($manifest_skip, qr/cpanfile/, "$dist MANIFEST.SKIP does not allow cpanfile");
+    }
+
+    my $workflow = _slurp('.github/workflows/test.yml');
+    unlike($workflow, qr/cpanfile/, 'CI does not reference cpanfile');
+    like(
+        $workflow,
+        qr/hashFiles\('dist\/\*\/Makefile\.PL', '\.github\/workflows\/test\.yml'\)/,
+        'CI cache key tracks Makefile.PL files'
+    );
+    for my $dist (sort keys %expected) {
+        like(
+            $workflow,
+            qr/cpanm --local-lib ~\/perl5 --installdeps \.\/dist\/\Q$dist\E/,
+            "CI installs $dist dependencies from a local path"
+        );
+        unlike(
+            $workflow,
+            qr/cpanm --local-lib ~\/perl5 --installdeps dist\/\Q$dist\E/,
+            "CI does not ask cpanm to resolve $dist as a CPAN target"
+        );
+    }
+
+    my $agents = _slurp('AGENTS.md');
+    unlike($agents, qr/cpanfile/, 'AGENTS.md does not document cpanfile usage');
+    like(
+        $agents,
+        qr/Dependencies are managed in each distribution's C<Makefile\.PL>|Dependencies are managed in each distribution's `Makefile\.PL`/,
+        'AGENTS.md documents Makefile.PL as dependency source'
     );
 };
 

@@ -1,5 +1,5 @@
 # Skip everything not in lib/ or t/, except explicitly listed files
-^(?!lib/)(?!t/)(?!Makefile\.PL$)(?!MANIFEST$)(?!Changes$)(?!LICENSE$)(?!README\.md$)(?!cpanfile$)
+^(?!lib/)(?!t/)(?!Makefile\.PL$)(?!MANIFEST$)(?!Changes$)(?!LICENSE$)(?!README\.md$)
 
 # Standard build/VCS artifacts
 \.git/

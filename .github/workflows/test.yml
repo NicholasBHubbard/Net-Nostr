@@ -40,14 +40,14 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/perl5
-          key: perl-${{ matrix.perl }}-${{ hashFiles('dist/*/cpanfile', '.github/workflows/test.yml') }}
+          key: perl-${{ matrix.perl }}-${{ hashFiles('dist/*/Makefile.PL', '.github/workflows/test.yml') }}
 
       - name: Install author test dependencies
         run: cpanm --local-lib ~/perl5 Test::Pod Test::Pod::Coverage
 
       - name: Build and test Core
         run: |
-          cpanm --local-lib ~/perl5 --installdeps dist/Net-Nostr-Core
+          cpanm --local-lib ~/perl5 --installdeps ./dist/Net-Nostr-Core
           cd dist/Net-Nostr-Core
           perl Makefile.PL
           make
@@ -56,7 +56,7 @@ jobs:
 
       - name: Build and test Client
         run: |
-          cpanm --local-lib ~/perl5 --installdeps dist/Net-Nostr-Client
+          cpanm --local-lib ~/perl5 --installdeps ./dist/Net-Nostr-Client
           cd dist/Net-Nostr-Client
           perl Makefile.PL
           make
@@ -65,7 +65,7 @@ jobs:
 
       - name: Build and test Relay
         run: |
-          cpanm --local-lib ~/perl5 --installdeps dist/Net-Nostr-Relay
+          cpanm --local-lib ~/perl5 --installdeps ./dist/Net-Nostr-Relay
           cd dist/Net-Nostr-Relay
           perl Makefile.PL
           make
@@ -74,7 +74,7 @@ jobs:
 
       - name: Build and test shim
         run: |
-          cpanm --local-lib ~/perl5 --installdeps dist/Net-Nostr
+          cpanm --local-lib ~/perl5 --installdeps ./dist/Net-Nostr
           cd dist/Net-Nostr
           perl Makefile.PL
           make

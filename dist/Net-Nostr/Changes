@@ -17,6 +17,7 @@
   - Remove unrecommended NIPs 15, 28, 72, and 90 from the full install surface
     by dropping Net::Nostr::Marketplace, Net::Nostr::Channel,
     Net::Nostr::Community, and Net::Nostr::DVM from Net-Nostr-Core
+  - Use Makefile.PL as the single dependency source of truth
 
 2.001000   2026-07-02
 

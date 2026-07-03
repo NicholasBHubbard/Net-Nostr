@@ -1,9 +1,0 @@
-requires 'strictures';
-requires 'Class::Tiny';
-requires 'AnyEvent';
-requires 'AnyEvent::WebSocket::Client';
-requires 'Net::Nostr::Core', '1.001000';
-
-on 'test' => sub {
-    requires 'Test2::V0';
-};

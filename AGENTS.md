@@ -15,7 +15,7 @@ This repository contains four Perl distributions under `dist/`:
 
 Keep existing module names such as `Net::Nostr::Event`; do not move core modules
 under `Net::Nostr::Core::*`. Each distribution owns its own `Makefile.PL`,
-`cpanfile`, `Changes`, `README.md`, tests, and top-level module POD.
+`Changes`, `README.md`, tests, and top-level module POD.
 
 ## Priorities
 
@@ -195,7 +195,7 @@ Use `croak` (from `Carp`) for public API validation errors. Use `warn` in async 
 
 ## Dependencies
 
-Dependencies are managed in each distribution's `cpanfile`. Dependencies also appear in that distribution's `Makefile.PL`.
+Dependencies are managed in each distribution's `Makefile.PL`.
 
 ## Releases
 
