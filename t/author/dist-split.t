@@ -29,6 +29,7 @@ subtest 'distribution roots exist with expected modules' => sub {
         ok(-d $root, "$dist root exists");
         ok(-e "$root/Makefile.PL", "$dist has Makefile.PL");
         ok(!-e "$root/cpanfile", "$dist does not have cpanfile");
+        ok(!-e "$root/README.md", "$dist does not have README.md");
         ok(-e "$root/Changes", "$dist has Changes");
 
         for my $file (@{ $expected{$dist} }) {
@@ -118,6 +119,7 @@ subtest 'Makefile.PL is dependency source of truth' => sub {
 
         my $manifest_skip = _slurp("$root/MANIFEST.SKIP");
         unlike($manifest_skip, qr/cpanfile/, "$dist MANIFEST.SKIP does not allow cpanfile");
+        unlike($manifest_skip, qr/README\\\.md|README\.md/, "$dist MANIFEST.SKIP does not allow README.md");
     }
 
     my $workflow = _slurp('.github/workflows/test.yml');
@@ -240,7 +242,6 @@ subtest 'docs do not explain historical Core module naming' => sub {
         qw(
             README.md
             AGENTS.md
-            dist/Net-Nostr-Core/README.md
             dist/Net-Nostr-Core/lib/Net/Nostr/Core.pm
             dist/Net-Nostr/lib/Net/Nostr.pm
         )
