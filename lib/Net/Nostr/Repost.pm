@@ -50,6 +50,8 @@ sub repost {
     my $content;
     if (exists $args{content}) {
         $content = $args{content};
+    } elsif ($event->is_protected) {
+        $content = '';
     } else {
         $content = $JSON->encode($event->to_hash);
     }
@@ -143,6 +145,15 @@ sub validate {
     croak "repost MUST include an e tag" unless $has_e;
     croak "repost e tag MUST include a relay URL" unless $has_e_with_relay;
 
+    if (defined $event->content && length $event->content) {
+        my $hash = eval { JSON::decode_json($event->content) };
+        if ($hash && ref $hash eq 'HASH') {
+            my $embedded = eval { Net::Nostr::Event->new(%$hash) };
+            croak "protected repost MUST NOT embed the reposted event"
+                if $embedded && $embedded->is_protected;
+        }
+    }
+
     return 1;
 }
 
@@ -198,9 +209,10 @@ Net::Nostr::Repost - NIP-18 reposts and generic reposts
 Implements NIP-18 reposts. A repost is a kind 6 event for sharing kind 1
 text notes, or a kind 16 "generic repost" for sharing any other event kind.
 
-The repost content is the stringified JSON of the reposted event (MAY be
-empty). Reposts of L<NIP-70|https://github.com/nostr-protocol/nips/blob/master/70.md>-protected
-events SHOULD always have an empty content. Tags include an C<e> tag with
+The repost content is normally the stringified JSON of the reposted event.
+Reposts of L<NIP-70|https://github.com/nostr-protocol/nips/blob/master/70.md>-protected
+events MUST NOT embed the protected event and therefore have empty content
+by default. Tags include an C<e> tag with
 the event ID and relay URL (MUST), a C<p> tag with the original author
 (SHOULD), and for generic reposts a C<k> tag with the stringified kind
 (SHOULD) and an C<a> tag with the event coordinate for addressable events

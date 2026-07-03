@@ -200,8 +200,8 @@ Equivalent to C<< Net::Nostr::Relay->new >>.
 =head1 SUPPORTED NIPS
 
 Conformance target:
-L<nostr-protocol/nips commit 0a25dd52|https://github.com/nostr-protocol/nips/commit/0a25dd524389d642ec153d9009a16fb183eb23ce>
-(2026-04-10).
+L<nostr-protocol/nips commit 8f8444d0|https://github.com/nostr-protocol/nips/commit/8f8444d05a8842c40211ded5d10af3521541f865>
+(2026-07-01).
 
 =over 4
 

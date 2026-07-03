@@ -626,7 +626,8 @@ The signer sends a C<connect> response back to the client.
 =head2 Commands
 
 C<connect>, C<sign_event>, C<ping>, C<get_public_key>, C<nip04_encrypt>,
-C<nip04_decrypt>, C<nip44_encrypt>, C<nip44_decrypt>, C<switch_relays>.
+C<nip04_decrypt>, C<nip44_encrypt>, C<nip44_decrypt>, C<switch_relays>,
+C<logout>.
 
 =head1 CLASS METHODS
 
@@ -680,6 +681,19 @@ Creates a C<nostrconnect://> URI string.
 
 Builds a JSON-encoded request payload. Croaks if C<method> or C<params> is
 missing.
+
+The generic request builder supports all NIP-46 methods, including
+C<connect> with its optional metadata parameter and C<logout>:
+
+    my $connect = Net::Nostr::RemoteSigning->request(
+        method => 'connect',
+        params => [$client_pubkey, $secret, $perms, '{"name":"My Client"}'],
+    );
+
+    my $logout = Net::Nostr::RemoteSigning->request(
+        method => 'logout',
+        params => [],
+    );
 
 =head2 request_event
 

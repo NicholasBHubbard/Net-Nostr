@@ -153,7 +153,7 @@ Net::Nostr::Article - NIP-23 long-form content
         hashtags     => ['nostr', 'blog'],
     );
 
-    # Create a draft (kind 30024, same structure)
+    # Create a deprecated NIP-23 draft (kind 30024, same structure)
     my $draft = Net::Nostr::Article->draft(
         pubkey     => $pubkey,
         content    => "# WIP\n\nNot finished yet.",
@@ -177,9 +177,10 @@ Net::Nostr::Article - NIP-23 long-form content
 
 =head1 DESCRIPTION
 
-Implements NIP-23 long-form content (articles and drafts). Articles are
-kind 30023 addressable events with Markdown content and optional metadata
-tags. Drafts are kind 30024 with the same structure.
+Implements NIP-23 long-form content. Articles are kind 30023 addressable
+events with Markdown content and optional metadata tags. The older kind
+30024 draft form is still parsed and can still be created for compatibility,
+but it is deprecated by the current NIP-23 text.
 
 Content should be Markdown text. Clients creating articles MUST NOT hard
 line-break paragraphs and MUST NOT include HTML in the Markdown.
@@ -257,9 +258,9 @@ C<a>, C<p> tags for references).
         # same optional params as article()
     );
 
-Creates a kind 30024 draft event. Accepts the same parameters as
-L</article>. Drafts have the same structure as articles but are not
-intended for publication.
+Creates a deprecated kind 30024 draft event. Accepts the same parameters as
+L</article>. Drafts have the same structure as articles but are not intended
+for publication.
 
 =head2 from_event
 

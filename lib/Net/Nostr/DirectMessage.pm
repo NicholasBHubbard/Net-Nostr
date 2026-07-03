@@ -116,6 +116,7 @@ sub create_file {
     push @tags, ['ox', $args{ox}] if defined $args{ox};
     push @tags, ['size', $args{size}] if defined $args{size};
     push @tags, ['dim', $args{dim}] if defined $args{dim};
+    push @tags, ['thumbhash', $args{thumbhash}] if defined $args{thumbhash};
     push @tags, ['blurhash', $args{blurhash}] if defined $args{blurhash};
     push @tags, ['thumb', $args{thumb}] if defined $args{thumb};
     if ($args{fallback}) {
@@ -343,7 +344,7 @@ C<aes-gcm>. C<x> and optional C<ox> must be 64-character lowercase hex
 SHA-256 digests.
 
 Optional tags: C<ox> (SHA-256 of original file), C<size>, C<dim>,
-C<blurhash>, C<thumb>, C<fallback> (arrayref of fallback URLs),
+C<blurhash>, C<thumbhash>, C<thumb>, C<fallback> (arrayref of fallback URLs),
 C<subject> (conversation topic).
 
 C<recipients> and C<reply_to> accept relay hints in the same format
@@ -364,6 +365,7 @@ C<[$event_id, $relay_url, 'reply']>.
         size                 => '2048000',
         dim                  => '1920x1080',
         blurhash             => 'LEHV6nWB2yk8',
+        thumbhash            => '1QcSHQRnh493V4dIh4eXh1h4kJUI',
         thumb                => 'https://example.com/thumb.bin',
         fallback             => ['https://backup.example.com/photo.bin'],
         subject              => 'Vacation photos',
@@ -407,8 +409,8 @@ messages), C<skip_sender> (omit the sender's copy).
     say $rumor->content;  # "secret message"
     say $rumor->pubkey;   # sender's pubkey
 
-Unwraps a kind 1059 gift wrap and returns the inner rumor (unsigned event).
-The returned rumor preserves all tags including C<subject>.
+Unwraps a kind 1059 or 21059 gift wrap and returns the inner rumor
+(unsigned event). The returned rumor preserves all tags including C<subject>.
 Verifies that the seal's pubkey matches the rumor's pubkey (required by
 NIP-17). Croaks with "sender pubkey mismatch" if the seal was created by
 a different key than the rumor claims, which prevents impersonation attacks.

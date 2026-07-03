@@ -150,7 +150,7 @@ sub to_hash {
 
 sub is_regular {
     my $k = shift->kind;
-    return ($k == 1 || $k == 2 || ($k >= 4 && $k < 45) || ($k >= 1000 && $k < 10000));
+    return ($k == 1 || $k == 2 || ($k >= 4 && $k < 45) || $k == 78 || ($k >= 1000 && $k < 10000));
 }
 
 sub is_replaceable {
@@ -635,7 +635,7 @@ inclusion in an event's tags. The reason is optional.
 
 =head2 is_regular
 
-    $event->is_regular;  # true for kinds 1, 2, 4-44, 1000-9999
+    $event->is_regular;  # true for kinds 1, 2, 4-44, 78, 1000-9999
 
 Returns true if the event kind is a regular (non-replaceable, non-ephemeral,
 non-addressable) kind.

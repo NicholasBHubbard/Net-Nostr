@@ -37,6 +37,18 @@ my %IP_METHODS = map { $_ => 1 } qw(
     blockip unblockip
 );
 
+my %ROLE_DEFINITION_METHODS = map { $_ => 1 } qw(
+    createrole editrole
+);
+
+my %ROLE_ID_METHODS = map { $_ => 1 } qw(
+    deleterole
+);
+
+my %ROLE_ASSIGNMENT_METHODS = map { $_ => 1 } qw(
+    assignrole unassignrole
+);
+
 sub encode_request {
     my %args = Net::Nostr::_ConstructorArgs::normalize(@_);
     my $method = $args{method};
@@ -122,6 +134,34 @@ sub _validate_params {
         croak "$method requires an IP address as first param"
             unless @$params >= 1 && defined $params->[0] && length $params->[0];
     }
+    elsif ($ROLE_DEFINITION_METHODS{$method}) {
+        croak "$method requires role id as first param"
+            unless @$params >= 1 && defined $params->[0] && length $params->[0];
+        croak "$method requires label as second param"
+            unless @$params >= 2 && defined $params->[1];
+        croak "$method requires description as third param"
+            unless @$params >= 3 && defined $params->[2];
+        croak "$method requires color as fourth param"
+            unless @$params >= 4 && defined $params->[3];
+        croak "color must be an integer from 0 to 360"
+            unless $params->[3] =~ /\A[0-9]+\z/ && $params->[3] >= 0 && $params->[3] <= 360;
+        croak "$method requires order as fifth param"
+            unless @$params >= 5 && defined $params->[4];
+        croak "order must be an integer"
+            unless $params->[4] =~ /\A[0-9]+\z/;
+    }
+    elsif ($ROLE_ID_METHODS{$method}) {
+        croak "$method requires role id as first param"
+            unless @$params >= 1 && defined $params->[0] && length $params->[0];
+    }
+    elsif ($ROLE_ASSIGNMENT_METHODS{$method}) {
+        croak "$method requires a 64-char hex pubkey as first param"
+            unless @$params >= 1;
+        croak "pubkey must be 64-char lowercase hex"
+            unless $params->[0] =~ $HEX64;
+        croak "$method requires role id as second param"
+            unless @$params >= 2 && defined $params->[1] && length $params->[1];
+    }
 }
 
 1;
@@ -142,6 +182,11 @@ Net::Nostr::RelayAdmin - NIP-86 relay management API
     my $body = encode_request(
         method => 'banpubkey',
         params => ['aa' x 32, 'spammer'],
+    );
+
+    my $role_body = encode_request(
+        method => 'createrole',
+        params => ['28b7e50f', 'king', 'ruler of the relay', 37, 1],
     );
 
     # Decode a response
@@ -185,6 +230,10 @@ The following management methods are defined by NIP-86:
 
 =item C<blockip>, C<unblockip>, C<listblockedips> - IP blocking
 
+=item C<createrole>, C<editrole>, C<deleterole> - relay role definitions
+
+=item C<assignrole>, C<unassignrole> - role assignment
+
 =back
 
 Unknown method names are passed through without parameter validation,
@@ -208,7 +257,8 @@ Croaks if C<params> is provided but not an array reference.
 For known NIP-86 methods, validates that params contain the correct
 types: 64-char lowercase hex for pubkey/event-id methods, non-negative
 integers for kind methods, non-empty strings for relay metadata
-methods, and non-empty strings for IP methods.
+methods, non-empty strings for IP methods, and the NIP-86 role
+management parameter shapes.
 
     my $body = encode_request(
         method => 'banpubkey',
