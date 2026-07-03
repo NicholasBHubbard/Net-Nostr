@@ -1,5 +1,7 @@
 {{$NEXT}}
 
+2.001000   2026-07-02
+
   - Update supported NIP behavior to nostr-protocol/nips commit 8f8444d0
   - Add NIP-29 naddr group identifiers, LiveKit metadata, and participants
   - Add NIP-43 role definitions and NIP-86 role management validation
