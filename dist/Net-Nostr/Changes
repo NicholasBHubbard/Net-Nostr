@@ -13,6 +13,8 @@
     Net::Nostr::Identifier network lookup and verification
   - Keep AnyEvent::HTTP as a hard dependency of the Net-Nostr shim distribution
     for the full historical install
+  - Leave intra-Net::Nostr distribution dependencies unversioned for
+    split-release indexing
   - Remove unrecommended NIPs 15, 28, 72, and 90 from the full install surface
     by dropping Net::Nostr::Marketplace, Net::Nostr::Channel,
     Net::Nostr::Community, and Net::Nostr::DVM from Net-Nostr-Core

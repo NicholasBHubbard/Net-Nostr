@@ -8,7 +8,7 @@ my %runtime_requires = (
     'Class::Tiny'                 => 0,
     'AnyEvent'                    => 0,
     'AnyEvent::WebSocket::Client' => 0,
-    'Net::Nostr::Core'            => '1.001000',
+    'Net::Nostr::Core'            => 0,
 );
 
 my %test_requires = (

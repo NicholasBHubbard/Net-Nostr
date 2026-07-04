@@ -68,19 +68,26 @@ subtest 'distribution versions are aligned' => sub {
     my $shim_changes = _slurp('dist/Net-Nostr/Changes');
     like($shim_changes, qr/^2\.002000\s+2026-07-03/m, 'shim Changes stays at 2.002000');
 
-    my %dependency_versions = (
-        'Net-Nostr-Client/Makefile.PL' => [qr/'Net::Nostr::Core'\s*=>\s*'1\.001000'/],
-        'Net-Nostr-Relay/Makefile.PL'  => [qr/'Net::Nostr::Core'\s*=>\s*'1\.001000'/],
-        'Net-Nostr/Makefile.PL'        => [
-            qr/'Net::Nostr::Core'\s*=>\s*'1\.001000'/,
-            qr/'Net::Nostr::Client'\s*=>\s*'1\.001000'/,
-            qr/'Net::Nostr::Relay'\s*=>\s*'1\.001000'/,
-        ],
+    my %intra_distribution_dependencies = (
+        'Net-Nostr-Client/Makefile.PL' => [qw(Net::Nostr::Core)],
+        'Net-Nostr-Relay/Makefile.PL'  => [qw(Net::Nostr::Core)],
+        'Net-Nostr/Makefile.PL'        => [qw(Net::Nostr::Core Net::Nostr::Client Net::Nostr::Relay)],
     );
 
-    for my $path (sort keys %dependency_versions) {
+    for my $path (sort keys %intra_distribution_dependencies) {
         my $source = _slurp("dist/$path");
-        like($source, $_, "$path dependency floor is 1.001000") for @{ $dependency_versions{$path} };
+        for my $module (@{ $intra_distribution_dependencies{$path} }) {
+            like(
+                $source,
+                qr/'\Q$module\E'\s*=>\s*0\b/,
+                "$path leaves $module unversioned"
+            );
+            unlike(
+                $source,
+                qr/'\Q$module\E'\s*=>\s*['"]?[1-9]/,
+                "$path does not set a version floor for $module"
+            );
+        }
     }
 };
 
