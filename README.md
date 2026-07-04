@@ -100,3 +100,7 @@ NIP-04 (legacy encrypted DMs) is deprecated and not supported.
 ## Contributing
 
 Do not hesitate to open an [issue](https://github.com/NicholasBHubbard/Net-Nostr/issues) or [pull request](https://github.com/NicholasBHubbard/Net-Nostr/pulls)!
+
+## AI Usage
+
+This code was developed in part with AI tooling such as Claude Code and Codex. We want to be upfront about that.
