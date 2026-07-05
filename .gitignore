@@ -2,7 +2,7 @@
 /local
 /.agent-shell/
 /nips/
-/cpanfile
+cpanfile
 /Makefile.old
 /*.tar.gz
 dist/*/*.tar.gz
