@@ -42,31 +42,43 @@ subtest 'legacy distribution root no longer owns shipped modules' => sub {
     ok(!-d 'lib/Net/Nostr', 'top-level lib/Net/Nostr moved into dist roots');
 };
 
-subtest 'distribution versions are aligned' => sub {
-    my %versions = (
-        'Net-Nostr-Core/lib/Net/Nostr/Core.pm'     => '1.001000',
-        'Net-Nostr-Client/lib/Net/Nostr/Client.pm' => '1.001000',
-        'Net-Nostr-Relay/lib/Net/Nostr/Relay.pm'   => '1.001000',
-        'Net-Nostr/lib/Net/Nostr.pm'               => '2.002000',
+subtest 'distribution versions are self-consistent' => sub {
+    # Each distribution's $VERSION must match the version of its most recent
+    # Changes entry. This keeps code and changelog in step per distribution
+    # without hardcoding version numbers here (which would force this test to
+    # be edited on every release) and without requiring unrelated
+    # distributions to share a version.
+    my %main_module = (
+        'Net-Nostr-Core'   => 'lib/Net/Nostr/Core.pm',
+        'Net-Nostr-Client' => 'lib/Net/Nostr/Client.pm',
+        'Net-Nostr-Relay'  => 'lib/Net/Nostr/Relay.pm',
+        'Net-Nostr'        => 'lib/Net/Nostr.pm',
     );
 
-    for my $path (sort keys %versions) {
-        my $source = _slurp("dist/$path");
-        like(
-            $source,
-            qr/^our \$VERSION = '$versions{$path}';/m,
-            "$path version is $versions{$path}"
-        );
-    }
+    my %version_of;
+    for my $dist (sort keys %main_module) {
+        my $source = _slurp("dist/$dist/$main_module{$dist}");
+        my ($version) = $source =~ /^our \$VERSION = '([^']+)';/m;
+        ok(defined $version, "$dist declares a \$VERSION") or next;
+        $version_of{$dist} = $version;
 
-    for my $dist (qw(Net-Nostr-Core Net-Nostr-Client Net-Nostr-Relay)) {
         my $changes = _slurp("dist/$dist/Changes");
-        like($changes, qr/^1\.001000\s+2026-07-03/m, "$dist Changes starts at 1.001000");
-        unlike($changes, qr/^2\.\d+/m, "$dist Changes does not carry Net-Nostr 2.x release entries");
+        my ($top) = $changes =~ /\A(\S+)\s+\d{4}-\d{2}-\d{2}/;
+        ok(defined $top, "$dist Changes opens with a dated release entry") or next;
+        is($version, $top,
+            "$dist \$VERSION ($version) matches its latest Changes entry ($top)");
     }
 
-    my $shim_changes = _slurp('dist/Net-Nostr/Changes');
-    like($shim_changes, qr/^2\.002000\s+2026-07-03/m, 'shim Changes stays at 2.002000');
+    # The shim keeps its own 2.x version line; the split-out distributions
+    # stay on the 1.x line. This guards against version/Changes
+    # cross-contamination from the original split, not against independent
+    # per-distribution version bumps.
+    like($version_of{'Net-Nostr'} // '', qr/\A2\./, 'shim keeps its 2.x version line');
+    for my $dist (qw(Net-Nostr-Core Net-Nostr-Client Net-Nostr-Relay)) {
+        like($version_of{$dist} // '', qr/\A1\./, "$dist keeps its 1.x version line");
+        unlike(_slurp("dist/$dist/Changes"), qr/^2\.\d+/m,
+            "$dist Changes does not carry Net-Nostr 2.x release entries");
+    }
 
     my %intra_distribution_dependencies = (
         'Net-Nostr-Client/Makefile.PL' => [qw(Net::Nostr::Core)],

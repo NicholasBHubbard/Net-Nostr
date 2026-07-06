@@ -1,3 +1,9 @@
+1.001001   2026-07-06
+
+  - Verify NIP-01 Schnorr signatures over the 32-byte event id instead of
+    its hex string, matching the Net::Nostr::Core fix, so the relay accepts
+    events signed by standard Nostr implementations.
+
 1.001000   2026-07-03
 
   - First independent Net-Nostr-Relay release, split from Net-Nostr
@@ -7,7 +13,3 @@
     documents, and validation helpers
   - Leave the Net::Nostr::Core dependency unversioned for split-release indexing
   - Use Makefile.PL as the single dependency source of truth
-  - Fix NIP-01 signature verification to check BIP-340 Schnorr signatures
-    over the 32 raw bytes of the event id rather than its hex-string
-    representation, so the relay accepts events signed by standard Nostr
-    implementations (matching the corresponding Net::Nostr::Core fix).
