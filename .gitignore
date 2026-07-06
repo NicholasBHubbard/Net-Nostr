@@ -17,6 +17,7 @@ dist/*/MYMETA.yml
 dist/*/MYMETA.json
 /Makefile
 dist/*/Makefile
+dist/*/Makefile.old
 /blib/
 dist/*/blib/
 /pm_to_blib
