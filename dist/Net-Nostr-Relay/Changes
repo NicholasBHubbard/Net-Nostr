@@ -7,3 +7,7 @@
     documents, and validation helpers
   - Leave the Net::Nostr::Core dependency unversioned for split-release indexing
   - Use Makefile.PL as the single dependency source of truth
+  - Fix NIP-01 signature verification to check BIP-340 Schnorr signatures
+    over the 32 raw bytes of the event id rather than its hex-string
+    representation, so the relay accepts events signed by standard Nostr
+    implementations (matching the corresponding Net::Nostr::Core fix).

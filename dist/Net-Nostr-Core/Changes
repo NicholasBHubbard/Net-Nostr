@@ -10,3 +10,11 @@
     Net::Nostr::Marketplace, Net::Nostr::Channel, Net::Nostr::Community, and
     Net::Nostr::DVM
   - Use Makefile.PL as the single dependency source of truth
+  - Fix NIP-01 signature interoperability: sign and verify BIP-340 Schnorr
+    signatures over the 32 raw bytes of the event id, not over its
+    hex-string representation. Previously Net::Nostr::Key->sign_event,
+    Net::Nostr::Event->validate/verify_sig, and Net::Nostr::Zap signed and
+    verified over the ASCII hex id, so the library only interoperated with
+    itself: it rejected events signed by standard Nostr implementations and
+    produced signatures those implementations rejected. Events signed with
+    the previous behavior are no longer valid and must be re-signed.
