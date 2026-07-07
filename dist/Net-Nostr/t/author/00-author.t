@@ -89,9 +89,13 @@ subtest 'NIP-05 HTTP dependency is required by shim' => sub {
 subtest 'Makefile.PL is dependency source of truth' => sub {
     ok(!-e 'cpanfile', "$dist has no cpanfile");
 
-    my $manifest_skip = _slurp('MANIFEST.SKIP');
-    unlike($manifest_skip, qr/cpanfile/, "$dist MANIFEST.SKIP does not allow cpanfile");
-    unlike($manifest_skip, qr/README\\\.md|README\.md/, "$dist MANIFEST.SKIP does not allow README.md");
+    if (-e 'MANIFEST.SKIP') {
+        my $manifest_skip = _slurp('MANIFEST.SKIP');
+        unlike($manifest_skip, qr/cpanfile/, "$dist MANIFEST.SKIP does not allow cpanfile");
+        unlike($manifest_skip, qr/README\\\.md|README\.md/, "$dist MANIFEST.SKIP does not allow README.md");
+    } else {
+        pass("$dist release archive does not ship MANIFEST.SKIP");
+    }
 
     skip_all 'root documentation checks require repository root'
         unless -e '../../AGENTS.md';
@@ -194,6 +198,10 @@ subtest 'pod syntax' => sub {
 };
 
 subtest 'pod coverage' => sub {
+    my @missing = _missing_modules(qw(Net::Nostr::Client Net::Nostr::Relay));
+    skip_all 'pod coverage requires shim runtime dependencies: ' . join(', ', @missing)
+        if @missing;
+
     my @modules = _modules();
     pod_coverage_ok($_) for sort @modules;
     done_testing;
@@ -427,6 +435,15 @@ sub _modules {
         push @modules, $module;
     }
     return @modules;
+}
+
+sub _missing_modules {
+    my @missing;
+    for my $module (@_) {
+        (my $file = "$module.pm") =~ s{::}{/}g;
+        push @missing, $module unless eval { require $file; 1 };
+    }
+    return @missing;
 }
 
 sub _module_files {
