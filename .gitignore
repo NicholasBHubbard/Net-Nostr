@@ -15,6 +15,7 @@ dist/*/META.yml
 dist/*/META.json
 dist/*/MYMETA.yml
 dist/*/MYMETA.json
+dist/*/local
 /Makefile
 dist/*/Makefile
 dist/*/Makefile.old
