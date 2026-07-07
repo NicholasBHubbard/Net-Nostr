@@ -104,3 +104,7 @@ Do not hesitate to open an [issue](https://github.com/NicholasBHubbard/Net-Nostr
 ## AI Usage
 
 This code was developed in part with AI tooling such as Claude Code and Codex.
+
+## License
+
+This repository is licensed under the GNU General Public License version 3.
