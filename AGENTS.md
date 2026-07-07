@@ -52,7 +52,9 @@ Shared test helpers live in the relevant distribution's `t/lib/TestFixtures.pm`.
 Add round-trip tests for protocol-facing types where applicable. Parsing then serializing should not introduce unintended changes, and serializing then parsing should produce an equivalent valid object.
 
 Run tests with `prove` or the distribution's `make test`. For broad changes, run
-the affected distribution tests plus the root author tests in `t/author/`.
+the affected distribution tests plus that distribution's author tests in
+`dist/<Distribution>/t/author/`. For repository-wide changes, run each
+distribution's `t/author/` suite from inside the distribution root.
 
 After making changes, always run the relevant tests and fix failures before considering the work done. If a fix introduces new failures, keep iterating until all tests pass. Similarly, re-read any POD you've added or modified to verify it is accurate and complete.
 

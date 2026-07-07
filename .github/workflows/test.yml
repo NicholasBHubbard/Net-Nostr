@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - 'dist/**'
-      - 't/**'
       - 'Changes'
       - 'README.md'
       - '.github/workflows/test.yml'
@@ -13,7 +12,6 @@ on:
     branches: [main]
     paths:
       - 'dist/**'
-      - 't/**'
       - 'Changes'
       - 'README.md'
       - '.github/workflows/test.yml'
@@ -52,6 +50,7 @@ jobs:
           perl Makefile.PL
           make
           make test
+          prove -v t/author/*.t
           make install
 
       - name: Build and test Client
@@ -61,6 +60,7 @@ jobs:
           perl Makefile.PL
           make
           make test
+          prove -v t/author/*.t
           make install
 
       - name: Build and test Relay
@@ -70,6 +70,7 @@ jobs:
           perl Makefile.PL
           make
           make test
+          prove -v t/author/*.t
           make install
 
       - name: Build and test shim
@@ -79,7 +80,5 @@ jobs:
           perl Makefile.PL
           make
           make test
+          prove -v t/author/*.t
           make install
-
-      - name: Author layout checks
-        run: prove -v t/author/*.t
