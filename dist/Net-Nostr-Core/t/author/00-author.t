@@ -70,9 +70,13 @@ subtest 'NIP-05 HTTP dependency is optional' => sub {
 subtest 'Makefile.PL is dependency source of truth' => sub {
     ok(!-e 'cpanfile', "$dist has no cpanfile");
 
-    my $manifest_skip = _slurp('MANIFEST.SKIP');
-    unlike($manifest_skip, qr/cpanfile/, "$dist MANIFEST.SKIP does not allow cpanfile");
-    unlike($manifest_skip, qr/README\\\.md|README\.md/, "$dist MANIFEST.SKIP does not allow README.md");
+    if (-e 'MANIFEST.SKIP') {
+        my $manifest_skip = _slurp('MANIFEST.SKIP');
+        unlike($manifest_skip, qr/cpanfile/, "$dist MANIFEST.SKIP does not allow cpanfile");
+        unlike($manifest_skip, qr/README\\\.md|README\.md/, "$dist MANIFEST.SKIP does not allow README.md");
+    } else {
+        pass("$dist release archive does not ship MANIFEST.SKIP");
+    }
 };
 
 subtest 'Makefile.PL test target excludes author tests' => sub {
