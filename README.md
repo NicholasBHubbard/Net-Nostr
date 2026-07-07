@@ -103,4 +103,4 @@ Do not hesitate to open an [issue](https://github.com/NicholasBHubbard/Net-Nostr
 
 ## AI Usage
 
-This code was developed in part with AI tooling such as Claude Code and Codex. We want to be upfront about that.
+This code was developed in part with AI tooling such as Claude Code and Codex.
