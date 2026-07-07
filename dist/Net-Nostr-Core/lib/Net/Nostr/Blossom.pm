@@ -109,7 +109,7 @@ sub extract_hash {
         unless defined $input && !ref($input);
 
     my ($hash, $ext);
-    while ($input =~ /(?<![0-9a-fA-F])([0-9a-fA-F]{64})(?![0-9a-fA-F])(?:\.([A-Za-z0-9]+))?/g) {
+    while ($input =~ /(?<![0-9a-fA-F])([0-9a-fA-F]{64})(?![0-9a-fA-F])(?:\.([A-Za-z0-9]+)(?=\z|[?#]))?/g) {
         ($hash, $ext) = (lc($1), $2);
     }
 
@@ -339,8 +339,9 @@ at least one C<server> tag.
 
 Extracts the last bounded 64-character hexadecimal string from the input and
 returns it lowercased with an optional alphanumeric extension. The extension
-is captured only when it appears immediately after the hash as C<.ext>, and
-may be followed by a query or fragment. Longer hex runs are not matched.
+is captured only when it appears immediately after the hash as C<.ext> and is
+followed by the end of the input, a query, or a fragment. Longer hex runs are
+not matched.
 
 Returns C<(undef, undef)> when no hash exists.
 

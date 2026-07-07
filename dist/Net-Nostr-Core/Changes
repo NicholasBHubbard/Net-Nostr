@@ -6,6 +6,8 @@
     This intentionally changes the early Blossom API: server lists are now
     constructed with new(servers => \@urls), duplicates are preserved, and
     malformed server-list events are rejected.
+  - Tighten Blossom URL hash extraction so file extensions are captured only
+    at the end of the input or before a query or fragment.
   - Add URI as a runtime dependency for structured server URL parsing.
 
 1.001001   2026-07-06

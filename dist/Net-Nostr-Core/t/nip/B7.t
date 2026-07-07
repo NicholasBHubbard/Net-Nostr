@@ -362,6 +362,23 @@ subtest 'extract_hash allows extension before fragment' => sub {
     is($ext, 'pdf', 'extension before fragment preserved');
 };
 
+subtest 'extract_hash captures extension only at path end' => sub {
+    my @cases = (
+        ["https://cdn.example.com/$BUD_HASH.pdf", 'pdf', 'extension before end'],
+        ["https://cdn.example.com/$BUD_HASH.pdf?x=1", 'pdf', 'extension before query'],
+        ["https://cdn.example.com/$BUD_HASH.pdf#frag", 'pdf', 'extension before fragment'],
+        ["https://cdn.example.com/$BUD_HASH.pdf/more", undef, 'extension before path segment ignored'],
+        ["https://cdn.example.com/$BUD_HASH.pdfmore/path", undef, 'extension-like path prefix ignored'],
+    );
+
+    for my $case (@cases) {
+        my ($url, $want_ext, $name) = @$case;
+        my ($hash, $ext) = Net::Nostr::Blossom->extract_hash($url);
+        is($hash, $BUD_HASH, "$name hash");
+        is($ext, $want_ext, "$name extension");
+    }
+};
+
 subtest 'extract_hash does not extract from longer hex runs' => sub {
     my @invalid = (
         'https://cdn.example.com/' . ('a' x 65),
