@@ -75,8 +75,6 @@ Conformance target: [nostr-protocol/nips commit 8f8444d0](https://github.com/nos
 - [NIP-99](https://github.com/nostr-protocol/nips/blob/master/99.md) - Classified Listings
 - [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) - Blossom media
 
-NIP-04 (legacy encrypted DMs) is deprecated and not supported.
-
 ## Contributing
 
 Do not hesitate to open an [issue](https://github.com/NicholasBHubbard/Net-Nostr/issues) or [pull request](https://github.com/NicholasBHubbard/Net-Nostr/pulls)!
