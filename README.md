@@ -4,30 +4,10 @@ A [Nostr](https://nostr.org/) library for Perl.
 
 This repository contains four Perl distributions:
 
-- `Net-Nostr-Core`: core Nostr protocol tooling such as events, keys, filters,
-  messages, encryption helpers, and NIP-specific builders.
-- `Net-Nostr-Client`: `Net::Nostr::Client`, the WebSocket client implementation.
-- `Net-Nostr-Relay`: `Net::Nostr::Relay` and relay storage.
-- `Net-Nostr`: compatibility shim that installs Core, Client, and Relay.
-
-## Installation
-
-For the full historical install:
-
-```
-$ cpanm Net::Nostr
-```
-
-For protocol tooling only:
-
-```
-$ cpanm Net::Nostr::Core
-```
-
-`Net::Nostr::Identifier` can parse and verify NIP-05 response data with only
-Core installed. Its network methods, `lookup` and `verify`, lazy-load
-`AnyEvent::HTTP`; Core recommends that dependency, while the `Net::Nostr` shim
-requires it.
+- [Net::Nostr::Core](https://metacpan.org/pod/Net::Nostr::Core): core Nostr protocol tooling such as events, keys, filters, messages, encryption helpers, and NIP-specific builders.
+- [Net::Nostr::Client](https://metacpan.org/pod/Net::Nostr::Client): a WebSocket client implementation.
+- [Net::Nostr::Client](https://metacpan.org/pod/Net::Nostr::Relay): a Nostr relay implementation.
+- [Net::Nostr](https://metacpan.org/pod/Net::Nostr): compatibility shim that installs Core, Client, and Relay.
 
 ## Documentation
 
