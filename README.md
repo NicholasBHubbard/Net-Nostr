@@ -6,7 +6,7 @@ This repository contains four Perl distributions:
 
 - [Net::Nostr::Core](https://metacpan.org/pod/Net::Nostr::Core): core Nostr protocol tooling such as events, keys, filters, messages, encryption helpers, and NIP-specific builders.
 - [Net::Nostr::Client](https://metacpan.org/pod/Net::Nostr::Client): a WebSocket client implementation.
-- [Net::Nostr::Client](https://metacpan.org/pod/Net::Nostr::Relay): a Nostr relay implementation.
+- [Net::Nostr::Relay](https://metacpan.org/pod/Net::Nostr::Relay): a Nostr relay implementation.
 - [Net::Nostr](https://metacpan.org/pod/Net::Nostr): compatibility shim that installs Core, Client, and Relay.
 
 ## Documentation
