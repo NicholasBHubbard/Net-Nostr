@@ -37,9 +37,9 @@ subtest 'author tests are distribution-owned' => sub {
     unlike($workflow, qr/name:\s*Author layout checks/, 'CI has no root author-test step');
     unlike($workflow, qr/^\s*run:\s*prove -v t\/author\/\*\.t\s*$/m, 'CI does not run root author tests');
     for my $dist (@all_dists) {
-        my ($block) = $workflow =~ /(cd dist\/\Q$dist\E\b.*?)(?=\n\s{6}- name:|\z)/s;
+        my ($block) = $workflow =~ /(chdir 'dist\/\Q$dist\E'.*?)(?=\n\s{6}- name:|\z)/s;
         ok(defined $block, "CI has a $dist build step") or next;
-        like($block, qr/^\s*prove -v t\/author\/\*\.t\s*$/m,
+        like($block, qr/system\(\$\^X, '-S', 'prove', '-v', glob\('t\/author\/\*\.t'\)\) == 0/,
             "CI runs $dist author tests from inside the distribution");
     }
 };
@@ -66,8 +66,10 @@ subtest 'distribution version is self-consistent' => sub {
     ok(defined $version, "$dist declares a \$VERSION") or return;
 
     my $changes = _slurp('Changes');
-    my ($top) = $changes =~ /\A(\S+)\s+\d{4}-\d{2}-\d{2}/;
-    ok(defined $top, "$dist Changes opens with a dated release entry") or return;
+    my $released_changes = $changes;
+    $released_changes =~ s/\AUnreleased\b.*?(?=^\S)//ms;
+    my ($top) = $released_changes =~ /\A(\S+)\s+\d{4}-\d{2}-\d{2}/;
+    ok(defined $top, "$dist Changes has a dated release entry after any Unreleased section") or return;
     is($version, $top, "$dist \$VERSION ($version) matches its latest Changes entry ($top)");
 
     like($version, qr/\A2\./, "$dist keeps its 2.x version line");

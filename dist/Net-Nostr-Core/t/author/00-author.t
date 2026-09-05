@@ -42,8 +42,10 @@ subtest 'distribution version is self-consistent' => sub {
     ok(defined $version, "$dist declares a \$VERSION") or return;
 
     my $changes = _slurp('Changes');
-    my ($top) = $changes =~ /\A(\S+)\s+\d{4}-\d{2}-\d{2}/;
-    ok(defined $top, "$dist Changes opens with a dated release entry") or return;
+    my $released_changes = $changes;
+    $released_changes =~ s/\AUnreleased\b.*?(?=^\S)//ms;
+    my ($top) = $released_changes =~ /\A(\S+)\s+\d{4}-\d{2}-\d{2}/;
+    ok(defined $top, "$dist Changes has a dated release entry after any Unreleased section") or return;
     is($version, $top, "$dist \$VERSION ($version) matches its latest Changes entry ($top)");
 
     like($version, qr/\A1\./, "$dist keeps its 1.x version line");

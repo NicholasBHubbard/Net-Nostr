@@ -18,67 +18,110 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        perl: ['5.16', 'latest']
-    name: Perl ${{ matrix.perl }}
-    env:
-      PERL5LIB: /home/runner/perl5/lib/perl5
-      PERL_LOCAL_LIB_ROOT: /home/runner/perl5
-      PERL_MB_OPT: --install_base /home/runner/perl5
-      PERL_MM_OPT: INSTALL_BASE=/home/runner/perl5
+        include:
+          - os: ubuntu-latest
+            perl: '5.16'
+          - os: ubuntu-latest
+            perl: latest
+          - os: macos-latest
+            perl: latest
+          - os: windows-latest
+            perl: latest
+    name: Perl ${{ matrix.perl }} on ${{ matrix.os }}
+    defaults:
+      run:
+        # Bash on Windows can select the system Perl instead of the setup action's Perl.
+        shell: perl {0}
     steps:
       - uses: actions/checkout@v4
 
       - uses: shogo82148/actions-setup-perl@v1
+        id: perl
         with:
           perl-version: ${{ matrix.perl }}
+          # Cache against the distribution manifests below instead of the action's default.
+          enable-modules-cache: false
 
       - uses: actions/cache@v4
         with:
-          path: ~/perl5
-          key: perl-${{ matrix.perl }}-${{ hashFiles('dist/*/Makefile.PL', '.github/workflows/test.yml') }}
+          path: local
+          key: perl-${{ runner.os }}-${{ runner.arch }}-${{ steps.perl.outputs.perl-version }}-${{ steps.perl.outputs.perl-hash }}-${{ hashFiles('dist/*/Makefile.PL', '.github/workflows/test.yml') }}
 
       - name: Install author test dependencies
-        run: cpanm --local-lib ~/perl5 Test::Pod Test::Pod::Coverage
+        run: |
+          use strict;
+          use warnings;
+          system($^X, '-S', 'cpanm', '--local-lib', 'local', 'Test::Pod', 'Test::Pod::Coverage') == 0
+              or die "Installing author test dependencies failed\n";
 
       - name: Build and test Core
         run: |
-          cpanm --local-lib ~/perl5 --installdeps ./dist/Net-Nostr-Core
-          cd dist/Net-Nostr-Core
-          perl Makefile.PL
-          make
-          make test
-          prove -v t/author/*.t
-          make install
+          use strict;
+          use warnings;
+          use Config qw(%Config);
+          system($^X, '-S', 'cpanm', '--local-lib', 'local', '--installdeps', './dist/Net-Nostr-Core') == 0
+              or die "Installing Core dependencies failed\n";
+          chdir 'dist/Net-Nostr-Core' or die "chdir Core: $!\n";
+          system($^X, 'Makefile.PL', "INSTALL_BASE=$ENV{GITHUB_WORKSPACE}/local") == 0
+              or die "Configuring Core failed\n";
+          for my $target (qw(all test)) {
+              system($Config{make}, $target) == 0 or die "Core: $target failed\n";
+          }
+          system($^X, '-S', 'prove', '-v', glob('t/author/*.t')) == 0
+              or die "Core: author checks failed\n";
+          system($Config{make}, 'install') == 0 or die "Core: install failed\n";
 
       - name: Build and test Client
         run: |
-          cpanm --local-lib ~/perl5 --installdeps ./dist/Net-Nostr-Client
-          cd dist/Net-Nostr-Client
-          perl Makefile.PL
-          make
-          make test
-          prove -v t/author/*.t
-          make install
+          use strict;
+          use warnings;
+          use Config qw(%Config);
+          system($^X, '-S', 'cpanm', '--local-lib', 'local', '--installdeps', './dist/Net-Nostr-Client') == 0
+              or die "Installing Client dependencies failed\n";
+          chdir 'dist/Net-Nostr-Client' or die "chdir Client: $!\n";
+          system($^X, 'Makefile.PL', "INSTALL_BASE=$ENV{GITHUB_WORKSPACE}/local") == 0
+              or die "Configuring Client failed\n";
+          for my $target (qw(all test)) {
+              system($Config{make}, $target) == 0 or die "Client: $target failed\n";
+          }
+          system($^X, '-S', 'prove', '-v', glob('t/author/*.t')) == 0
+              or die "Client: author checks failed\n";
+          system($Config{make}, 'install') == 0 or die "Client: install failed\n";
 
       - name: Build and test Relay
         run: |
-          cpanm --local-lib ~/perl5 --installdeps ./dist/Net-Nostr-Relay
-          cd dist/Net-Nostr-Relay
-          perl Makefile.PL
-          make
-          make test
-          prove -v t/author/*.t
-          make install
+          use strict;
+          use warnings;
+          use Config qw(%Config);
+          system($^X, '-S', 'cpanm', '--local-lib', 'local', '--installdeps', './dist/Net-Nostr-Relay') == 0
+              or die "Installing Relay dependencies failed\n";
+          chdir 'dist/Net-Nostr-Relay' or die "chdir Relay: $!\n";
+          system($^X, 'Makefile.PL', "INSTALL_BASE=$ENV{GITHUB_WORKSPACE}/local") == 0
+              or die "Configuring Relay failed\n";
+          for my $target (qw(all test)) {
+              system($Config{make}, $target) == 0 or die "Relay: $target failed\n";
+          }
+          system($^X, '-S', 'prove', '-v', glob('t/author/*.t')) == 0
+              or die "Relay: author checks failed\n";
+          system($Config{make}, 'install') == 0 or die "Relay: install failed\n";
 
       - name: Build and test shim
         run: |
-          cpanm --local-lib ~/perl5 --installdeps ./dist/Net-Nostr
-          cd dist/Net-Nostr
-          perl Makefile.PL
-          make
-          make test
-          prove -v t/author/*.t
-          make install
+          use strict;
+          use warnings;
+          use Config qw(%Config);
+          system($^X, '-S', 'cpanm', '--local-lib', 'local', '--installdeps', './dist/Net-Nostr') == 0
+              or die "Installing shim dependencies failed\n";
+          chdir 'dist/Net-Nostr' or die "chdir shim: $!\n";
+          system($^X, 'Makefile.PL', "INSTALL_BASE=$ENV{GITHUB_WORKSPACE}/local") == 0
+              or die "Configuring shim failed\n";
+          for my $target (qw(all test)) {
+              system($Config{make}, $target) == 0 or die "shim: $target failed\n";
+          }
+          system($^X, '-S', 'prove', '-v', glob('t/author/*.t')) == 0
+              or die "shim: author checks failed\n";
+          system($Config{make}, 'install') == 0 or die "shim: install failed\n";
