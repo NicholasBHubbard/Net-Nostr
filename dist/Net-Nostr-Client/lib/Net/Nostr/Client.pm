@@ -180,7 +180,13 @@ sub _setup_handlers {
         return warn "bad message from relay: $@\n" if $@;
 
         if ($msg->type eq 'EVENT') {
-            $self->_emit('event', $msg->subscription_id, $msg->event);
+            my $event = $msg->event;
+            my $valid = eval { $event->validate; 1 };
+            unless ($valid) {
+                warn "invalid event from relay: $@";
+                return;
+            }
+            $self->_emit('event', $msg->subscription_id, $event);
         } elsif ($msg->type eq 'OK') {
             $self->_emit('ok', $msg->event_id, $msg->accepted, $msg->message);
         } elsif ($msg->type eq 'EOSE') {
@@ -264,6 +270,16 @@ A WebSocket client for connecting to Nostr relays. Provides a callback-based
 interface for publishing events, managing subscriptions, receiving relay
 messages, counting events (NIP-45), and negentropy set reconciliation
 (NIP-77). Supports NIP-42 authentication.
+
+Every received EVENT is checked with L<Net::Nostr::Event/validate> before
+the C<event> callback runs. This recomputes the event ID and verifies the
+Schnorr signature against the event's public key. Verification is always
+enabled for both stored and live events. Events that fail verification
+are dropped with an C<invalid event from relay:> warning; the connection
+remains open and subsequent messages are still processed.
+
+These checks establish event integrity and signature validity. They do
+not validate kind-specific NIP semantics or establish trust in the author.
 
 =head1 CONSTRUCTOR
 
@@ -453,7 +469,10 @@ callback. Supported event types:
 
 =item C<event> - C<sub { my ($subscription_id, $event) = @_; }>
 
-Called for each EVENT message from the relay (both stored and live).
+Called for each EVENT message from the relay (both stored and live) that
+passes event ID and signature verification. Invalid events are dropped
+with a warning and do not invoke this callback. Applications do not need
+to call C<< $event->validate >> again to verify the ID and signature.
 
 =item C<ok> - C<sub { my ($event_id, $accepted, $message) = @_; }>
 

@@ -10,7 +10,7 @@ use AnyEvent;
 use IO::Socket::INET;
 
 use lib 't/lib';
-use TestFixtures qw(make_event);
+use TestFixtures qw(make_event make_key_from_hex make_signed_event);
 
 use Net::Nostr::Event;
 use Net::Nostr::Filter;
@@ -18,8 +18,10 @@ use Net::Nostr::Deletion;
 use Net::Nostr::Client;
 use Net::Nostr::Relay;
 
-my $alice_pk = 'a' x 64;
-my $bob_pk   = 'b' x 64;
+my $alice_key = make_key_from_hex('1' x 64);
+my $bob_key = make_key_from_hex('2' x 64);
+my $alice_pk = $alice_key->pubkey_hex;
+my $bob_pk = $bob_key->pubkey_hex;
 my $event1_id = '1' x 64;
 my $event2_id = '2' x 64;
 
@@ -224,14 +226,15 @@ subtest 'relay deletes stored events when receiving kind 5' => sub {
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
-    my $note = make_event(
-        pubkey => $alice_pk, kind => 1,
-        content => 'delete me', sig => 'a' x 128,
+    my $note = make_signed_event($alice_key,
+        kind => 1,
+        content => 'delete me',
     );
 
     my $del = Net::Nostr::Deletion->new(reason => 'oops');
     $del->add_event($note->id, kind => 1);
-    my $del_event = $del->to_event(pubkey => $alice_pk, sig => 'a' x 128);
+    my $del_event = $del->to_event(pubkey => $alice_pk);
+    $alice_key->sign_event($del_event);
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;
@@ -273,15 +276,16 @@ subtest 'relay only deletes events with matching pubkey' => sub {
     $relay->start('127.0.0.1', $port);
 
     # Bob's note
-    my $bob_note = make_event(
-        pubkey => $bob_pk, kind => 1,
-        content => 'bob post', sig => 'a' x 128,
+    my $bob_note = make_signed_event($bob_key,
+        kind => 1,
+        content => 'bob post',
     );
 
     # Alice tries to delete Bob's note
     my $del = Net::Nostr::Deletion->new;
     $del->add_event($bob_note->id, kind => 1);
-    my $del_event = $del->to_event(pubkey => $alice_pk, sig => 'a' x 128);
+    my $del_event = $del->to_event(pubkey => $alice_pk);
+    $alice_key->sign_event($del_event);
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;
@@ -322,14 +326,15 @@ subtest 'relay keeps the deletion request event itself' => sub {
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
-    my $note = make_event(
-        pubkey => $alice_pk, kind => 1,
-        content => 'delete me', sig => 'a' x 128,
+    my $note = make_signed_event($alice_key,
+        kind => 1,
+        content => 'delete me',
     );
 
     my $del = Net::Nostr::Deletion->new;
     $del->add_event($note->id, kind => 1);
-    my $del_event = $del->to_event(pubkey => $alice_pk, sig => 'a' x 128);
+    my $del_event = $del->to_event(pubkey => $alice_pk);
+    $alice_key->sign_event($del_event);
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;
@@ -371,16 +376,17 @@ subtest 'relay deletes addressable events via a tag' => sub {
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
-    my $article = make_event(
-        pubkey => $alice_pk, kind => 30023,
-        content => 'my article', sig => 'a' x 128,
+    my $article = make_signed_event($alice_key,
+        kind => 30023,
+        content => 'my article',
         tags => [['d', 'my-article']],
         created_at => 1000,
     );
 
     my $del = Net::Nostr::Deletion->new;
     $del->add_address("30023:${alice_pk}:my-article", kind => 30023);
-    my $del_event = $del->to_event(pubkey => $alice_pk, sig => 'a' x 128, created_at => 2000);
+    my $del_event = $del->to_event(pubkey => $alice_pk, created_at => 2000);
+    $alice_key->sign_event($del_event);
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;
@@ -427,12 +433,14 @@ subtest 'deletion of a deletion request has no effect' => sub {
     # Original deletion request
     my $del1 = Net::Nostr::Deletion->new;
     $del1->add_event($event1_id, kind => 1);
-    my $del1_event = $del1->to_event(pubkey => $alice_pk, sig => 'a' x 128, created_at => 1000);
+    my $del1_event = $del1->to_event(pubkey => $alice_pk, created_at => 1000);
+    $alice_key->sign_event($del1_event);
 
     # Attempt to delete the deletion
     my $del2 = Net::Nostr::Deletion->new;
     $del2->add_event($del1_event->id, kind => 5);
-    my $del2_event = $del2->to_event(pubkey => $alice_pk, sig => 'a' x 128, created_at => 2000);
+    my $del2_event = $del2->to_event(pubkey => $alice_pk, created_at => 2000);
+    $alice_key->sign_event($del2_event);
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;
@@ -505,15 +513,16 @@ subtest 'relay deletes replaceable events via a tag' => sub {
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);
     $relay->start('127.0.0.1', $port);
 
-    my $replaceable = make_event(
-        pubkey => $alice_pk, kind => 10000,
-        content => 'replaceable event', sig => 'a' x 128,
+    my $replaceable = make_signed_event($alice_key,
+        kind => 10000,
+        content => 'replaceable event',
         created_at => 1000,
     );
 
     my $del = Net::Nostr::Deletion->new;
     $del->add_address("10000:${alice_pk}:", kind => 10000);
-    my $del_event = $del->to_event(pubkey => $alice_pk, sig => 'a' x 128, created_at => 2000);
+    my $del_event = $del->to_event(pubkey => $alice_pk, created_at => 2000);
+    $alice_key->sign_event($del_event);
 
     my $client = Net::Nostr::Client->new;
     my $cv = AnyEvent->condvar;

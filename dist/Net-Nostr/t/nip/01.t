@@ -10,7 +10,7 @@ use JSON;
 use Digest::SHA qw(sha256_hex);
 
 use lib 't/lib';
-use TestFixtures qw(%FIATJAF_EVENT);
+use TestFixtures qw(%FIATJAF_EVENT make_signed_event);
 
 use Net::Nostr;
 use Net::Nostr::Client;
@@ -1794,6 +1794,56 @@ subtest 'relay allows new connection after disconnect frees a slot' => sub {
     ok($c2->is_connected, 'connection succeeds after disconnect freed slot');
 
     $c2->disconnect;
+    $relay->stop;
+};
+
+subtest 'client verifies stored and live events before delivering callbacks' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $valid = make_signed_event($key, content => "verified \x{1F600}");
+    my $tampered = make_signed_event($key, content => 'original', created_at => 2000)->to_hash;
+    $tampered->{content} = 'tampered';
+    my $invalid_sig = make_signed_event($key, content => 'bad signature', created_at => 3000)->to_hash;
+    $invalid_sig->{sig} = '0' x 128;
+
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    # Bypass relay validation to simulate untrusted events returned by a relay.
+    $relay->inject_event(Net::Nostr::Event->from_wire($_)) for ($tampered, $invalid_sig);
+    $relay->inject_event($valid);
+    $relay->start('127.0.0.1', $port);
+
+    my $client = Net::Nostr::Client->new;
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak('timeout') });
+    my $live = make_signed_event($key, content => 'verified live event');
+    my @received;
+    $client->on(event => sub {
+        push @received, ['EVENT', $_[0], $_[1]->to_hash];
+        $cv->send if $_[1]->id eq $live->id;
+    });
+    $client->on(eose => sub {
+        push @received, ['EOSE', $_[0]];
+        $relay->broadcast(Net::Nostr::Event->from_wire($invalid_sig));
+        $relay->broadcast($live);
+    });
+
+    my @warnings;
+    local $SIG{__WARN__} = sub { push @warnings, @_ };
+    $client->connect("ws://127.0.0.1:$port");
+    $client->subscribe('verified', Net::Nostr::Filter->new(kinds => [1]));
+    $cv->recv;
+
+    is \@received, [
+        ['EVENT', 'verified', $valid->to_hash], ['EOSE', 'verified'],
+        ['EVENT', 'verified', $live->to_hash],
+    ], 'only verified events reach callbacks, with EOSE and live delivery preserved';
+    is scalar @warnings, 3, 'each invalid stored or live event produces one warning';
+    like $warnings[0], qr/^invalid event from relay: signature is invalid/, 'stored bad signature rejected';
+    like $warnings[1], qr/^invalid event from relay: id does not match event hash/, 'tampered stored event rejected';
+    like $warnings[2], qr/^invalid event from relay: signature is invalid/, 'live bad signature rejected';
+    ok $client->is_connected, 'same connection survives rejected events';
+
+    $client->disconnect;
     $relay->stop;
 };
 
