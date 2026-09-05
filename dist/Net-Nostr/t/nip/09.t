@@ -421,6 +421,119 @@ subtest 'relay deletes addressable events via a tag' => sub {
     $relay->stop;
 };
 
+subtest 'relay deletes published addressable events with empty or missing d tags' => sub {
+    for my $case (['empty d tag', [['d', '']]], ['missing d tag', []]) {
+        my ($label, $tags) = @$case;
+        subtest $label => sub {
+            my $port = free_port();
+            my $relay = Net::Nostr::Relay->new;
+            $relay->start('127.0.0.1', $port);
+            my $article = make_signed_event($alice_key,
+                kind => 30023, tags => $tags, created_at => 1000);
+            my $del = Net::Nostr::Deletion->new;
+            $del->add_address("30023:$alice_pk:", kind => 30023);
+            my $del_event = $del->to_event(pubkey => $alice_pk, created_at => 2000);
+            $alice_key->sign_event($del_event);
+
+            my $client = Net::Nostr::Client->new;
+            my $cv = AnyEvent->condvar;
+            my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak('timeout') });
+            my (@accepted, @events);
+            $client->on(ok => sub {
+                my ($id, $accepted) = @_;
+                push @accepted, $accepted ? 1 : 0;
+                $client->subscribe('q', Net::Nostr::Filter->new(ids => [$article->id, $del_event->id]))
+                    if @accepted == 2;
+            });
+            $client->on(event => sub { push @events, $_[1] });
+            $client->on(eose => sub { $cv->send });
+            $client->connect("ws://127.0.0.1:$port");
+            $client->publish($article);
+            $client->publish($del_event);
+            $cv->recv;
+
+            is \@accepted, [1, 1], 'signed article and deletion request accepted';
+            is [map { $_->id } @events], [$del_event->id],
+                'article is no longer published and deletion request remains available';
+            is $relay->store->get_by_id($article->id), undef, 'article removed from storage';
+            $client->disconnect;
+            $relay->stop;
+        };
+    }
+};
+
+subtest 'relay deletes all stored coordinate versions through the deletion timestamp' => sub {
+    for my $keep_newer (0, 1) {
+        subtest "newer versions: $keep_newer" => sub {
+            my $port = free_port();
+            my $relay = Net::Nostr::Relay->new;
+            my (@stored, @survivors);
+            my $del = Net::Nostr::Deletion->new;
+            for my $case (
+                [10000, '', [['d', 'ignored']]],
+                [30023, '', [['d', '']]],
+                [30024, '', []],
+                [30025, 'part:two', [['d', 'part:two']]],
+            ) {
+                my ($kind, $d_tag, $tags) = @$case;
+                $del->add_address("$kind:$alice_pk:$d_tag", kind => $kind);
+                push @stored, map {
+                    make_signed_event($alice_key, kind => $kind, tags => $tags,
+                        content => "version $_", created_at => $_ == 0 ? 1000 : 2000)
+                } 0 .. 2;
+                if ($keep_newer) {
+                    push @survivors, make_signed_event($alice_key,
+                        kind => $kind, tags => $tags, created_at => 3000);
+                }
+                push @survivors, make_signed_event($bob_key,
+                    kind => $kind, tags => $tags, created_at => 1000);
+            }
+            push @survivors, make_signed_event($alice_key,
+                kind => 30023, tags => [['d', 'unrelated']], created_at => 1000);
+            # A backend can retain multiple versions even though normal publication replaces them.
+            push @stored, @survivors;
+            $relay->store->store($_) for reverse @stored;
+            $del->add_address("30023:$bob_pk:", kind => 30023);
+            my $del_event = $del->to_event(pubkey => $alice_pk, created_at => 2000);
+            $alice_key->sign_event($del_event);
+            push @survivors, $del_event;
+            $relay->start('127.0.0.1', $port);
+
+            my $client = Net::Nostr::Client->new;
+            my $cv = AnyEvent->condvar;
+            my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak('timeout') });
+            my (@accepted, @events);
+            $client->on(ok => sub {
+                my ($id, $accepted) = @_;
+                push @accepted, $accepted ? 1 : 0;
+                $client->subscribe('q', Net::Nostr::Filter->new(ids => [
+                    (map { $_->id } @stored), $del_event->id,
+                ]));
+            });
+            $client->on(event => sub { push @events, $_[1] });
+            $client->on(eose => sub { $cv->send });
+            $client->connect("ws://127.0.0.1:$port");
+            $client->publish($del_event);
+            $cv->recv;
+
+            is \@accepted, [1], 'signed deletion request accepted';
+            is [sort map { $_->id } @events], [sort map { $_->id } @survivors],
+                'queries return only newer versions, unrelated events, and the deletion request';
+            is [sort map { $_->id } @{$relay->store->all_events}],
+                [sort map { $_->id } @survivors], 'all eligible versions removed from storage';
+            my ($returned_deletion) = grep { $_->id eq $del_event->id } @events;
+            ok defined $returned_deletion, 'deletion request is still published';
+            if ($returned_deletion) {
+                my $parsed = Net::Nostr::Deletion->from_event($returned_deletion);
+                is $parsed->addresses, $del->addresses,
+                    'empty identifiers and identifiers containing colons survive the wire round-trip';
+            }
+            $client->disconnect;
+            $relay->stop;
+        };
+    }
+};
+
 ###############################################################################
 # Deletion of a deletion has no effect
 ###############################################################################

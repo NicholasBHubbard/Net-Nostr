@@ -1,3 +1,15 @@
+Unreleased
+
+  - Fix NIP-09 coordinate deletion for addressable events with empty or
+    missing d tags
+  - Fix coordinate deletion for both replaceable and addressable events to
+    remove all stored versions at or before the deletion request timestamp,
+    including timestamp ties, even when newer versions exist. Preserve newer
+    versions, events belonging to other authors, and deletion requests.
+  - Clarify RelayStore::delete_matching documentation for exact coordinate
+    matching, the timestamp cutoff, and counting each deleted event once
+    when references overlap or repeat
+
 1.001001   2026-07-06
 
   - Verify NIP-01 Schnorr signatures over the 32-byte event id instead of
