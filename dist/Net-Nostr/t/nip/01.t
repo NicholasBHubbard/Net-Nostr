@@ -1677,6 +1677,49 @@ subtest 'relay accepts event with valid signature' => sub {
 # Relay: CLOSED message (MUST send when refusing REQ)
 ###############################################################################
 
+subtest 'relay rejects malformed filter boundaries and still accepts a valid REQ' => sub {
+    my @filters = (
+        (map { +{ $_ => [('a' x 64) . "\n"] } } ('ids', 'authors', '#e', '#p')),
+        { kinds => ["1\n"] },
+        (map { +{ $_ => "1\n" } } qw(since until limit)),
+        { kinds => ["\x{0661}"] }, { since => "\x{FF11}" },
+        { "#e\n" => ['a' x 64] },
+    );
+    my $port = free_port();
+    my $relay = Net::Nostr::Relay->new;
+    $relay->start('127.0.0.1', $port);
+    my $cv = AnyEvent->condvar;
+    my $timeout = AnyEvent->timer(after => 5, cb => sub { $cv->croak('timeout') });
+    my @responses;
+    my $ref = connect_to_relay($port, sub {
+        my ($conn) = @_;
+        $conn->on(each_message => sub {
+            my ($c, $msg) = @_;
+            my $parsed = $JSON_CODEC->decode($msg->body);
+            push @responses, $parsed;
+            $cv->send if $parsed->[0] eq 'EOSE' && $parsed->[1] eq 'valid-filter';
+        });
+        for my $i (0 .. $#filters) {
+            $conn->send($JSON_CODEC->encode(['REQ', "invalid-$i", $filters[$i]]));
+        }
+        $conn->send($JSON_CODEC->encode(['REQ', 'valid-filter', {
+            kinds => [0, 65535], since => 0, until => 1700000000, limit => 0,
+        }]));
+    });
+    $cv->recv;
+
+    is scalar @responses, scalar(@filters) + 1, 'one response per invalid REQ and one valid EOSE';
+    for my $i (0 .. $#filters) {
+        is $responses[$i][0], 'CLOSED', "invalid filter $i rejected";
+        is $responses[$i][1], "invalid-$i", 'rejection identifies the subscription';
+        like $responses[$i][2], qr/^error:/, 'rejection includes a machine-readable prefix';
+    }
+    is $responses[-1], ['EOSE', 'valid-filter'], 'valid REQ succeeds on the same connection';
+    my ($subscriptions) = values %{$relay->subscriptions};
+    is [sort keys %$subscriptions], ['valid-filter'], 'invalid filters do not create subscriptions';
+    $relay->stop;
+};
+
 subtest 'relay sends CLOSED when subscription_id is invalid' => sub {
     my $port = free_port();
     my $relay = Net::Nostr::Relay->new(verify_signatures => 0);

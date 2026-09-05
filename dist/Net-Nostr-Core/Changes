@@ -1,3 +1,10 @@
+Unreleased
+
+  - Tighten Filter validation to reject trailing newlines in identifiers,
+    integer fields, and tag filter names, and reject non-ASCII digits in
+    kinds, since, until, and limit. This also applies to filters parsed
+    from REQ, COUNT, and NEG-OPEN messages.
+
 1.001002   2026-07-07
 
   - Rework Net::Nostr::Blossom as a strict NIP-B7/BUD-03 integration
