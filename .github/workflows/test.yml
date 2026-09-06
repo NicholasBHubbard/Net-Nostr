@@ -60,6 +60,15 @@ jobs:
           system($^X, '-S', 'cpanm', '--local-lib', 'local', 'Test::Pod', 'Test::Pod::Coverage') == 0
               or die "Installing author test dependencies failed\n";
 
+      - name: Install macOS GMP dependency
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          brew install gmp
+          gmp_prefix="$(brew --prefix gmp)"
+          perl -S cpanm --local-lib local Math::GMPz \
+            --configure-args="INC=\"-I$gmp_prefix/include\" LIBS=\"-L$gmp_prefix/lib -lgmp\""
+
       - name: Build and test Core
         run: |
           use strict;
