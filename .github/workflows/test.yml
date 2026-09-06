@@ -19,6 +19,8 @@ on:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+    env:
+      PERL_CPANM_OPT: --verbose --no-interactive
     strategy:
       fail-fast: false
       matrix:
