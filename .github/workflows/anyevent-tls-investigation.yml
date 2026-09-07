@@ -1,0 +1,55 @@
+name: AnyEvent TLS shutdown investigation
+
+on:
+  push:
+    branches: [ci/anyevent-tls-investigation]
+    paths:
+      - '.github/workflows/anyevent-tls-investigation.yml'
+      - 'maint/ci/investigate-anyevent-tls.pl'
+
+permissions:
+  contents: read
+
+jobs:
+  investigate:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            perl: '5.42.2'
+            distribution: strawberry
+          - os: ubuntu-latest
+            perl: latest
+            distribution: default
+          - os: macos-latest
+            perl: latest
+            distribution: default
+    env:
+      PERL_CPANM_OPT: --verbose --no-interactive
+      PERL_CPANM_HOME: ${{ github.workspace }}/cpanm-tls-investigation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: ${{ matrix.perl }}
+          distribution: ${{ matrix.distribution }}
+          enable-modules-cache: false
+      - name: Compare TLS shutdown sequences
+        shell: perl {0}
+        run: |
+          use strict;
+          use warnings;
+          system($^X, 'maint/ci/investigate-anyevent-tls.pl') == 0
+              or die "TLS investigation failed\n";
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: anyevent-tls-${{ matrix.os }}
+          path: |
+            anyevent-tls-results.json
+            cpanm-tls-investigation/work/*/build.log
+            cpanm-tls-investigation/work/*/AnyEvent-7.17/t/investigation-*.t
