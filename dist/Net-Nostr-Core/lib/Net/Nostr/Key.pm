@@ -150,6 +150,8 @@ sub privkey_nsec {
 sub save_privkey {
     my ($self, $path) = @_;
     croak "no private key loaded" unless $self->privkey_loaded;
+    croak "path must be a non-empty string without NUL"
+        unless defined($path) && !ref($path) && length($path) && index($path, "\0") < 0;
     my $pem = $self->privkey_pem;
     my $fh = _open_private_file($path);
     croak "not a regular file: $path" unless -f $fh;
@@ -442,7 +444,8 @@ permissions. Windows permission bits reported by C<stat> do not describe
 this ACL. Windows saves require an ACL-capable filesystem and exclusive
 access: an existing reader or writer prevents the save.
 
-Croaks if no private key is loaded, the destination is not a regular file,
+The path must be a defined, non-empty string without NUL characters.
+Croaks if no private key is loaded, the path is malformed, the destination is not a regular file,
 the permissions cannot be established and verified, or an I/O operation
 fails. A permission failure does not overwrite existing contents; a newly
 created empty file may remain. A later write or close failure can leave an

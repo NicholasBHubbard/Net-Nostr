@@ -6,6 +6,7 @@ Unreleased
   - Restrict existing private key files to mode 0600 on Unix before overwriting;
     report permission and I/O errors rather than silently accepting an unsafe
     or incomplete save
+  - Reject undefined, empty, reference, and NUL-containing save_privkey paths
 
   - Tighten Filter validation to reject trailing newlines in identifiers,
     integer fields, and tag filter names, and reject non-ASCII digits in

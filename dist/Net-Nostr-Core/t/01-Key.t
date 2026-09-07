@@ -212,6 +212,19 @@ subtest 'save_privkey rejects Windows files already open for reading' => sub {
     close $fh;
 };
 
+subtest 'save_privkey rejects malformed paths without touching the destination' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $dir = File::Temp->newdir;
+    my $path = "$dir/untouched.pem";
+    for my $bad (undef, '', [], {}, "$path\0ignored") {
+        like(dies { $key->save_privkey($bad) }, qr/path must be a non-empty string without NUL/,
+            'malformed path rejected');
+    }
+    ok(!-e $path, 'NUL-containing path did not create a truncated filename');
+    ok(dies { $key->save_privkey("$dir/missing/key.pem") }, 'missing parent rejected');
+    ok(dies { $key->save_privkey("$dir") }, 'directory destination rejected');
+};
+
 sub _check_private_permissions {
     my ($path) = @_;
     my $permissions = private_file_permissions($path);
