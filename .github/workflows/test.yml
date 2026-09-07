@@ -45,6 +45,7 @@ jobs:
         id: perl
         with:
           perl-version: ${{ matrix.perl }}
+          distribution: ${{ runner.os == 'Windows' && 'strawberry' || 'default' }}
           # Cache against the distribution manifests below instead of the action's default.
           enable-modules-cache: false
 
