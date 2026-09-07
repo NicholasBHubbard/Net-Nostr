@@ -1,0 +1,11 @@
+--- a/t/80_ssltest.t
++++ b/t/80_ssltest.t
+@@ -106,6 +106,8 @@
+       $hd->push_write ("1\n");
+       $hd->on_drain (sub {
+          ok (1, "client_drain");
++         $_[0]->on_drain (undef);
++         $_[0]->stoptls;
+          $client_done->send; undef $hd;
+       });
+    } elsif ($mode == 2) {
