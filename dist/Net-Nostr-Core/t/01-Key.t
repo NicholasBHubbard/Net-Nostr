@@ -8,6 +8,8 @@ use Test2::V0 -no_srand => 1;
 # use Test2::Plugin::BailOnFail; # bail out of testing on the first failure
 use File::Temp;
 use Digest::SHA qw(sha256_hex);
+use lib 't/lib';
+use TestFixtures qw(private_file_permissions make_permissive_directory);
 
 use Net::Nostr::Key;
 
@@ -127,19 +129,74 @@ subtest 'load private key from DER file' => sub {
 subtest 'save_privkey writes PEM file and round-trips' => sub {
     my $key = Net::Nostr::Key->new;
     my $dir = File::Temp->newdir;
+    make_permissive_directory("$dir");
     my $path = "$dir/privkey.pem";
 
     $key->save_privkey($path);
     ok(-f $path, 'file created');
 
-    my $mode = (stat $path)[2] & 07777;
-    is($mode, 0600, 'file created with mode 0600');
+    _check_private_permissions($path);
 
     my $loaded = Net::Nostr::Key->new(privkey => $path);
     ok($loaded->privkey_loaded, 'private key loaded from saved file');
     is($loaded->pubkey_hex, $key->pubkey_hex, 'pubkey matches original');
     is($loaded->privkey_hex, $key->privkey_hex, 'privkey matches original');
 };
+
+subtest 'save_privkey restricts an existing readable file before overwriting' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $dir = File::Temp->newdir;
+    make_permissive_directory("$dir");
+    my $path = "$dir/existing key.pem";
+    open my $fh, '>', $path;
+    print {$fh} 'old contents' x 100;
+    close $fh;
+    chmod 0666, $path;
+
+    $key->save_privkey($path);
+    _check_private_permissions($path);
+    open $fh, '<', $path;
+    binmode $fh;
+    is(do { local $/; <$fh> }, $key->privkey_pem, 'old contents fully replaced');
+    close $fh;
+};
+
+subtest 'save_privkey leaves contents intact if permissions cannot be restricted' => sub {
+    my $key = Net::Nostr::Key->new;
+    my $dir = File::Temp->newdir;
+    my $path = "$dir/existing.pem";
+    open my $fh, '>', $path;
+    print {$fh} 'original contents';
+    close $fh;
+
+    {
+        no warnings 'redefine';
+        local *Net::Nostr::Key::_restrict_private_file = sub { die "permission failure\n" };
+        like(dies { $key->save_privkey($path) }, qr/permission failure/,
+            'permission error is reported');
+        my $new_path = "$dir/new.pem";
+        like(dies { $key->save_privkey($new_path) }, qr/permission failure/,
+            'permission error on a new file is reported');
+        ok(!-e $new_path || -z $new_path, 'new private key was not written');
+    }
+    open $fh, '<', $path;
+    is(do { local $/; <$fh> }, 'original contents', 'existing file not truncated');
+    close $fh;
+};
+
+sub _check_private_permissions {
+    my ($path) = @_;
+    my $permissions = private_file_permissions($path);
+    if ($^O eq 'MSWin32') {
+        ok($permissions->{protected}, 'DACL is protected from parent inheritance');
+        is($permissions->{rules}, [{
+            sid => $permissions->{owner}, rights => 0x1f01ff,
+            allow => T(), inherited => F(),
+        }], 'only the file owner has an access grant');
+    } else {
+        is($permissions->{mode}, 0600, 'file has mode 0600');
+    }
+}
 
 subtest 'save_pubkey writes PEM file and round-trips' => sub {
     my $key = Net::Nostr::Key->new;

@@ -3,7 +3,56 @@ package TestFixtures;
 use strictures 2;
 use Exporter 'import';
 
-our @EXPORT_OK = qw(%FIATJAF_EVENT @REAL_EVENTS make_event make_key_from_hex invalid_filter_cases);
+our @EXPORT_OK = qw(%FIATJAF_EVENT @REAL_EVENTS make_event make_key_from_hex invalid_filter_cases
+    private_file_permissions make_permissive_directory);
+
+# Read Windows permissions through .NET, independently of the library's Win32 API.
+sub _file_security_powershell {
+    my ($path, $script) = @_;
+    require Encode;
+    require MIME::Base64;
+    require JSON::PP;
+    local $ENV{NET_NOSTR_TEST_SECURITY_PATH} = $path;
+    my $encoded = MIME::Base64::encode_base64(
+        Encode::encode('UTF-16LE', '$ErrorActionPreference = "Stop"; ' . $script), '');
+    open my $pipe, '-|', 'powershell.exe', '-NoProfile', '-NonInteractive',
+        '-EncodedCommand', $encoded or die "start ACL inspection: $!";
+    my $json = do { local $/; <$pipe> };
+    close $pipe or die "ACL inspection failed: $?";
+    return JSON::PP::decode_json($json);
+}
+
+sub private_file_permissions {
+    my ($path) = @_;
+    return { mode => (stat $path)[2] & 07777 } unless $^O eq 'MSWin32';
+    return _file_security_powershell($path, <<'POWERSHELL');
+$acl = Get-Acl -LiteralPath $env:NET_NOSTR_TEST_SECURITY_PATH;
+$sidType = [System.Security.Principal.SecurityIdentifier];
+$rules = @($acl.GetAccessRules($true, $true, $sidType) | ForEach-Object {
+    @{ sid = $_.IdentityReference.Value; rights = [int]$_.FileSystemRights;
+       allow = ($_.AccessControlType -eq 'Allow'); inherited = $_.IsInherited }
+});
+@{ owner = $acl.GetOwner($sidType).Value; protected = $acl.AreAccessRulesProtected;
+   rules = $rules } | ConvertTo-Json -Compress -Depth 4;
+POWERSHELL
+}
+
+sub make_permissive_directory {
+    my ($path) = @_;
+    if ($^O eq 'MSWin32') {
+        _file_security_powershell($path, <<'POWERSHELL');
+$acl = Get-Acl -LiteralPath $env:NET_NOSTR_TEST_SECURITY_PATH;
+$everyone = New-Object System.Security.Principal.SecurityIdentifier('S-1-1-0');
+$rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+    $everyone, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow');
+$acl.AddAccessRule($rule);
+Set-Acl -LiteralPath $env:NET_NOSTR_TEST_SECURITY_PATH -AclObject $acl;
+'true';
+POWERSHELL
+    } else {
+        chmod 0777, $path or die "chmod test directory: $!";
+    }
+}
 
 # A real-world note from fiatjaf
 our %FIATJAF_EVENT = (
