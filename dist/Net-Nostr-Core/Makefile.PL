@@ -15,6 +15,8 @@ my %runtime_requires = (
     'URI'                      => 0,
 );
 
+$runtime_requires{'Win32::API'} = '0.84' if $^O eq 'MSWin32';
+
 my %test_requires = (
     'Test2::V0'      => 0,
     'Clone'          => 0,
@@ -37,6 +39,7 @@ WriteMakefile(
     },
     META_ADD => {
         'meta-spec' => { version => 2 },
+        dynamic_config => 1,
         prereqs => {
             runtime => {
                 requires => {

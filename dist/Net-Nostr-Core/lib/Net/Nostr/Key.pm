@@ -150,12 +150,39 @@ sub privkey_nsec {
 sub save_privkey {
     my ($self, $path) = @_;
     croak "no private key loaded" unless $self->privkey_loaded;
+    my $pem = $self->privkey_pem;
+    my $fh = _open_private_file($path);
+    croak "not a regular file: $path" unless -f $fh;
+    _restrict_private_file($fh);
+    binmode $fh or croak "cannot set binary mode for $path: $!";
+    truncate $fh, 0 or croak "cannot truncate $path: $!";
+    print {$fh} $pem or croak "cannot write $path: $!";
+    close $fh or croak "cannot close $path: $!";
+    return 1;
+}
+
+sub _open_private_file {
+    my ($path) = @_;
+    if ($^O eq 'MSWin32') {
+        require Net::Nostr::_KeyFileWin32;
+        return Net::Nostr::_KeyFileWin32::_open($path);
+    }
     require Fcntl;
-    sysopen my $fh, $path, Fcntl::O_WRONLY() | Fcntl::O_CREAT() | Fcntl::O_TRUNC(), 0600
+    sysopen my $fh, $path, Fcntl::O_WRONLY() | Fcntl::O_CREAT(), 0600
         or croak "cannot open $path: $!";
-    binmode $fh;
-    print $fh $self->privkey_pem;
-    close $fh;
+    return $fh;
+}
+
+sub _restrict_private_file {
+    my ($fh) = @_;
+    if ($^O eq 'MSWin32') {
+        return Net::Nostr::_KeyFileWin32::_restrict($fh);
+    }
+    chmod 0600, $fh or croak "cannot restrict private key file permissions: $!";
+    my @stat = stat $fh;
+    croak "cannot verify private key file permissions"
+        unless @stat && ($stat[2] & 07777) == 0600;
+    return 1;
 }
 
 sub save_pubkey {
@@ -403,8 +430,25 @@ Returns the private key in PEM-encoded format.
 
     $key->save_privkey('my_key.pem');
 
-Saves the private key to the given file path in PEM format with file
-mode C<0600> (owner read/write only). Croaks if no private key is loaded.
+Saves the private key to a regular file at the given path in PEM format.
+Creates the file if necessary and replaces any existing contents. Returns
+true on success.
+
+Before truncating or writing the file, restricts and verifies its access
+permissions. On Unix, sets mode C<0600> (owner read/write only), including
+when overwriting an existing file. On native Windows, replaces the DACL
+with a grant of full control to the file's owner only and disables inherited
+permissions. Windows permission bits reported by C<stat> do not describe
+this ACL. Windows saves require an ACL-capable filesystem and exclusive
+access: an existing reader or writer prevents the save.
+
+Croaks if no private key is loaded, the destination is not a regular file,
+the permissions cannot be established and verified, or an I/O operation
+fails. A permission failure does not overwrite existing contents; a newly
+created empty file may remain. A later write or close failure can leave an
+incomplete file. Choose a directory you control; these file permissions do
+not prevent privileged administrators from taking ownership or changing
+access, or revoke access to an already open Unix file descriptor.
 
     my $key = Net::Nostr::Key->new;
     $key->save_privkey('my_key.pem');

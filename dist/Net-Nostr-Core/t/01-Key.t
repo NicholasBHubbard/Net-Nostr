@@ -184,6 +184,34 @@ subtest 'save_privkey leaves contents intact if permissions cannot be restricted
     close $fh;
 };
 
+subtest 'save_privkey supplies owner read/write access even with a restrictive umask' => sub {
+    plan skip_all => 'Unix permission bits' if $^O eq 'MSWin32';
+    my $key = Net::Nostr::Key->new;
+    my $dir = File::Temp->newdir;
+    my $path = "$dir/umask.pem";
+    my $old_umask = umask 0777;
+    my $error = dies { $key->save_privkey($path) };
+    umask $old_umask;
+    ok(!$error, 'save succeeds') or diag $error;
+    _check_private_permissions($path);
+    my $loaded = Net::Nostr::Key->new(privkey => $path);
+    is($loaded->privkey_hex, $key->privkey_hex, 'owner can read the saved key');
+};
+
+subtest 'save_privkey rejects Windows files already open for reading' => sub {
+    plan skip_all => 'Windows sharing modes' unless $^O eq 'MSWin32';
+    my $key = Net::Nostr::Key->new;
+    my $dir = File::Temp->newdir;
+    my $path = "$dir/open.pem";
+    open my $fh, '>', $path;
+    print {$fh} 'original contents';
+    close $fh;
+    open $fh, '<', $path;
+    ok(dies { $key->save_privkey($path) }, 'an existing reader prevents the save');
+    is(do { local $/; <$fh> }, 'original contents', 'file contents remain intact');
+    close $fh;
+};
+
 sub _check_private_permissions {
     my ($path) = @_;
     my $permissions = private_file_permissions($path);
