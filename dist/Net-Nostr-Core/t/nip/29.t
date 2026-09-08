@@ -1601,4 +1601,56 @@ subtest 'ordered pin lists replace, reorder, and clear' => sub {
     }
 };
 
+subtest 'review: metadata builders and parsers validate every recognized field' => sub {
+    for my $method (qw(metadata edit_metadata)) {
+        for my $bad ({group_id=>''}, {name=>undef}, {picture=>[]}, {private=>2},
+            {hidden=>{}}, {supported_kinds=>['bad']}, {supported_kinds=>[-1]},
+            {supported_kinds=>[65536]}, {supported_kinds=>[undef]}) {
+            ok dies { Net::Nostr::Group->$method(pubkey=>$relay_pk,group_id=>'pizza',%$bad) },
+                "$method rejects malformed metadata";
+        }
+        for my $kinds ([], [0,9,11,65535]) {
+            my $event;
+            ok lives { $event=Net::Nostr::Group->$method(pubkey=>$relay_pk,group_id=>'pizza',supported_kinds=>$kinds) },
+                "$method accepts supported kind boundaries and empty lists";
+            next unless $event;
+            is [grep { $_->[0] eq 'supported_kinds' } @{$event->tags}],
+                [['supported_kinds',map { "$_" } @$kinds]], 'supported kinds serialized';
+        }
+    }
+    for my $tags ([], [['d','']], [['d','pizza'],['d','pizza']],
+        [['d','pizza'],['name']], [['d','pizza'],['name','one'],['name','two']],
+        [['d','pizza'],['private','yes']], [['d','pizza'],['livekit','url']],
+        [['d','pizza'],['supported_kinds','-1']], [['d','pizza'],['supported_kinds','65536']],
+        [['d','pizza'],['supported_kinds','text']], [['d','pizza'],['supported_kinds'],['supported_kinds','9']]) {
+        ok dies { Net::Nostr::Group->metadata_from_event(make_event(kind=>39000,tags=>$tags)) },
+            'malformed recognized wire metadata rejected';
+    }
+    for my $pair ([qw(private public)], [qw(closed open)], [qw(hidden visible)], [qw(restricted unrestricted)]) {
+        ok dies { Net::Nostr::Group->edit_metadata(pubkey=>$relay_pk,group_id=>'pizza',map { $_=>1 } @$pair) },
+            'contradictory edit flags rejected';
+    }
+};
+
+subtest 'review: group references and parsed pin timelines are strict' => sub {
+    ok dies { Net::Nostr::Group->format_id(pubkey=>$relay_pk,group_id=>'') }, 'empty group reference rejected';
+    ok dies { Net::Nostr::Group->format_id(pubkey=>$relay_pk,group_id=>'pizza',typo=>1) }, 'unknown reference option rejected';
+    my $empty=encode_naddr(identifier=>'',pubkey=>$relay_pk,kind=>39000,relays=>[]);
+    ok dies { Net::Nostr::Group->parse_id($empty) }, 'empty decoded group rejected';
+    for my $prefix ('bad', '012345678', 'ABCDEF12') {
+        ok dies { Net::Nostr::Group->pins_from_event(make_event(kind=>9010,
+            tags=>[['h','pizza'],['previous',$prefix]])) }, 'parsed timeline reference validated';
+    }
+    ok lives { Net::Nostr::Group->pins_from_event(make_event(kind=>9010,
+        tags=>[['h','pizza'],['previous','eb96c864','2db75638','b5d1065f']])) }, 'spec timeline example accepted';
+    for my $previous ('', 'bad', {}, ['bad'], ['ABCDEF12']) {
+        ok dies { Net::Nostr::Group->edit_metadata(pubkey=>$relay_pk,group_id=>'pizza',previous=>$previous) },
+            'metadata edit builder validates timeline references';
+    }
+    my $edit=Net::Nostr::Group->edit_metadata(pubkey=>$relay_pk,group_id=>'pizza',
+        livekit=>1,supported_kinds=>[],previous=>['eb96c864','2db75638','b5d1065f']);
+    is $edit->tags,[['h','pizza'],['previous','eb96c864','2db75638','b5d1065f'],['livekit'],['supported_kinds']],
+        'AV-only metadata and exact spec timeline can be built';
+};
+
 done_testing;

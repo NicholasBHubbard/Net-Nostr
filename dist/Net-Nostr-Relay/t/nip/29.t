@@ -182,6 +182,96 @@ subtest 'membership revocation invalidates private negentropy snapshots' => sub 
     is $count->[2]{count},0,'removed member cannot count private history';
     $bob_peer->close;
 };
+subtest 'review: metadata and membership payloads reject malformed values atomically' => sub {
+    $accept->($alice,9007,'strict');
+    for my $tags ([['name']], [['name','one'],['name','two']], [['private','yes']],
+        [['private'],['public']], [['closed'],['open']], [['supported_kinds','text']],
+        [['supported_kinds','65536']]) {
+        $reject->(qr/invalid:/,$alice,9002,'strict',@$tags);
+    }
+    $reject->(qr/invalid:/,$alice,9000,'strict',['p',$bob->pubkey_hex,'admin','']);
+    $reject->(qr/invalid:/,$alice,9001,'strict',['p',$bob->pubkey_hex,'extra']);
+    $reject->(qr/invalid:/,$bob,9021,'strict',['code']);
+    $reject->(qr/invalid:/,$bob,9021,'strict',['code','a'],['code','b']);
+    $accept->($alice,9002,'strict',['supported_kinds','9','11']);
+    $accept->($alice,9,'strict');
+    $reject->(qr/kind/,$alice,1,'strict');
+    $accept->($alice,9002,'strict',['supported_kinds']);
+    $reject->(qr/kind/,$alice,9,'strict');
+};
+
+subtest 'review: policy defaults, flag reversals, deletion, and invalid actions' => sub {
+    is(Net::Nostr::Relay->new->groups,undef,'group policy is opt-in');
+    $accept->($alice,9007,'policy');
+    my $meta=$metadata->('policy');
+    ok $meta->{restricted},'default writes require membership';
+    ok !$meta->{private} && !$meta->{closed} && !$meta->{hidden},'default reads, joining, and metadata are public';
+    $accept->($alice,9002,'policy',['private'],['hidden'],['closed'],['restricted']);
+    $accept->($alice,9002,'policy',['name','retains flags']);
+    $meta=$metadata->('policy');
+    ok $meta->{private} && $meta->{hidden} && $meta->{closed} && $meta->{restricted},'omitted flags retained';
+    $accept->($alice,9002,'policy',['public'],['visible'],['open'],['unrestricted']);
+    $meta=$metadata->('policy');
+    ok !$meta->{private} && !$meta->{hidden} && !$meta->{closed} && !$meta->{restricted},'opposing flags clear all restrictions';
+    my $note=$accept->($bob,1,'policy');
+    my $anonymous=relay_peer($url);
+    $anonymous->request(['REQ','public-policy',{ids=>[$note->id]}],'EOSE','public-policy');
+    is scalar @{$anonymous->take_events},1,'public history becomes readable without authentication';
+    $anonymous->request(['REQ','visible-policy',{kinds=>[39000],'#d'=>['policy']}],'EOSE','visible-policy');
+    is scalar @{$anonymous->take_events},1,'visible metadata is readable without authentication';
+    $anonymous->close;
+    $accept->($bob,9021,'policy');
+    $reject->(qr/admin/,$bob,9005,'policy',['e',$note->id]);
+    $reject->(qr/target/,$alice,9005,'nostr',['e',$note->id]);
+    $reject->(qr/reference/,$alice,9005,'policy',['e','bad']);
+    $accept->($alice,9005,'policy',['e',$note->id]);
+    ok !$relay->store->get_by_id($note->id),'admin deletion removes the selected group event';
+    $reject->(qr/unsupported/,$alice,9003,'policy');
+    $reject->(qr/unsupported/,$alice,9002,'policy',['livekit']);
+    my $own=$accept->($alice,1,'policy');
+    $reject->(qr/previous/,$alice,1,'policy',['previous',substr($own->id,0,8)]);
+    my $future=signed_event($alice,kind=>1,created_at=>time+3600,tags=>[['h','policy']]);
+    ok !$peer->request(['EVENT',$future->to_hash],'OK',$future->id)->[2],'future group publication rejected';
+    my $missing=signed_event($alice,kind=>9002);
+    my $reply=$peer->request(['EVENT',$missing->to_hash],'OK',$missing->id);
+    ok !$reply->[2],'group action without h tag rejected';
+    like $reply->[3],qr/h tag/,'missing group has useful error';
+};
+
+subtest 'review: canonical membership history includes creators and rapid changes' => sub {
+    my $timestamp=time+60;
+    my $send = sub {
+        my ($key,$kind,@tags)=@_;
+        my $event=signed_event($key,kind=>$kind,created_at=>$timestamp,
+            content=>'membership review '.++$counter,tags=>[['h','history'],@tags]);
+        ok $peer->request(['EVENT',$event->to_hash],'OK',$event->id)->[2], 'membership action accepted';
+    };
+    my $history = sub {
+        my ($key)=@_;
+        return $relay->store->query([Net::Nostr::Filter->new(kinds=>[9000,9001],
+            '#h'=>['history'],'#p'=>[$key->pubkey_hex])]);
+    };
+    $send->($alice,9007);
+    my $creator=$history->($alice);
+    is scalar @$creator,1,'creator has a canonical put-user event';
+    if (@$creator) {
+        is $creator->[0]->tags,[['h','history'],['p',$alice->pubkey_hex,'admin']], 'creator role can be reconstructed';
+    }
+    my $previous=$timestamp;
+    for my $step ([$bob,9021,9000],[$bob,9022,9001],[$bob,9021,9000],
+        [$alice,9001,9001,['p',$bob->pubkey_hex]],[$alice,9000,9000,['p',$bob->pubkey_hex]]) {
+        my ($key,$kind,$expected,@tags)=@$step;
+        $send->($key,$kind,@tags);
+        my $events=$history->($bob);
+        is $events->[0]->kind,$expected,'newest membership event reflects current membership';
+        is $events->[0]->pubkey,$master->pubkey_hex,'relay emits canonical membership transition';
+        ok $events->[0]->created_at>$previous,'canonical membership timestamps strictly advance';
+        $previous=$events->[0]->created_at;
+    }
+    my @canonical=grep {$_->pubkey eq $master->pubkey_hex} @{$history->($bob)};
+    is scalar @canonical,5,'no rapid transition is lost as a duplicate event';
+};
+
 $peer->close;
 $relay->stop;
 done_testing;

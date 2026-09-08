@@ -1,5 +1,11 @@
 Unreleased
 
+  - Review fixes: validate all recognized group metadata fields and timeline
+    references, reject conflicting flags and empty group identifiers, and
+    allow edit_metadata to describe supported kinds and LiveKit support.
+    Explicit empty wallet encryption advertisements no longer imply NIP-04.
+    Execute the actual metadata, pin, and PaymentTargets POD examples in tests.
+
   - Update the documented NIP conformance target to c3fd9af1 (2026-09-04).
 
   - Add Net::Nostr::PaymentTargets for NIP-A3 kind 10133 lists, strict target

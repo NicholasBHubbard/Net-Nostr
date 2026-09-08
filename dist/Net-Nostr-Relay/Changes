@@ -1,5 +1,10 @@
 Unreleased
 
+  - Group policy review: reject malformed metadata, role labels, and join
+    codes before mutation. Emit ordered relay-signed membership transitions
+    for creators and every accepted membership action, avoiding duplicate IDs
+    and stale membership history during rapid changes.
+
   - Add opt-in RelayGroups policy with signed NIP-29 group state, moderation,
     invites, member access, ordered pin lists, and validated subgroup trees.
     Reparenting updates both sides, parent deletion promotes children to

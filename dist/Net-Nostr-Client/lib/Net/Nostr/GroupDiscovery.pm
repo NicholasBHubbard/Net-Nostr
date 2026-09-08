@@ -91,7 +91,8 @@ sub _entry_id {
     croak 'group entry must contain a non-empty group id' unless Net::Nostr::Group->validate_group_id($value);
     return $value if defined($literal) && $value eq $literal;
     return $value unless $value =~ /\Anaddr1/i;
-    return Net::Nostr::Group->parse_id($value)->{group_id};
+    my $reference = eval { Net::Nostr::Group->parse_id($value) };
+    return $reference ? $reference->{group_id} : $value;
 }
 
 sub _announcements {
@@ -236,21 +237,23 @@ Net::Nostr::GroupDiscovery - NIP-29 migration and fork discovery
     # $discovery_client is a dedicated, already connected Net::Nostr::Client.
     # Restore $relay_pubkey and $admin_pubkey from the trusted local cache.
     my @candidates;
+    my $lookup_number = 0;
     my $watch = Net::Nostr::GroupDiscovery->new(
         group_id => 'pizza', relay => 'wss://old.example',
         relay_pubkey => $relay_pubkey, admins => [$admin_pubkey],
         lookup => sub {
             my ($filter, $complete) = @_;
+            my $sub_id = 'group-discovery-' . ++$lookup_number;
             my @events;
             $discovery_client->on(event => sub {
-                push @events, $_[1] if $_[0] eq 'group-discovery';
+                push @events, $_[1] if $_[0] eq $sub_id;
             });
             $discovery_client->on(eose => sub {
-                return unless $_[0] eq 'group-discovery';
-                $discovery_client->close('group-discovery');
+                return unless $_[0] eq $sub_id;
+                $discovery_client->close($sub_id);
                 $complete->(\@events, undef);
             });
-            $discovery_client->subscribe('group-discovery', $filter);
+            $discovery_client->subscribe($sub_id, $filter);
         },
         on_candidate => sub { push @candidates, $_[0] },
     );
@@ -270,6 +273,12 @@ events through EOSE from those relays, then invoke completion once as
 C<$complete-E<gt>(\@events, undef)> or C<$complete-E<gt>(undef, $error)>.
 Use relays independent of the group's primary relay so lookup works offline.
 Returned events are authenticated again before they influence discovery.
+The SYNOPSIS is a minimal single-author, single-relay lookup. A production
+transport must account for relay caps, pagination hints, authentication,
+C<CLOSED> replies, and disconnects before treating a batch as complete. Each
+lookup needs a fresh subscription ID so late messages cannot complete a later
+request. The watcher's timeout permits retries but does not close transport
+subscriptions; the application must clean those up.
 
 Call C<primary_unreachable> when the primary connection fails or becomes
 unreachable: NIP-29 requires a lookup in that situation. Call C<start> to
@@ -330,6 +339,9 @@ C<group_id>, C<relay>, and an C<advertised_by> array of public keys in a hashref
 Unknown authors are ignored. Malformed lookup batches are rejected without
 changing discovery state. Repeated completion calls are ignored. Timeout or
 lookup exceptions reach C<on_error>; later checks may retry.
+Group IDs are arbitrary non-empty strings. Valid kind-39000 naddr references
+are also resolved, but strings merely starting with C<naddr1> remain valid
+raw IDs. An exact match to the configured raw group ID takes precedence.
 
 =head2 primary_unreachable
 

@@ -98,7 +98,7 @@ sub info_event {
     }
     my @tags;
 
-    if ($args{encryption} && @{$args{encryption}}) {
+    if (exists $args{encryption}) {
         push @tags, ['encryption', join(' ', @{$args{encryption}})];
     }
     if ($args{notifications} && @{$args{notifications}}) {
@@ -139,7 +139,7 @@ sub parse_info {
     }
 
     # Absence of encryption tag implies nip04
-    @encryption = ('nip04') unless @encryption;
+    @encryption = ('nip04') unless $seen{encryption};
 
     return Net::Nostr::WalletConnect::Info->new(
         capabilities       => \@capabilities,
@@ -585,6 +585,8 @@ This builder validates the public key through L<Net::Nostr::Event> and rejects
 unknown arguments and malformed discovery lists. All supplied lists must be
 arrayrefs of non-empty scalar tokens without whitespace or control characters.
 It returns an unsigned event; use a wallet key to sign it before publication.
+An explicit empty C<encryption> array emits an empty encryption tag, advertising
+no usable schemes. Omit that option only when advertising legacy NIP-04.
 
 =head2 parse_info
 
@@ -593,6 +595,8 @@ It returns an unsigned event; use a wallet key to sign it before publication.
 Parses a kind 13194 info event. Returns an L</Info> object. Croaks if the
 event is not kind 13194. If the event has no C<encryption> tag, defaults
 to C<['nip04']> per spec.
+An explicitly empty encryption tag yields an empty array and never enables
+NIP-04 implicitly.
 Discovery tags must contain exactly one space-separated value and occur at
 most once. Malformed tokens are rejected. An absent C<extensions> tag becomes
 an empty array. The returned Info has validated discovery fields; this parser

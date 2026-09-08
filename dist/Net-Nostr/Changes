@@ -1,5 +1,8 @@
 Unreleased
 
+  - Include NIP review fixes for group validation and membership history,
+    wallet encryption discovery, and tested group discovery documentation.
+
   - Update the documented NIP conformance target to c3fd9af1 (2026-09-04).
 
   - Document NIP-67 EOSE hints and NIP-A3 payment targets in the supported

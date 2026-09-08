@@ -1,5 +1,9 @@
 Unreleased
 
+  - Preserve arbitrary naddr1-prefixed raw group IDs during discovery and
+    migration. Test the actual discovery POD example, use distinct lookup
+    subscription IDs, and document transport completeness and cleanup duties.
+
   - Add Net::Nostr::GroupDiscovery for NIP-29 cached admin discovery,
     periodic/offline lookup coordination, fork notifications, and signed
     migration list construction, preserving public and encrypted entries.

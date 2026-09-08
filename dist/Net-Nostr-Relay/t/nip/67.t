@@ -32,6 +32,12 @@ subtest 'optional completeness and auth hints over the wire' => sub {
         is scalar @{$peer->take_events}, $count, 'expected stored result count';
     }
     my $tied = signed_event($key,kind=>1,created_at=>3000,content=>'tied');
+    my $union=$peer->request(['REQ','union',
+        {kinds=>[1],ids=>[$events[0]->id,$events[1]->id],limit=>1},
+        {kinds=>[1],ids=>[$events[0]->id],limit=>1}],'EOSE','union');
+    is $union->[2],['finish'],'overlapping limited filters can collectively finish their full union';
+    is [sort map {$_->[2]{id}} @{$peer->take_events}], [sort($events[0]->id,$events[1]->id)],
+        'overlapping filters deliver each visible event once';
     $relay->inject_event($tied);
     my $eose = $peer->request(['REQ','ties',{kinds=>[1]}],'EOSE','ties');
     is scalar @{$peer->take_events}, 2, 'boundary timestamp ties included together';

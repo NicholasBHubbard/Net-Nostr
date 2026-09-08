@@ -1,5 +1,9 @@
 # September NIP updates: implementation and verification
 
+The [September 8 review](2026-09-08-review.md) found and corrected additional
+validation, membership-history, encryption-discovery, and POD gaps. Its
+verification results supersede the initial test totals below.
+
 Implements the supported-NIP findings in [the release audit](2026-09-07.md)
 against nostr-protocol/nips commit
 [c3fd9af17939316bf6d0d83a5759100f8b0a1bdb](https://github.com/nostr-protocol/nips/commit/c3fd9af17939316bf6d0d83a5759100f8b0a1bdb)

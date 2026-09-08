@@ -166,4 +166,19 @@ subtest 'explicit migration builds a signed user list and retains other forks' =
     like dies { $watch->migration_event(relay=>'wss://new.example',event=>$event,key=>$stranger) },qr/author|key/,'must own list';
     like dies { $watch->migration_event(relay=>'ftp://bad',event=>$event,key=>$user) },qr/relay/,'bad migration relay rejected';
 };
+subtest 'review: unrelated raw group IDs cannot poison discovery or migration' => sub {
+    my ($complete,@seen,@failed);
+    my $local=Net::Nostr::GroupDiscovery->new(%args,
+        lookup=>sub {$complete=$_[1]},on_candidate=>sub {push @seen,$_[0]},on_error=>sub {push @failed,$_[0]});
+    my @tags=(['group','pizza','wss://new.example'],['group','naddr1raw-other','wss://other.example']);
+    $local->check;
+    $complete->([$list_event->($admin,5000,@tags)],undef);
+    is \@failed, [], 'arbitrary unrelated raw ID accepted';
+    is scalar @seen,1,'valid alternate hint still found';
+    my $old=$list_event->($user,1000,['group','pizza','wss://old.example'],$tags[1]);
+    my $moved;
+    ok lives {$moved=$local->migration_event(event=>$old,key=>$user,relay=>'wss://new.example')}, 'migration accepts raw other IDs';
+    is [grep {$_->[0] eq 'group'} @{$moved->tags}], \@tags, 'unrelated raw ID retained' if $moved;
+};
+
 done_testing;

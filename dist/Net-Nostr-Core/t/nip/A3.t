@@ -2,7 +2,7 @@ use strictures 2;
 use Test2::V0 -no_srand => 1;
 use Net::Nostr::Event;
 use lib 't/lib';
-use TestFixtures qw(make_event);
+use TestFixtures qw(make_event pod_code);
 
 ok eval { require Net::Nostr::PaymentTargets; 1 }, 'payment targets module loads';
 unless (Net::Nostr::PaymentTargets->can('new')) { done_testing; exit }
@@ -58,4 +58,14 @@ subtest 'strict builders and untrusted event parsing' => sub {
     like dies { Net::Nostr::PaymentTargets->from_event({kind=>10133}) }, qr/Event/, 'wrong input type rejected';
     like dies { Net::Nostr::PaymentTargets->new(targets=>[])->to_event }, qr/pubkey/, 'publication requires author';
 };
+subtest 'review: exact PaymentTargets SYNOPSIS executes and duplicates survive' => sub {
+    my $code=pod_code('lib/Net/Nostr/PaymentTargets.pm','SYNOPSIS');
+    my $links;
+    ok lives { $links=eval $code . "\n" . '$links'; die $@ if $@ }, 'actual SYNOPSIS executes';
+    is scalar @$links,3,'SYNOPSIS produces three links' if $links;
+    my $list=Net::Nostr::PaymentTargets->new(targets=>[['nano','account'],['nano','account']]);
+    is(Net::Nostr::PaymentTargets->from_event($list->to_event(pubkey=>$pubkey))->targets,
+        $list->targets,'duplicate targets survive event round trip');
+};
+
 done_testing;

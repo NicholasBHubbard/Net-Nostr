@@ -863,4 +863,13 @@ subtest 'discovery constructors reject malformed token lists' => sub {
     }
 };
 
+subtest 'review: explicit empty encryption never enables legacy encryption' => sub {
+    my $wire=make_event(kind=>13194,content=>'get_info',tags=>[['encryption','']]);
+    is(Net::Nostr::WalletConnect->parse_info($wire)->encryption, [], 'present empty tag advertises no encryption');
+    my $built=Net::Nostr::WalletConnect->info_event(pubkey=>$wallet_pubkey,
+        capabilities=>['get_info'],encryption=>[]);
+    is $built->tags, [['encryption','']], 'builder preserves explicitly empty encryption';
+    is(Net::Nostr::WalletConnect->parse_info($built)->encryption, [], 'empty encryption round trip');
+};
+
 done_testing;

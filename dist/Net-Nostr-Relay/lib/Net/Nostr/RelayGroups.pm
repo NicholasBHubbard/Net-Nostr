@@ -60,6 +60,22 @@ sub can_read {
     return !!grep { $authenticated->{$_} } keys %{$state->{members}};
 }
 
+sub _membership_event {
+    my ($self, $store, $cause, $id, $target, $remove, $roles) = @_;
+    my $history = $store->query([Net::Nostr::Filter->new(kinds=>[9000,9001],
+        '#h'=>[$id], '#p'=>[$target])]);
+    my $timestamp = time;
+    for my $previous ($cause, @$history) {
+        $timestamp = $previous->created_at + 1 if $previous->created_at >= $timestamp;
+    }
+    my $method = $remove ? 'remove_user' : 'put_user';
+    my $generated = Net::Nostr::Group->$method(pubkey=>$self->pubkey,group_id=>$id,
+        target=>$target,created_at=>$timestamp,reason=>$cause->content,
+        ($remove ? () : (roles=>$roles || [])));
+    $self->_key->sign_event($generated);
+    return $generated;
+}
+
 sub prepare {
     my ($self,$event,$store) = @_;
     croak 'event must be a Net::Nostr::Event'
@@ -98,6 +114,7 @@ sub prepare {
             admins=>{$author=>['admin']},members=>{$author=>1}};
         $touch{$id} = $rosters{$id} = 1;
         $pins{$id} = [];
+        push @extra, $self->_membership_event($store,$event,$id,$author,0,['admin']);
     } else {
         croak 'restricted: group does not exist' unless $state;
         croak 'restricted: group admin required'
@@ -107,6 +124,15 @@ sub prepare {
             my %allowed = map { $_=>1 } qw(name picture about banner parent child private public
                 restricted unrestricted hidden visible closed open supported_kinds);
             croak 'restricted: unsupported group metadata field' if grep { !$allowed{$_->[0]} } @tags;
+            my %flags;
+            for my $tag (@tags) {
+                next unless $tag->[0] =~ /\A(?:private|public|restricted|unrestricted|hidden|visible|closed|open)\z/;
+                croak 'invalid: metadata flag must occur once without a value'
+                    unless @$tag == 1 && !$flags{$tag->[0]}++;
+            }
+            for my $pair ([qw(private public)], [qw(closed open)], [qw(hidden visible)], [qw(restricted unrestricted)]) {
+                croak 'invalid: conflicting metadata flags' if $flags{$pair->[0]} && $flags{$pair->[1]};
+            }
             my $edited = Net::Nostr::Group->metadata_from_event(Net::Nostr::Event->new(
                 pubkey=>$self->pubkey,kind=>39000,content=>'',tags=>[['d',$id],@tags]));
             my @old_children = @{$state->{meta}{children} || []};
@@ -168,13 +194,17 @@ sub prepare {
                 croak 'invalid: membership action needs one p tag'
                     unless @p == 1 && @{$p[0]} >= 2 && $p[0][1] =~ /\A[0-9a-f]{64}\z/;
                 ($target,@roles) = @{$p[0]}[1 .. $#{$p[0]}];
+                croak 'invalid: remove-user p tag must contain only its pubkey' if $kind == 9001 && @roles;
+                croak 'invalid: membership roles must be non-empty' if grep { !length($_) } @roles;
             } else {
                 $target = $author;
             }
             if ($kind == 9021) {
                 croak 'duplicate: already a group member' if $state->{members}{$target};
+                my @codes = grep { $_->[0] eq 'code' } @{$event->tags};
+                croak 'invalid: join request permits one non-empty code'
+                    if @codes > 1 || (@codes && (@{$codes[0]} != 2 || !length($codes[0][1])));
                 if ($state->{meta}{closed}) {
-                    my @codes = grep { $_->[0] eq 'code' && @$_ == 2 } @{$event->tags};
                     my $invites = $store->query([Net::Nostr::Filter->new(kinds=>[9009], '#h'=>[$id])]);
                     croak 'restricted: closed group requires a valid invite'
                         unless @codes == 1 && grep {
@@ -191,12 +221,8 @@ sub prepare {
                 if (grep { $_ eq 'admin' } @roles) { $state->{admins}{$target} = \@roles }
                 else { delete $state->{admins}{$target} }
             }
-            if ($kind == 9021 || $kind == 9022) {
-                my $method = $kind == 9021 ? 'put_user' : 'remove_user';
-                my $generated = Net::Nostr::Group->$method(pubkey=>$self->pubkey,group_id=>$id,target=>$target);
-                $self->_key->sign_event($generated);
-                push @extra, $generated;
-            }
+            push @extra, $self->_membership_event($store,$event,$id,$target,
+                $kind == 9001 || $kind == 9022, \@roles);
             $rosters{$id} = 1;
         } elsif ($kind == 9009) {
             my @code = grep { $_->[0] eq 'code' } @{$event->tags};
@@ -277,8 +303,13 @@ and admin. New groups are public, open for joining, and restricted to members
 for writes. Only the C<admin> role grants moderation privileges; arbitrary
 other role labels grant none. Membership and administration never inherit
 through parent links. Closed groups require a previously accepted invite code.
-Invites are reusable. Join and leave requests generate relay-signed membership
-moderation events. Group metadata on the wire cannot bypass moderation.
+Invites are reusable. Creation and every accepted membership action generate
+relay-signed kind 9000/9001 events, including the creator's initial admin role.
+These canonical transitions have timestamps later than the triggering request
+and previous membership transitions for that user in this group. This makes
+rapid changes and successive membership actions distinguishable, even within one second;
+generated timestamps may run ahead of wall-clock time. Original accepted
+requests remain stored. Group metadata on the wire cannot bypass moderation.
 
 Metadata edits preserve omitted display fields and flags; C<public>, C<open>,
 C<visible>, and C<unrestricted> clear their opposing flags. Omitted C<parent>
@@ -287,6 +318,11 @@ desired order. Reparenting requires administration of both groups, rejects
 missing parents and cycles, and updates both sides. Deleting a group removes
 its stored events and metadata, and makes its children roots. Pins replace
 the entire ordered list; empty lists clear it.
+Malformed or duplicate recognized metadata fields, contradictory flags,
+invalid supported kinds, empty role labels, and malformed join codes are
+rejected before storage changes. Kind 9001 permits only a public key in its
+C<p> tag. C<supported_kinds> can be edited; an empty list disables ordinary
+group publications while moderation remains available.
 
 Private group history and live events, and hidden group metadata, are served
 only to authenticated members. The Relay also applies this policy to COUNT
