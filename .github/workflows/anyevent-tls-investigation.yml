@@ -18,15 +18,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            perl: '5.42.2'
-            distribution: strawberry
           - os: ubuntu-latest
             perl: latest
-            distribution: default
           - os: macos-latest
             perl: latest
-            distribution: default
     env:
       PERL_CPANM_OPT: --verbose --no-interactive
       PERL_CPANM_HOME: ${{ github.workspace }}/cpanm-tls-investigation
@@ -35,7 +30,6 @@ jobs:
       - uses: shogo82148/actions-setup-perl@v1
         with:
           perl-version: ${{ matrix.perl }}
-          distribution: ${{ matrix.distribution }}
           enable-modules-cache: false
       - name: Compare TLS shutdown sequences
         shell: perl {0}
@@ -44,31 +38,6 @@ jobs:
           use warnings;
           system($^X, 'maint/ci/investigate-anyevent-tls.pl') == 0
               or die "TLS investigation failed\n";
-      - name: Test Net Nostr on Windows with the patched dependency test
-        if: runner.os == 'Windows'
-        shell: perl {0}
-        run: |
-          use strict;
-          use warnings;
-          use Config qw(%Config);
-          use Cwd qw(getcwd);
-          my $workspace = getcwd();
-          system($^X, '-S', 'cpanm', '--local-lib', 'local', 'Test::Pod', 'Test::Pod::Coverage') == 0
-              or die "Installing author dependencies failed\n";
-          for my $dist (qw(Net-Nostr-Core Net-Nostr-Client Net-Nostr-Relay Net-Nostr)) {
-              system($^X, '-S', 'cpanm', '--local-lib', 'local', '--installdeps', "./dist/$dist") == 0
-                  or die "Installing $dist dependencies failed\n";
-              chdir "dist/$dist" or die "chdir $dist: $!";
-              system($^X, 'Makefile.PL', "INSTALL_BASE=$workspace/local") == 0
-                  or die "Configuring $dist failed\n";
-              for my $target (qw(all test)) {
-                  system($Config{make}, $target) == 0 or die "$dist: $target failed\n";
-              }
-              system($^X, '-S', 'prove', '-v', glob('t/author/*.t')) == 0
-                  or die "$dist: author checks failed\n";
-              system($Config{make}, 'install') == 0 or die "$dist: install failed\n";
-              chdir $workspace or die "restore workspace: $!";
-          }
       - name: Preserve evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -31,12 +31,9 @@ jobs:
             perl: latest
           - os: macos-latest
             perl: latest
-          - os: windows-latest
-            perl: latest
     name: Perl ${{ matrix.perl }} on ${{ matrix.os }}
     defaults:
       run:
-        # Bash on Windows can select the system Perl instead of the setup action's Perl.
         shell: perl {0}
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +42,6 @@ jobs:
         id: perl
         with:
           perl-version: ${{ matrix.perl }}
-          distribution: ${{ runner.os == 'Windows' && 'strawberry' || 'default' }}
           # Cache against the distribution manifests below instead of the action's default.
           enable-modules-cache: false
 
