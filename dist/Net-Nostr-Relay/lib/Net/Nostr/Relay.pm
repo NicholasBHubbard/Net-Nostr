@@ -2,7 +2,7 @@ package Net::Nostr::Relay;
 
 use strictures 2;
 
-our $VERSION = '1.001001';
+our $VERSION = '1.002000';
 
 use Net::Nostr::_ConstructorArgs ();
 

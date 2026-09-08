@@ -2,7 +2,7 @@ package Net::Nostr::Core;
 
 use strictures 2;
 
-our $VERSION = '1.001002';
+our $VERSION = '1.002000';
 
 1;
 

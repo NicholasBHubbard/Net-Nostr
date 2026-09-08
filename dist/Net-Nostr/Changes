@@ -1,4 +1,7 @@
-Unreleased
+2.003000   2026-09-08
+
+  - Require Core, Client, and Relay 1.002000 or later so installing this
+    release upgrades all components to the September protocol APIs.
 
   - Include NIP review fixes for group validation and membership history,
     wallet encryption discovery, and tested group discovery documentation.

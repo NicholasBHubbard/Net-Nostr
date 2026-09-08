@@ -10,6 +10,7 @@ use lib '../Net-Nostr-Relay/lib';
 use Test2::V0 -no_srand => 1;
 use Archive::Tar ();
 use Config qw(%Config);
+use CPAN::Meta::Requirements ();
 use Cwd qw(getcwd);
 use File::Copy qw(copy);
 use File::Find qw(find);
@@ -75,12 +76,16 @@ subtest 'distribution version is self-consistent' => sub {
     like($version, qr/\A2\./, "$dist keeps its 2.x version line");
 };
 
-subtest 'intra-distribution dependencies stay unversioned' => sub {
-    my $source = _slurp('Makefile.PL');
-    for my $module (qw(Net::Nostr::Core Net::Nostr::Client Net::Nostr::Relay)) {
-        like($source, qr/'\Q$module\E'\s*=>\s*0\b/, "$module is unversioned");
-        unlike($source, qr/'\Q$module\E'\s*=>\s*['"]?[1-9]/, "$module has no version floor");
-    }
+subtest 'configured dependencies require compatible Net::Nostr components' => sub {
+    my $tmp = tempdir(CLEANUP => 1);
+    _copy_file('Makefile.PL', "$tmp/Makefile.PL");
+    _copy_version_from_file($tmp);
+    my ($output, $exit) = _run_in_dir($tmp, sub {
+        my $output = `$^X Makefile.PL 2>&1`;
+        return ($output, $? >> 8);
+    });
+    is($exit, 0, 'Makefile.PL exits cleanly') or diag $output;
+    _check_component_requirements(JSON::PP::decode_json(_slurp("$tmp/MYMETA.json")));
 };
 
 subtest 'NIP-05 HTTP dependency is required by shim' => sub {
@@ -362,6 +367,7 @@ sub _core_prereqs_in_tarball {
     die "$tarball missing META.json" unless defined $meta_file;
 
     my $meta = JSON::PP::decode_json($tar->get_content($meta_file));
+    _check_component_requirements($meta);
     my @core_prereqs;
     for my $phase (sort keys %{ $meta->{prereqs} || {} }) {
         for my $relationship (sort keys %{ $meta->{prereqs}{$phase} || {} }) {
@@ -374,6 +380,19 @@ sub _core_prereqs_in_tarball {
         }
     }
     return @core_prereqs;
+}
+
+sub _check_component_requirements {
+    my ($meta) = @_;
+    my $requires = $meta->{prereqs}{runtime}{requires};
+    my $requirements = CPAN::Meta::Requirements->from_string_hash($requires);
+    for my $module (qw(Net::Nostr::Core Net::Nostr::Client Net::Nostr::Relay)) {
+        ok(exists $requires->{$module}, "$module is required");
+        ok(!$requirements->accepts_module($module, '1.001002'), "$module rejects July components");
+        ok(!$requirements->accepts_module($module, '1.001999'), "$module requires the September API");
+        ok($requirements->accepts_module($module, '1.002000'), "$module accepts the new release");
+        ok($requirements->accepts_module($module, '1.003000'), "$module permits later compatible releases");
+    }
 }
 
 sub _is_core_in_perl_516 {
