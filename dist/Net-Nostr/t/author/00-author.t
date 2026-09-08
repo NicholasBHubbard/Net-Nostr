@@ -167,7 +167,7 @@ subtest 'NIP conformance target is documented in public entry points' => sub {
     skip_all 'NIP target documentation check requires monorepo root'
         unless -e '../../README.md' && -e '../Net-Nostr-Core/lib/Net/Nostr/Core.pm';
 
-    my $target = '8f8444d05a8842c40211ded5d10af3521541f865';
+    my $target = 'c3fd9af17939316bf6d0d83a5759100f8b0a1bdb';
     for my $doc (
         qw(
             ../../README.md
@@ -412,8 +412,8 @@ sub _sort_nips {
 
 sub _nip_sort_key {
     my ($nip) = @_;
-    return sprintf 'B%04d', substr($nip, 1) if $nip =~ /^B[0-9]+\z/;
-    return sprintf 'A%04d', $nip;
+    return sprintf 'A%04d', $nip if $nip =~ /\A[0-9]+\z/;
+    return 'B' . $nip;
 }
 
 sub _pod_files {

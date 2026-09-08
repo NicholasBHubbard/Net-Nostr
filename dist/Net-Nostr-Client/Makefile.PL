@@ -26,7 +26,7 @@ WriteMakefile(
     PREREQ_PM        => \%runtime_requires,
     TEST_REQUIRES    => \%test_requires,
     test => {
-        TESTS => 't/*.t',
+        TESTS => 't/*.t t/nip/*.t',
     },
     META_ADD => {
         'meta-spec' => { version => 2 },

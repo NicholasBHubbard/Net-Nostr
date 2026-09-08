@@ -15,8 +15,8 @@ Full API documentation: https://metacpan.org/pod/Net::Nostr
 
 ## Supported NIPs
 
-Conformance target: [nostr-protocol/nips commit 8f8444d0](https://github.com/nostr-protocol/nips/commit/8f8444d05a8842c40211ded5d10af3521541f865)
-(2026-07-01).
+Conformance target: [nostr-protocol/nips commit c3fd9af1](https://github.com/nostr-protocol/nips/commit/c3fd9af17939316bf6d0d83a5759100f8b0a1bdb)
+(2026-09-04).
 
 - [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) - Basic protocol flow
 - [NIP-02](https://github.com/nostr-protocol/nips/blob/master/02.md) - Follow list
@@ -62,6 +62,7 @@ Conformance target: [nostr-protocol/nips commit 8f8444d0](https://github.com/nos
 - [NIP-61](https://github.com/nostr-protocol/nips/blob/master/61.md) - Nutzaps
 - [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) - Relay list metadata
 - [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) - Relay Discovery and Liveness Monitoring
+- [NIP-67](https://github.com/nostr-protocol/nips/blob/master/67.md) - EOSE completeness hints
 - [NIP-70](https://github.com/nostr-protocol/nips/blob/master/70.md) - Protected Events
 - [NIP-73](https://github.com/nostr-protocol/nips/blob/master/73.md) - External Content IDs
 - [NIP-77](https://github.com/nostr-protocol/nips/blob/master/77.md) - Negentropy Syncing
@@ -73,6 +74,7 @@ Conformance target: [nostr-protocol/nips commit 8f8444d0](https://github.com/nos
 - [NIP-94](https://github.com/nostr-protocol/nips/blob/master/94.md) - File Metadata
 - [NIP-98](https://github.com/nostr-protocol/nips/blob/master/98.md) - HTTP auth
 - [NIP-99](https://github.com/nostr-protocol/nips/blob/master/99.md) - Classified Listings
+- [NIP-A3](https://github.com/nostr-protocol/nips/blob/master/A3.md) - Payment targets
 - [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) - Blossom media
 
 ## Contributing

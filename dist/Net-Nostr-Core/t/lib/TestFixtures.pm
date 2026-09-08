@@ -3,7 +3,17 @@ package TestFixtures;
 use strictures 2;
 use Exporter 'import';
 
-our @EXPORT_OK = qw(%FIATJAF_EVENT @REAL_EVENTS make_event make_key_from_hex invalid_filter_cases);
+our @EXPORT_OK = qw(%FIATJAF_EVENT @REAL_EVENTS make_event make_key_from_hex invalid_filter_cases pod_code);
+
+sub pod_code {
+    my ($path, $heading) = @_;
+    open my $fh, '<', $path or die "open $path: $!";
+    my $source = do { local $/; <$fh> };
+    my ($section) = $source =~ /^=head[12] \Q$heading\E\n(.*?)(?=^=head[12] |\z)/ms;
+    die "missing POD section $heading in $path" unless defined $section;
+    my @code = map { s/^    //; $_ } grep { /^    / || /^$/ } split /\n/, $section;
+    return join "\n", @code;
+}
 
 # A real-world note from fiatjaf
 our %FIATJAF_EVENT = (
