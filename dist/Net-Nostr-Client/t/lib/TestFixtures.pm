@@ -29,6 +29,7 @@ sub client_connection {
 package TestFixtures::Connection;
 
 use Class::Tiny qw(handlers);
+use JSON ();
 
 sub new { bless { handlers => {} }, shift }
 
@@ -42,6 +43,11 @@ sub receive {
     $self->handlers->{each_message}->(
         $self, AnyEvent::WebSocket::Message->new(body => $body),
     );
+}
+
+sub send {
+    my ($self, $wire) = @_;
+    push @{$self->{sent}}, JSON::decode_json($wire);
 }
 
 1;

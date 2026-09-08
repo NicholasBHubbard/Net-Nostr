@@ -1,5 +1,14 @@
 Unreleased
 
+  - Add Net::Nostr::GroupDiscovery for NIP-29 cached admin discovery,
+    periodic/offline lookup coordination, fork notifications, and signed
+    migration list construction, preserving public and encrypted entries.
+    Applications supply lookup transport, persistence, and user interaction.
+  - Include client NIP conformance tests in the distribution's test target.
+
+  - Pass optional NIP-67 hints as the second eose callback argument (undef for
+    legacy messages). Preserve the subscription ID as the first argument.
+
   - Tighten incoming EVENT validation: always verify the event ID and Schnorr
     signature before invoking the event callback, for stored and live events
   - Drop events that fail verification with a warning and continue processing

@@ -190,7 +190,7 @@ sub _setup_handlers {
         } elsif ($msg->type eq 'OK') {
             $self->_emit('ok', $msg->event_id, $msg->accepted, $msg->message);
         } elsif ($msg->type eq 'EOSE') {
-            $self->_emit('eose', $msg->subscription_id);
+            $self->_emit('eose', $msg->subscription_id, $msg->hints);
         } elsif ($msg->type eq 'NOTICE') {
             $self->_emit('notice', $msg->message);
         } elsif ($msg->type eq 'COUNT') {
@@ -478,9 +478,17 @@ to call C<< $event->validate >> again to verify the ID and signature.
 
 Called when the relay responds to a published event.
 
-=item C<eose> - C<sub { my ($subscription_id) = @_; }>
+=item C<eose> - C<sub { my ($subscription_id, $hints) = @_; }>
 
 Called when the relay finishes sending stored events for a subscription.
+C<$hints> is the optional NIP-67 arrayref, or C<undef> for legacy messages.
+The first callback argument remains the subscription ID. Unknown hints are
+accepted without warnings; ignore them when interpreting completeness.
+C<finish> means no further pagination is needed for the visible stored set;
+C<more> means older results remain. With neither, use the usual pagination
+heuristic with C<until> set to the oldest received timestamp. C<auth> indicates
+that authentication may reveal more events. Authentication, reissuing REQ,
+and pagination remain application decisions. Live events continue after EOSE.
 
 =item C<notice> - C<sub { my ($message) = @_; }>
 
@@ -514,6 +522,8 @@ is considered closed after this.
 =back
 
 =head1 SEE ALSO
+
+L<NIP-67|https://github.com/nostr-protocol/nips/blob/master/67.md>,
 
 L<NIP-01|https://github.com/nostr-protocol/nips/blob/master/01.md>,
 L<NIP-45|https://github.com/nostr-protocol/nips/blob/master/45.md>,

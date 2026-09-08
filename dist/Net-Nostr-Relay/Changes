@@ -1,5 +1,19 @@
 Unreleased
 
+  - Add opt-in RelayGroups policy with signed NIP-29 group state, moderation,
+    invites, member access, ordered pin lists, and validated subgroup trees.
+    Reparenting updates both sides, parent deletion promotes children to
+    roots, and memberships and admin rights remain independent per group.
+
+  - Require NIP-42 authentication as the event author to publish or read
+    kinds 78 and 30078, following the NIP-78 privacy recommendation. Apply
+    visibility to stored queries, live delivery, COUNT, and negentropy.
+    Public app data on these kinds is no longer served to other users.
+  - Add opt-in eose_hints for NIP-67 completeness and authentication hints,
+    including AUTH ordering, timestamp ties, and NIP-11 advertisement.
+  - Apply authorization before per-filter query limits. Storage backends
+    must return all matches for unlimited queries; COUNT now uses that path.
+
   - Fix NIP-09 coordinate deletion for addressable events with empty or
     missing d tags
   - Fix coordinate deletion for both replaceable and addressable events to

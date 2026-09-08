@@ -1,0 +1,133 @@
+[
+   {
+      "error" : "comments MUST NOT be used to reply to kind 1 notes (see NIP-10) at maint/nip-review/2026-09-07-probe.pl line 33.\n",
+      "name" : "NIP-22 kind-1 comment"
+   },
+   {
+      "error" : "EOSE message requires 2 elements\n at maint/nip-review/2026-09-07-probe.pl line 36.\n",
+      "name" : "NIP-42/67 EOSE auth hint"
+   },
+   {
+      "error" : "invalid bech32 data characters at /home/nbh/p/Net-Nostr/dist/Net-Nostr-Core/lib/Net/Nostr/Group.pm line 15.\n",
+      "name" : "NIP-29 invite identifier"
+   },
+   {
+      "error" : "unknown argument(s): banner, child, parent at /home/nbh/p/Net-Nostr/dist/Net-Nostr-Core/lib/Net/Nostr/Group.pm line 242.\n",
+      "name" : "NIP-29 metadata builder new tags"
+   },
+   {
+      "name" : "NIP-29 metadata parser new tags",
+      "result" : {
+         "group_id" : "nostr"
+      }
+   },
+   {
+      "name" : "NIP-29 NIP-11 subgroup advertisement round trip",
+      "result" : {
+         "nip29" : {
+            "subgroups" : true
+         },
+         "supported_nips" : [
+            29
+         ]
+      }
+   },
+   {
+      "name" : "NIP-51 favorite follow sets round trip",
+      "result" : {
+         "items" : [
+            [
+               "a",
+               "30000:79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798:friends"
+            ]
+         ],
+         "kind" : 10011
+      }
+   },
+   {
+      "name" : "NIP-47 extensions builder",
+      "result" : [
+         [
+            "encryption",
+            "nip44_v2"
+         ]
+      ]
+   },
+   {
+      "name" : "NIP-47 extensions parser",
+      "result" : {
+         "extensions_accessor" : 0,
+         "parsed_keys" : [
+            "capabilities",
+            "encryption",
+            "notification_types"
+         ]
+      }
+   },
+   {
+      "name" : "NIP-46 unsupported method error round trip",
+      "result" : {
+         "error" : "unsupported method",
+         "id" : "test-id"
+      }
+   },
+   {
+      "name" : "NIP-01 zero limit stored/live and EOSE",
+      "result" : {
+         "active" : 1,
+         "after_live" : [
+            "EOSE",
+            "EVENT"
+         ],
+         "initial" : [
+            "EOSE"
+         ]
+      }
+   },
+   {
+      "name" : "NIP-01 zero limit plus nonzero filter",
+      "result" : [
+         [
+            "EVENT",
+            2
+         ],
+         [
+            "EOSE"
+         ]
+      ]
+   },
+   {
+      "name" : "NIP-78 kind 78 unauthenticated publish/read",
+      "result" : {
+         "accepted" : 1,
+         "stored_read" : [
+            "EVENT",
+            "EOSE"
+         ]
+      }
+   },
+   {
+      "name" : "NIP-78 kind 78 live delivery to another authenticated key",
+      "result" : [
+         "EOSE",
+         "EVENT"
+      ]
+   },
+   {
+      "name" : "NIP-78 kind 30078 unauthenticated publish/read",
+      "result" : {
+         "accepted" : 1,
+         "stored_read" : [
+            "EVENT",
+            "EOSE"
+         ]
+      }
+   },
+   {
+      "name" : "NIP-78 kind 30078 live delivery to another authenticated key",
+      "result" : [
+         "EOSE",
+         "EVENT"
+      ]
+   }
+]

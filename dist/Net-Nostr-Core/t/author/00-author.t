@@ -116,7 +116,7 @@ subtest 'unrecommended NIPs removed from Core surface' => sub {
 };
 
 subtest 'NIP conformance target is documented' => sub {
-    my $target = '8f8444d05a8842c40211ded5d10af3521541f865';
+    my $target = 'c3fd9af17939316bf6d0d83a5759100f8b0a1bdb';
     my $source = _slurp($main_module);
     like($source, qr/nostr-protocol\/nips/, "$main_module names the NIP repository");
     like($source, qr/\Q$target\E/, "$main_module documents the exact NIP commit");

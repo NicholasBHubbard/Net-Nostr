@@ -20,8 +20,8 @@ use Test::Pod::Coverage;
 
 my $dist        = 'Net-Nostr-Client';
 my $main_module = 'lib/Net/Nostr/Client.pm';
-my @expected_modules = qw(lib/Net/Nostr/Client.pm);
-my @expected_tests   = qw(t/*.t);
+my @expected_modules = qw(lib/Net/Nostr/Client.pm lib/Net/Nostr/GroupDiscovery.pm);
+my @expected_tests   = qw(t/*.t t/nip/*.t);
 
 subtest 'distribution layout' => sub {
     ok(-e 'Makefile.PL', "$dist has Makefile.PL");
