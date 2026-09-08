@@ -137,6 +137,9 @@ subtest 'joins, leaves, invites, and timeline references use group-local state' 
     $accept->($bob,9021,'joining',['code','welcome']);
     my $earlier = $accept->($alice,1,'joining');
     $accept->($bob,1,'joining',['previous',substr($earlier->id,0,8)]);
+    my $public_note=signed_event($alice,kind=>1,content=>'seen elsewhere on this relay');
+    ok $peer->request(['EVENT',$public_note->to_hash],'OK',$public_note->id)->[2],'public relay event stored';
+    $accept->($bob,1,'joining',['previous',substr($public_note->id,0,8)]);
     $reject->(qr/previous/,$bob,1,'joining',['previous','bad']);
     $reject->(qr/previous/,$bob,1,'joining',['previous','00000000']);
     my $old = signed_event($alice,kind=>1,tags=>[['h','joining']],created_at=>time-86400);

@@ -58,7 +58,7 @@ Local logs are under `/tmp/net-nostr-nip-update/`:
 | Client hint callback | `red-client-hints.log` | `green-client-hints.log` |
 | Wallet discovery | `red-wallet-discovery.log` | `green-wallet-discovery.log` |
 | Group helpers | `red-group-helpers-functional.log`, `red-pin-timeline.log` | `green-group-helpers.log`, `green-pin-timeline.log` |
-| Group relay policy | `red-group-policy-complete.log`, `red-group-boundaries.log` | `green-group-policy.log`, `green-group-boundaries.log` |
+| Group relay policy | `red-group-policy-complete.log`, `red-group-boundaries.log`, `red-relay-timeline-scope.log` | `green-group-policy.log`, `green-group-boundaries.log`, `green-relay-timeline-scope.log` |
 | Migration discovery | `red-group-discovery.log`, `red-discovery-trust.log`, `red-group-reference-discovery.log` | `green-group-discovery.log`, `green-discovery-trust.log`, `final-client.log` |
 | Payment targets | `red-payment-targets-small-coverage.log` | `green-payment-targets-small-coverage.log` |
 | Packaging and conformance target | `red-client-author-target.log`, `red-core-target.log`, `red-shim-target.log` | final author checks |
@@ -66,7 +66,7 @@ Local logs are under `/tmp/net-nostr-nip-update/`:
 Additional regressions cover NUL-containing group IDs in child-list comparisons,
 negentropy snapshots after membership revocation, admin roster changes during
 an in-flight discovery request, timeouts, duplicate callbacks, and pin limit
-defaults. These tests exposed and then verified fixes to the new implementation.
+defaults and cross-group relay timeline references. These tests exposed and then verified fixes to the new implementation.
 
 ## Verification
 

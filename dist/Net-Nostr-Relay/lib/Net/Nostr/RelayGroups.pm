@@ -79,8 +79,8 @@ sub prepare {
         for my $prefix (@$tag[1 .. $#$tag]) {
             croak 'invalid: previous reference must be eight lowercase hex characters'
                 unless $prefix =~ /\A[0-9a-f]{8}\z/;
-            my $history = $store->query([Net::Nostr::Filter->new('#h'=>[$id])]);
-            croak 'invalid: previous reference is absent from this group timeline'
+            my $history = $store->query([Net::Nostr::Filter->new]);
+            croak 'invalid: previous reference is absent from this relay timeline'
                 unless grep { substr($_->id,0,8) eq $prefix && $_->pubkey ne $event->pubkey } @$history;
         }
     }
@@ -294,7 +294,8 @@ and negentropy. Reconciliation sessions are closed after group state changes
 so a prior snapshot cannot bypass revoked membership; clients may reopen them.
 Writes use the signed event author's membership. Timeline references must be
 eight lowercase hex characters identifying another author's
-event in this group on this relay. Zero references are permitted; publication
+event on this relay, including events outside the group. Zero references are
+permitted; publication
 more than one hour old or ten minutes in the future is rejected.
 
 State is derived from the relay's signed metadata in the storage backend.
