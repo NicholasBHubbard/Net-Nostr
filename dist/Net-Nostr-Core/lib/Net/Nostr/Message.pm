@@ -564,7 +564,8 @@ objects or arrays. C<event_id> in OK messages must be 64-character
 lowercase hex. For EVENT and AUTH messages, the contained event is
 constructed via C<< Net::Nostr::Event->from_wire >> which requires all
 seven NIP-01 fields (id, pubkey, created_at, kind, tags, content, sig)
-and rejects missing or undefined fields.
+and rejects missing or undefined fields. Event C<content> cannot be a
+JSON array, object, or boolean.
 
 B<Trust boundary>: C<parse> validates message structure and field formats
 but does B<not> verify event signatures, event ID hashes, or
